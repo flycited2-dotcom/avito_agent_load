@@ -1,0 +1,4 @@
+{"report_id": "rep-1", "items": [
+  {"ad_id": "abc", "avito_id": 111, "status": "published"},
+  {"ad_id": "def", "status": "rejected", "messages": ["Запрещённое слово в описании"]}
+]}
