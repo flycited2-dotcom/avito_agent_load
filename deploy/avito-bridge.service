@@ -1,0 +1,8 @@
+[Unit]
+Description=Avito Bridge feed cycle
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/avito-bridge
+ExecStart=/opt/avito-bridge/.venv/bin/python -m avito_bridge
