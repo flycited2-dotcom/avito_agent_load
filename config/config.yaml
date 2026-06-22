@@ -7,17 +7,16 @@ pricing:
   min_margin_abs: 0       # 0 = строго +5%, без принудительного пола маржи (по решению заказчика)
   rules: []
 feed:
-  max_active_ads: 10
+  max_active_ads: 6        # тестовая партия (3 товара × 2 города); после зелёного — поднять
   base_tags:
     Category: "Бытовая техника"
     GoodsType: "Климатическое оборудование"
     AdType: "Товар"
     Condition: "Новое"
-  product_type_default: "Сплит-система"
-  product_type_map:
-    2: "Сплит-система"
-    6: "Сплит-система"
-    7: "Мобильный кондиционер"
+  # ProductType = «Тип климатического оборудования» — ТОЛЬКО из списка Avito.
+  # Для всех наших кондиционеров (сплит/мобильные/полупром) валидно одно значение:
+  product_type_default: "Кондиционеры и запчасти"
+  product_type_map: {}
 content:
   title_max: 50
   description_max: 7000

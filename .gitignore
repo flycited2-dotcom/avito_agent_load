@@ -5,3 +5,6 @@ __pycache__/
 *.pyc
 .env
 avito_err*.json
+avito_*.json
+xlsx_*.txt
+xlsx_*.json
