@@ -63,4 +63,5 @@ def build_feed_xml(ads: list[AdRecord], cfg: FeedConfig) -> str:
             imgs = etree.SubElement(ad, "Images")
             for url in a.images:
                 etree.SubElement(imgs, "Image", url=url)
-    return etree.tostring(root, encoding="unicode", pretty_print=True)
+    body = etree.tostring(root, encoding="unicode", pretty_print=True)
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' + body
