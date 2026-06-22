@@ -4,3 +4,4 @@ state/
 __pycache__/
 *.pyc
 .env
+avito_err*.json
