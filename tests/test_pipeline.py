@@ -1,0 +1,41 @@
+from decimal import Decimal
+from avito_bridge.models import Offer, City
+from avito_bridge.pricing.pricing import PricingConfig
+from avito_bridge.feed.builder import FeedConfig
+from avito_bridge.content.render import ContentConfig
+from avito_bridge.ingest.normalize import CatalogFilter
+from avito_bridge.config import AppConfig
+from avito_bridge.orchestrator.pipeline import run_cycle
+
+
+def _cfg():
+    return AppConfig(
+        cities=[City(id="simferopol", name="Симферополь", avito_location="Симферополь")],
+        pricing=PricingConfig(default_markup_pct=5, min_margin_abs=0, rounding="up_to_90", rules=[]),
+        feed=FeedConfig(max_active_ads=50, base_tags={"Category": "Бытовая электроника"}),
+        content=ContentConfig(title_max=50, description_max=7000, stop_words=[]),
+        catalog=CatalogFilter(report_category_ids=[2, 6, 7], exclude_title_patterns=[]))
+
+
+def _offer(sku):
+    return Offer(supplier_sku=sku, source="daichi", brand="Ballu", model="X-07",
+                 category_id=2, btu_calc=7, attrs={}, cost=Decimal("10000"), retail_ref=None,
+                 stock=2, photos=["https://i/1.jpg"], series=None, content_hash=sku)
+
+
+def test_run_cycle_writes_feed(tmp_path):
+    feed_path = tmp_path / "feed.xml"
+    result = run_cycle(
+        offers_provider=lambda: [_offer("daichi:1")],
+        cfg=_cfg(), feed_path=feed_path, state_path=tmp_path / "state.db")
+    assert feed_path.exists()
+    assert result.ads_built == 1
+    assert "<Ads" in feed_path.read_text(encoding="utf-8")
+
+
+def test_run_cycle_skips_unpriceable(tmp_path):
+    bad = _offer("daichi:2")
+    bad.cost = None
+    result = run_cycle(offers_provider=lambda: [bad], cfg=_cfg(),
+                       feed_path=tmp_path / "feed.xml", state_path=tmp_path / "s.db")
+    assert result.ads_built == 0 and result.skipped == 1
