@@ -3,10 +3,10 @@ from lxml import etree
 from avito_bridge.models import Offer, City, AdRecord
 from avito_bridge.feed.builder import build_ads, build_feed_xml, FeedConfig
 
-CITIES = [City(id="simferopol", name="Симферополь", avito_location="Симферополь"),
+CITIES = [City(id="simferopol", name="Симферополь", avito_location="Республика Крым, Симферополь"),
           City(id="sevastopol", name="Севастополь", avito_location="Севастополь")]
 CFG = FeedConfig(max_active_ads=10, base_tags={"Category": "Бытовая электроника",
-                 "GoodsType": "Климатическое оборудование", "Condition": "Новое"})
+                 "GoodsType": "Климатическое оборудование", "AdType": "Товар", "Condition": "Новое"})
 
 
 def _o(sku, stock=2):
@@ -48,4 +48,6 @@ def test_xml_well_formed_and_has_required_tags():
     assert ad.findtext("Title") == "Заголовок"
     assert ad.findtext("Price") == "10090"
     assert ad.findtext("Category") == "Бытовая электроника"
+    assert ad.findtext("Address") == "Республика Крым, Симферополь"
+    assert ad.findtext("AdType") == "Товар"
     assert ad.find("Images/Image").get("url") == "https://i/1.jpg"

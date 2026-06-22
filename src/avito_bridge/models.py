@@ -55,6 +55,7 @@ class AdRecord(BaseModel):
     title: str
     description: str
     price: int
+    address: str = ""
     images: list[str] = Field(default_factory=list)
     status: str = "pending"
 

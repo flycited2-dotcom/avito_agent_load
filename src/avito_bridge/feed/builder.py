@@ -24,7 +24,7 @@ def build_ads(offers: list[Offer], cities: list[City], content: dict[str, tuple[
             ads.append(AdRecord(
                 ad_id=make_ad_id(o.supplier_sku, city.id), supplier_sku=o.supplier_sku,
                 city_id=city.id, title=title, description=desc, price=prices[o.supplier_sku],
-                images=list(o.photos), status="pending",
+                address=city.avito_location, images=list(o.photos), status="pending",
             ))
             if len(ads) >= cfg.max_active_ads:
                 return ads
@@ -36,6 +36,8 @@ def build_feed_xml(ads: list[AdRecord], cfg: FeedConfig) -> str:
     for a in ads:
         ad = etree.SubElement(root, "Ad")
         etree.SubElement(ad, "Id").text = a.ad_id
+        if a.address:
+            etree.SubElement(ad, "Address").text = a.address
         for tag, val in cfg.base_tags.items():
             etree.SubElement(ad, tag).text = str(val)
         etree.SubElement(ad, "Title").text = a.title
