@@ -13,7 +13,7 @@ def round_up_90(raw: float) -> int:
 @dataclass
 class PricingConfig:
     default_markup_pct: float = 5
-    min_margin_abs: Decimal | int = 3000
+    min_margin_abs: Decimal | int = 0   # 0 = без пола маржи (наценка строго +pct%); см. ТЗ §10
     rounding: str = "up_to_90"
     rules: list[dict] = field(default_factory=list)
 

@@ -4,7 +4,7 @@ cities:
 pricing:
   rounding: up_to_90
   default_markup_pct: 5
-  min_margin_abs: 3000
+  min_margin_abs: 0       # 0 = строго +5%, без принудительного пола маржи (по решению заказчика)
   rules: []
 feed:
   max_active_ads: 200

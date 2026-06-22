@@ -19,9 +19,9 @@ def test_round_up_90_examples():
 
 
 def test_default_markup_5pct():
-    cfg = PricingConfig(default_markup_pct=5, min_margin_abs=3000, rounding="up_to_90", rules=[])
+    cfg = PricingConfig(default_markup_pct=5, min_margin_abs=0, rounding="up_to_90", rules=[])
     r = compute_price(_offer(Decimal("26404")), cfg)
-    assert r.ok and r.price == 27790          # 26404*1.05=27724.2 → 27790
+    assert r.ok and r.price == 27790          # 26404*1.05=27724.2 → 27790 (без пола маржи)
 
 
 def test_min_margin_guard_raises_price():
