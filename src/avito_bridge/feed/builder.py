@@ -11,6 +11,8 @@ class FeedConfig:
     base_tags: dict = field(default_factory=dict)   # Category/GoodsType/Condition/...
     product_type_map: dict = field(default_factory=dict)  # category_id -> ProductType (Тип климат. оборуд.)
     product_type_default: str = ""
+    ac_type_map: dict = field(default_factory=dict)        # category_id -> AirConditionerType (Вид кондиционера)
+    ac_subtype_map: dict = field(default_factory=dict)     # category_id -> AirConditionerSubType (Тип кондиционера)
 
 
 def build_ads(offers: list[Offer], cities: list[City], content: dict[str, tuple[str, str]],
@@ -23,12 +25,14 @@ def build_ads(offers: list[Offer], cities: list[City], content: dict[str, tuple[
             continue
         title, desc = content[o.supplier_sku]
         ptype = cfg.product_type_map.get(o.category_id, cfg.product_type_default)
+        ac_t = cfg.ac_type_map.get(o.category_id, "")
+        ac_s = cfg.ac_subtype_map.get(o.category_id, "")
         for city in cities:
             ads.append(AdRecord(
                 ad_id=make_ad_id(o.supplier_sku, city.id), supplier_sku=o.supplier_sku,
                 city_id=city.id, title=title, description=desc, price=prices[o.supplier_sku],
-                address=city.avito_location, product_type=ptype,
-                images=list(o.photos), status="pending",
+                address=city.avito_location, product_type=ptype, vendor=o.brand,
+                ac_type=ac_t, ac_subtype=ac_s, images=list(o.photos), status="pending",
             ))
             if len(ads) >= cfg.max_active_ads:
                 return ads
@@ -46,6 +50,12 @@ def build_feed_xml(ads: list[AdRecord], cfg: FeedConfig) -> str:
             etree.SubElement(ad, tag).text = str(val)
         if a.product_type:
             etree.SubElement(ad, "ProductType").text = a.product_type
+        if a.vendor:
+            etree.SubElement(ad, "Vendor").text = a.vendor
+        if a.ac_type:
+            etree.SubElement(ad, "AirConditionerType").text = a.ac_type
+        if a.ac_subtype:
+            etree.SubElement(ad, "AirConditionerSubType").text = a.ac_subtype
         etree.SubElement(ad, "Title").text = a.title
         etree.SubElement(ad, "Description").text = a.description
         etree.SubElement(ad, "Price").text = str(a.price)

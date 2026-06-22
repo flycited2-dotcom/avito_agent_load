@@ -27,10 +27,13 @@ def load_config(path: Path) -> AppConfig:
                             rounding=p.get("rounding", "up_to_90"), rules=p.get("rules", []))
     f = d.get("feed", {})
     ptmap = {int(k): v for k, v in (f.get("product_type_map", {}) or {}).items()}
+    actmap = {int(k): v for k, v in (f.get("ac_type_map", {}) or {}).items()}
+    acsmap = {int(k): v for k, v in (f.get("ac_subtype_map", {}) or {}).items()}
     feed = FeedConfig(max_active_ads=f.get("max_active_ads", 200),
                       base_tags=f.get("base_tags", {}),
                       product_type_map=ptmap,
-                      product_type_default=f.get("product_type_default", ""))
+                      product_type_default=f.get("product_type_default", ""),
+                      ac_type_map=actmap, ac_subtype_map=acsmap)
     cc = d.get("content", {})
     content = ContentConfig(title_max=cc.get("title_max", 50),
                             description_max=cc.get("description_max", 7000),
