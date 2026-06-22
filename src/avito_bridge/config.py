@@ -1,0 +1,38 @@
+from __future__ import annotations
+from dataclasses import dataclass
+from pathlib import Path
+import yaml
+from avito_bridge.models import City
+from avito_bridge.pricing.pricing import PricingConfig
+from avito_bridge.feed.builder import FeedConfig
+from avito_bridge.content.render import ContentConfig
+from avito_bridge.ingest.normalize import CatalogFilter
+
+
+@dataclass
+class AppConfig:
+    cities: list[City]
+    pricing: PricingConfig
+    feed: FeedConfig
+    content: ContentConfig
+    catalog: CatalogFilter
+
+
+def load_config(path: Path) -> AppConfig:
+    d = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    cities = [City(**c) for c in d.get("cities", [])]
+    p = d.get("pricing", {})
+    pricing = PricingConfig(default_markup_pct=p.get("default_markup_pct", 5),
+                            min_margin_abs=p.get("min_margin_abs", 0),
+                            rounding=p.get("rounding", "up_to_90"), rules=p.get("rules", []))
+    f = d.get("feed", {})
+    feed = FeedConfig(max_active_ads=f.get("max_active_ads", 200),
+                      base_tags=f.get("base_tags", {}))
+    cc = d.get("content", {})
+    content = ContentConfig(title_max=cc.get("title_max", 50),
+                            description_max=cc.get("description_max", 7000),
+                            stop_words=cc.get("stop_words", []))
+    cat = d.get("catalog", {})
+    catalog = CatalogFilter(report_category_ids=cat.get("report_category_ids", [2, 6, 7]),
+                            exclude_title_patterns=cat.get("exclude_title_patterns", []))
+    return AppConfig(cities=cities, pricing=pricing, feed=feed, content=content, catalog=catalog)
