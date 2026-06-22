@@ -1,0 +1,6 @@
+feed_out/
+state/
+.venv/
+__pycache__/
+*.pyc
+.env

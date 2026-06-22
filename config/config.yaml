@@ -1,0 +1,22 @@
+cities:
+  - { id: "simferopol", name: "Симферополь", avito_location: "Симферополь" }
+  - { id: "sevastopol", name: "Севастополь", avito_location: "Севастополь" }
+pricing:
+  rounding: up_to_90
+  default_markup_pct: 5
+  min_margin_abs: 3000
+  rules: []
+feed:
+  max_active_ads: 200
+  base_tags:
+    Category: "Бытовая электроника"
+    GoodsType: "Климатическое оборудование"
+    Condition: "Новое"
+content:
+  title_max: 50
+  description_max: 7000
+  stop_words: ["скидка только сегодня", "звоните"]
+catalog:
+  report_category_ids: [2, 6, 7]
+  exclude_title_patterns: ["%мульти%", "%виброопор%", "%охладитель воздуха%", "%зимний комплект%"]
+  crimea_warehouse: "Симферополь"
