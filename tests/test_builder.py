@@ -5,8 +5,10 @@ from avito_bridge.feed.builder import build_ads, build_feed_xml, FeedConfig
 
 CITIES = [City(id="simferopol", name="Симферополь", avito_location="Республика Крым, Симферополь"),
           City(id="sevastopol", name="Севастополь", avito_location="Севастополь")]
-CFG = FeedConfig(max_active_ads=10, base_tags={"Category": "Бытовая электроника",
-                 "GoodsType": "Климатическое оборудование", "AdType": "Товар", "Condition": "Новое"})
+CFG = FeedConfig(max_active_ads=10, base_tags={"Category": "Бытовая техника",
+                 "GoodsType": "Климатическое оборудование", "AdType": "Товар", "Condition": "Новое"},
+                 product_type_map={2: "Сплит-система", 7: "Мобильный кондиционер"},
+                 product_type_default="Сплит-система")
 
 
 def _o(sku, stock=2):
@@ -47,7 +49,8 @@ def test_xml_well_formed_and_has_required_tags():
     assert ad.findtext("Id") == ads[0].ad_id
     assert ad.findtext("Title") == "Заголовок"
     assert ad.findtext("Price") == "10090"
-    assert ad.findtext("Category") == "Бытовая электроника"
+    assert ad.findtext("Category") == "Бытовая техника"
     assert ad.findtext("Address") == "Республика Крым, Симферополь"
     assert ad.findtext("AdType") == "Товар"
+    assert ad.findtext("ProductType") == "Сплит-система"   # offer category_id=2
     assert ad.find("Images/Image").get("url") == "https://i/1.jpg"

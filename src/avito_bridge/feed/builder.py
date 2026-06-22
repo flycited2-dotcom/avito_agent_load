@@ -9,6 +9,8 @@ from avito_bridge.feed.ad_id import make_ad_id
 class FeedConfig:
     max_active_ads: int = 200
     base_tags: dict = field(default_factory=dict)   # Category/GoodsType/Condition/...
+    product_type_map: dict = field(default_factory=dict)  # category_id -> ProductType (Тип климат. оборуд.)
+    product_type_default: str = ""
 
 
 def build_ads(offers: list[Offer], cities: list[City], content: dict[str, tuple[str, str]],
@@ -20,11 +22,13 @@ def build_ads(offers: list[Offer], cities: list[City], content: dict[str, tuple[
         if o.supplier_sku not in content or o.supplier_sku not in prices:
             continue
         title, desc = content[o.supplier_sku]
+        ptype = cfg.product_type_map.get(o.category_id, cfg.product_type_default)
         for city in cities:
             ads.append(AdRecord(
                 ad_id=make_ad_id(o.supplier_sku, city.id), supplier_sku=o.supplier_sku,
                 city_id=city.id, title=title, description=desc, price=prices[o.supplier_sku],
-                address=city.avito_location, images=list(o.photos), status="pending",
+                address=city.avito_location, product_type=ptype,
+                images=list(o.photos), status="pending",
             ))
             if len(ads) >= cfg.max_active_ads:
                 return ads
@@ -40,6 +44,8 @@ def build_feed_xml(ads: list[AdRecord], cfg: FeedConfig) -> str:
             etree.SubElement(ad, "Address").text = a.address
         for tag, val in cfg.base_tags.items():
             etree.SubElement(ad, tag).text = str(val)
+        if a.product_type:
+            etree.SubElement(ad, "ProductType").text = a.product_type
         etree.SubElement(ad, "Title").text = a.title
         etree.SubElement(ad, "Description").text = a.description
         etree.SubElement(ad, "Price").text = str(a.price)

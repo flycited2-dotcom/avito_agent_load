@@ -1,0 +1,16 @@
+[
+  {
+    "code": 1073,
+    "title": "Неправильно заполнен обязательный параметр — Тип климатического оборудования.",
+    "description": "Выберите значение из списка. Правила: <a href=\"https://autoload.avito.ru/format/\">ProductType / Тип климатического оборудования</a>. Если ошибка повторяется, попробуйте <a href=\"https://support.avito.ru/sections/111?articleId=2086\">другие способы исправления</a>.",
+    "type": "error",
+    "updated_at": "2026-06-22T17:21:36Z"
+  },
+  {
+    "code": 1133,
+    "title": "<b>item2param Признак оптовости айтема</b>: Значение не найдено.",
+    "description": "Проверьте правильность заполнения параметра.\n<a href=\"https://autoload.avito.ru/format/\">WholesaleTypePredict2Param / item2param Признак оптовости айтема</a>",
+    "type": "alarm",
+    "updated_at": "2026-06-22T17:21:36Z"
+  }
+]
