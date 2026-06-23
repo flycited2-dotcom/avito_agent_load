@@ -19,6 +19,9 @@ _TYPE_LABEL = {2: "Настенная сплит-система", 6: "Полуп
 _AREA_BY_SIZE = {7: 20, 9: 25, 10: 28, 12: 35, 13: 38, 14: 40, 16: 45, 18: 50,
                  20: 55, 22: 60, 24: 70, 26: 75, 28: 80, 30: 85, 36: 100, 42: 120,
                  48: 140, 60: 170}
+# ТТХ-строки, дублирующие заголовок/бренд — в описание не выводим.
+_SKIP_SPECS = {"Бренд", "Модель", "Серия", "Модель внутреннего блока",
+               "Модель наружного блока", "Эффективен для помещений площадью до"}
 
 
 def _strip_stopwords(text: str, stop_words: list[str]) -> str:
@@ -104,9 +107,16 @@ def render_content(offer: Offer, cfg: ContentConfig) -> Content:
     title = _strip_stopwords(_title(offer), cfg.stop_words)[: cfg.title_max].strip()
 
     lines = [_headline(offer, size, area, seed), "", _benefit(offer, seed)]
-    if offer.attrs:                       # реальные ТТХ из каталога (если есть)
-        lines += ["", "Характеристики:"]
-        lines += [f"• {k}: {v}" for k, v in offer.attrs.items()]
+    spec_lines = []
+    for k, v in offer.attrs.items():
+        if k in _SKIP_SPECS:              # дубли названия/бренда — не показываем
+            continue
+        v = (v or "").replace("( - )", "").replace("()", "").strip()
+        if not v:
+            continue
+        spec_lines.append(f"• {k}: {v}")
+    if spec_lines:                        # реальные ТТХ из каталога (если есть)
+        lines += ["", "Характеристики:"] + spec_lines
     lines += [
         "",
         "Почему берут у нас:",
