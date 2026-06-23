@@ -1,5 +1,18 @@
 from decimal import Decimal
-from avito_bridge.ingest.oasis_db import row_to_raw, build_query_params, CRIMEA_QUERY
+from avito_bridge.ingest.oasis_db import row_to_raw, build_query_params, CRIMEA_QUERY, group_tech_rows
+
+
+def test_group_tech_rows():
+    rows = [
+        {"nc_code": "N1", "title": "Холод, кВт", "value": "3.5"},
+        {"nc_code": "N1", "title": "Уровень шума", "value": "24 дБ"},
+        {"nc_code": "N1", "title": "Пусто", "value": ""},          # пустое значение — пропуск
+        {"nc_code": "N1", "title": "Холод, кВт", "value": "9.9"},  # дубль title — не перезаписывает
+        {"nc_code": "N2", "title": "Тип", "value": "инвертор"},
+    ]
+    out = group_tech_rows(rows)
+    assert out["N1"] == {"Холод, кВт": "3.5", "Уровень шума": "24 дБ"}
+    assert out["N2"] == {"Тип": "инвертор"}
 
 
 def test_row_to_raw_maps_columns():

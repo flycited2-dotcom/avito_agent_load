@@ -19,8 +19,34 @@ ORDER BY p.source, b.title NULLS LAST, p.title;
 """
 
 
+# Технические характеристики по nc_code (порт _TECH_QUERY из референса + nc_code для группировки).
+TECH_QUERY = """
+SELECT p.nc_code AS nc_code, ts.title AS title, pt.value AS value
+FROM catalog_producttech pt
+JOIN catalog_techspec ts ON ts.id = pt.spec_id
+JOIN catalog_product p ON p.id = pt.product_id
+WHERE p.nc_code = ANY(%(ncs)s)
+ORDER BY p.id, ts."order";
+"""
+
+
 def build_query_params(crimea: str, cats: list[int], deny: list[str]) -> dict:
     return {"crimea": crimea, "cats": cats, "deny": deny}
+
+
+def group_tech_rows(rows, max_specs: int = 12) -> dict[str, dict]:
+    """Сгруппировать строки ТТХ по nc_code → {nc: {title: value}} (пустые/дубли пропускаем)."""
+    out: dict[str, dict] = {}
+    for r in rows:
+        nc = r.get("nc_code")
+        title = (r.get("title") or "").strip()
+        value = (str(r.get("value")) if r.get("value") is not None else "").strip()
+        if not nc or not title or not value:
+            continue
+        d = out.setdefault(nc, {})
+        if len(d) < max_specs and title not in d:
+            d[title] = value
+    return out
 
 
 def row_to_raw(row: dict) -> RawProduct:
@@ -44,6 +70,14 @@ def fetch_raw_products(dsn: dict, crimea: str, cats: list[int], deny: list[str])
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(CRIMEA_QUERY, build_query_params(crimea, cats, deny))
-            return [row_to_raw(r) for r in cur.fetchall()]
+            raws = [row_to_raw(r) for r in cur.fetchall()]
+            ncs = [r.nc_code for r in raws if r.nc_code]
+            if ncs:
+                cur.execute(TECH_QUERY, {"ncs": ncs})
+                tech = group_tech_rows(cur.fetchall())
+                for r in raws:
+                    if r.nc_code in tech:
+                        r.tech = tech[r.nc_code]
+            return raws
     finally:
         conn.close()
