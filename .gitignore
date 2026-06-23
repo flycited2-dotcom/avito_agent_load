@@ -8,3 +8,6 @@ avito_err*.json
 avito_*.json
 xlsx_*.txt
 xlsx_*.json
+*.txt
+*.json
+!**/tests/**
