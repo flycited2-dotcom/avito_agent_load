@@ -27,7 +27,8 @@ class FotogenConfig:
     output_dir: str
     cards_dir: str
     mode: str = "conditioner"
-    per_run: int = 8
+    per_run: int = 8           # максимум новых задач за один запуск
+    max_pending: int = 15      # потолок «в работе» (чтобы не гнать сотни подряд — риск ToS)
 
 
 # ── очередь-API фотоагента ──────────────────────────────────────────────────
@@ -142,9 +143,11 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
         for in_fn in failed_inputs(cfg.queue_db, list(in2key)):
             store.record(in2key[in_fn], in_fn, "failed")
 
-    # 2) поставить новые (серии без карточки, ещё не в очереди)
+    # 2) поставить новые (серии без карточки, ещё не в очереди), с потолком «в работе»
+    outstanding = len(store.pending())
+    budget = max(0, min(cfg.per_run, cfg.max_pending - outstanding))
     for g in groups:
-        if submitted >= cfg.per_run:
+        if submitted >= budget:
             break
         key = card_key(g.supplier_sku)
         if (cards / f"{key}.jpg").exists():
