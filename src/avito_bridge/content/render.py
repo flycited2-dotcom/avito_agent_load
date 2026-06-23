@@ -97,27 +97,19 @@ _CTA = [
 ]
 
 
-def render_content(offer: Offer, cfg: ContentConfig) -> Content:
-    """Продающее описание из РЕАЛЬНЫХ данных (без выдуманных характеристик),
-    с детерминированной вариативностью по артикулу. Слой написан вручную, без LLM."""
-    seed = _seed(offer)
-    size = size_from_btu(offer.btu_calc, offer.category_id)
-    area = _AREA_BY_SIZE.get(size) if size else None
-
-    title = _strip_stopwords(_title(offer), cfg.stop_words)[: cfg.title_max].strip()
-
-    lines = [_headline(offer, size, area, seed), "", _benefit(offer, seed)]
-    spec_lines = []
-    for k, v in offer.attrs.items():
-        if k in _SKIP_SPECS:              # дубли названия/бренда — не показываем
+def _spec_lines(attrs: dict) -> list[str]:
+    out = []
+    for k, v in attrs.items():
+        if k in _SKIP_SPECS:
             continue
         v = (v or "").replace("( - )", "").replace("()", "").strip()
-        if not v:
-            continue
-        spec_lines.append(f"• {k}: {v}")
-    if spec_lines:                        # реальные ТТХ из каталога (если есть)
-        lines += ["", "Характеристики:"] + spec_lines
-    lines += [
+        if v:
+            out.append(f"• {k}: {v}")
+    return out
+
+
+def _footer(seed: int) -> list[str]:
+    return [
         "",
         "Почему берут у нас:",
         "— только новое, с официальной гарантией производителя;",
@@ -129,5 +121,71 @@ def render_content(offer: Offer, cfg: ContentConfig) -> Content:
         "",
         _pick(_CTA, seed),
     ]
+
+
+def _money(p: int) -> str:
+    return f"{p:,}".replace(",", " ") + " ₽"
+
+
+def render_series(group, prices: dict, cfg: ContentConfig) -> Content:
+    """Описание ОДНОГО объявления на серию: заголовок + таблица «типоразмер → цена»
+    (только в наличии) + продающий текст. `prices` = {supplier_sku члена: цена}.
+    `group` — SeriesGroup (duck-typed: brand, series, category_id, members, representative)."""
+    rep = group.representative
+    seed = _seed(rep)
+    type_label = _TYPE_LABEL.get(group.category_id, "Кондиционер")
+    inv = _is_inverter(rep)
+
+    title_base = f"{type_label} {group.brand} {group.series}".strip()
+    if inv and "инвертор" not in title_base.lower():
+        title_base += " инвертор"
+    title = _strip_stopwords(title_base, cfg.stop_words)[: cfg.title_max].strip()
+
+    rows = []
+    sizes = []
+    for m in group.members:
+        p = prices.get(m.supplier_sku)
+        if not p:
+            continue
+        size = size_from_btu(m.btu_calc, m.category_id)
+        if size:
+            sizes.append(size)
+            area = _AREA_BY_SIZE.get(size)
+            label = f"{size}000 BTU" + (f" (до {area} м²)" if area else "")
+        else:
+            label = m.model
+        rows.append((size or 10 ** 6, f"• {label} — {_money(p)}"))
+    rows.sort()
+
+    if sizes:
+        head = (f"{group.brand} {group.series}: {type_label.lower()}, "
+                f"типоразмеры {min(sizes)}–{max(sizes)} тыс. BTU в наличии.")
+    else:
+        head = f"{group.brand} {group.series} — {type_label.lower()}."
+    lines = [head, "", _benefit(rep, seed)]
+    if rows:
+        lines += ["", "Цены по типоразмерам (в наличии):"] + [r for _, r in rows]
+    specs = _spec_lines(rep.attrs)
+    if specs:
+        lines += ["", "Характеристики:"] + specs
+    lines += _footer(seed)
+    desc = _strip_stopwords("\n".join(lines), cfg.stop_words)[: cfg.description_max].strip()
+    return Content(title=title, description=desc, from_cache=False)
+
+
+def render_content(offer: Offer, cfg: ContentConfig) -> Content:
+    """Продающее описание из РЕАЛЬНЫХ данных (без выдуманных характеристик),
+    с детерминированной вариативностью по артикулу. Слой написан вручную, без LLM."""
+    seed = _seed(offer)
+    size = size_from_btu(offer.btu_calc, offer.category_id)
+    area = _AREA_BY_SIZE.get(size) if size else None
+
+    title = _strip_stopwords(_title(offer), cfg.stop_words)[: cfg.title_max].strip()
+
+    lines = [_headline(offer, size, area, seed), "", _benefit(offer, seed)]
+    specs = _spec_lines(offer.attrs)
+    if specs:                             # реальные ТТХ из каталога (если есть)
+        lines += ["", "Характеристики:"] + specs
+    lines += _footer(seed)
     desc = _strip_stopwords("\n".join(lines), cfg.stop_words)[: cfg.description_max].strip()
     return Content(title=title, description=desc, from_cache=False)
