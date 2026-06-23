@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import quote
 from avito_bridge.models import Offer
 
 
@@ -22,17 +23,20 @@ class CardConfig:
 
 
 def card_key(supplier_sku: str) -> str:
-    """Ключ файла карточки = id-часть артикула (после ':'), безопасная для ФС/URL."""
-    raw = supplier_sku.split(":", 1)[-1]
-    return re.sub(r"[^A-Za-z0-9._-]", "_", raw.strip())
+    """Ключ файла карточки = код товара (часть supplier_sku после ':', т.е. nc_code).
+    Кириллицу СОХРАНЯЕМ (контракт прост: «назови файл кодом товара»); заменяем только
+    пробелы и слэши, опасные для имени файла."""
+    raw = supplier_sku.split(":", 1)[-1].strip()
+    return re.sub(r"[\\/\s]+", "_", raw)
 
 
 def resolve_photos(offer: Offer, cfg: CardConfig) -> list[str]:
     """URL фото для объявления: сгенерированная карточка (если есть) — иначе фото поставщика.
-    Если карточка найдена — возвращаем ТОЛЬКО её (чтобы не тащить общее фото-дубль серии)."""
+    Если карточка найдена — возвращаем ТОЛЬКО её (чтобы не тащить общее фото-дубль серии).
+    URL процент-кодируется (имя файла может быть кириллическим)."""
     if cfg.enabled and cfg.dir:
         key = card_key(offer.supplier_sku)
         for ext in cfg.exts:
             if (Path(cfg.dir) / f"{key}{ext}").exists():
-                return [f"{cfg.base_url.rstrip('/')}/{key}{ext}"]
+                return [f"{cfg.base_url.rstrip('/')}/{quote(key + ext)}"]
     return list(offer.photos)
