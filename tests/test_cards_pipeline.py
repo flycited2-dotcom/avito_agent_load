@@ -5,8 +5,17 @@ from avito_bridge.models import Offer
 from avito_bridge.catalog.series import group_by_series
 from avito_bridge.cards_pipeline import (
     FotogenConfig, submit_card_job, done_results, failed_inputs,
-    CardJobStore, specs_text, run_once,
+    CardJobStore, specs_text, run_once, wake_agent,
 )
+
+
+def test_wake_agent_sets_start_flag(tmp_path):
+    db = str(tmp_path / "q.db")
+    sqlite3.connect(db).close()
+    wake_agent(db)
+    con = sqlite3.connect(db)
+    assert con.execute("SELECT value FROM flags WHERE key='agent_command'").fetchone()[0] == "start"
+    con.close()
 
 
 def _make_queue_db(tmp_path, rows):

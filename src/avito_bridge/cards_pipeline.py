@@ -63,6 +63,18 @@ def _query_jobs(queue_db: str, input_filenames: list[str], status: str) -> dict[
         con.close()
 
 
+def wake_agent(queue_db: str) -> None:
+    """Сигнал WatchDog на локальном ПК: запустить агента (он обработает очередь).
+    Тот же механизм, что кнопка «🚀 Запустить агента»: flags.agent_command='start'."""
+    con = sqlite3.connect(queue_db, timeout=10)
+    try:
+        con.execute("CREATE TABLE IF NOT EXISTS flags (key TEXT PRIMARY KEY, value TEXT)")
+        con.execute("INSERT OR REPLACE INTO flags (key, value) VALUES ('agent_command', 'start')")
+        con.commit()
+    finally:
+        con.close()
+
+
 def done_results(queue_db: str, input_filenames: list[str]) -> dict[str, str]:
     return {k: v for k, v in _query_jobs(queue_db, input_filenames, "done").items() if v}
 
@@ -167,4 +179,11 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
         if in_fn:
             store.record(key, in_fn, "pending")
             submitted += 1
+
+    # Есть незавершённые задачи → будим локального агента (WatchDog поднимет Chrome+агента).
+    if store.pending():
+        try:
+            wake_agent(cfg.queue_db)
+        except Exception:
+            pass
     return submitted, published
