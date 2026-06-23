@@ -45,3 +45,10 @@ catalog:
   report_category_ids: [2, 6, 7]
   exclude_title_patterns: ["%мульти%", "%виброопор%", "%охладитель воздуха%", "%зимний комплект%"]
   crimea_warehouse: "Симферополь"
+# Уникальные карточки от фотоагента: файл avito-cards/{nc_code}.jpg → берётся вместо фото поставщика.
+# Снимает блок Avito «повторное размещение» по фото (модели серии у поставщика делят одно фото).
+cards:
+  enabled: true
+  dir: "/opt/oasis/staticfiles/avito-cards"
+  base_url: "https://splithome.ru/static/avito-cards"
+  exts: [".jpg", ".jpeg", ".png"]

@@ -4,6 +4,7 @@ from avito_bridge.pricing.pricing import PricingConfig
 from avito_bridge.feed.builder import FeedConfig
 from avito_bridge.content.render import ContentConfig
 from avito_bridge.ingest.normalize import CatalogFilter
+from avito_bridge.content.cards import CardConfig
 from avito_bridge.config import AppConfig
 from avito_bridge.orchestrator.pipeline import run_cycle
 
@@ -14,7 +15,8 @@ def _cfg():
         pricing=PricingConfig(default_markup_pct=5, min_margin_abs=0, rounding="up_to_90", rules=[]),
         feed=FeedConfig(max_active_ads=50, base_tags={"Category": "Бытовая электроника"}),
         content=ContentConfig(title_max=50, description_max=7000, stop_words=[]),
-        catalog=CatalogFilter(report_category_ids=[2, 6, 7], exclude_title_patterns=[]))
+        catalog=CatalogFilter(report_category_ids=[2, 6, 7], exclude_title_patterns=[]),
+        cards=CardConfig())
 
 
 def _offer(sku):

@@ -6,6 +6,7 @@ from avito_bridge.models import City
 from avito_bridge.pricing.pricing import PricingConfig
 from avito_bridge.feed.builder import FeedConfig
 from avito_bridge.content.render import ContentConfig
+from avito_bridge.content.cards import CardConfig
 from avito_bridge.ingest.normalize import CatalogFilter
 
 
@@ -16,6 +17,7 @@ class AppConfig:
     feed: FeedConfig
     content: ContentConfig
     catalog: CatalogFilter
+    cards: CardConfig
 
 
 def load_config(path: Path) -> AppConfig:
@@ -43,4 +45,9 @@ def load_config(path: Path) -> AppConfig:
     cat = d.get("catalog", {})
     catalog = CatalogFilter(report_category_ids=cat.get("report_category_ids", [2, 6, 7]),
                             exclude_title_patterns=cat.get("exclude_title_patterns", []))
-    return AppConfig(cities=cities, pricing=pricing, feed=feed, content=content, catalog=catalog)
+    cd = d.get("cards", {})
+    cards = CardConfig(enabled=bool(cd.get("enabled", False)), dir=cd.get("dir", ""),
+                       base_url=cd.get("base_url", ""),
+                       exts=cd.get("exts", [".jpg", ".jpeg", ".png"]))
+    return AppConfig(cities=cities, pricing=pricing, feed=feed, content=content,
+                     catalog=catalog, cards=cards)
