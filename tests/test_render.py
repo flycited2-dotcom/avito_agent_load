@@ -1,6 +1,7 @@
 from decimal import Decimal
 from avito_bridge.models import Offer
-from avito_bridge.content.render import render_content, ContentConfig
+from avito_bridge.content.render import render_content, render_series, ContentConfig
+from avito_bridge.catalog.series import group_by_series
 
 CFG = ContentConfig(title_max=50, description_max=7000, stop_words=["звоните"])
 
@@ -32,3 +33,18 @@ def test_description_includes_specs_and_no_stopwords():
 def test_description_within_limit():
     c = render_content(_o(attrs={f"k{i}": "v" * 100 for i in range(200)}), CFG)
     assert len(c.description) <= 7000
+
+
+def test_render_series_price_table_dedup_by_size():
+    def mk(sku, btu, cost):
+        return Offer(supplier_sku=sku, source="breeze", brand="Ballu", model=f"Olympio {btu}",
+                     category_id=2, btu_calc=btu, attrs={}, cost=Decimal(cost), retail_ref=None,
+                     stock=1, photos=[], series="Olympio (Olimpio)", content_hash="h")
+    g = group_by_series([mk("b:1", 7, "10000"), mk("b:2", 7, "15000"), mk("b:3", 9, "12000")])[0]
+    prices = {"b:1": 11090, "b:2": 16090, "b:3": 13090}
+    c = render_series(g, prices, ContentConfig(title_max=50, description_max=7000, stop_words=[]))
+    assert c.description.count("7000 BTU") == 1     # один размер — одна строка
+    assert "11 090" in c.description                # минимальная цена для 7000
+    assert "16 090" not in c.description            # дороже 7000 — не показываем
+    assert "9000 BTU" in c.description
+    assert "(Olimpio)" not in c.title               # скобочная латиница убрана из заголовка

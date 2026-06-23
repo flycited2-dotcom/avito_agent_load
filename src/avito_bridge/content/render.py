@@ -1,5 +1,6 @@
 from __future__ import annotations
 import hashlib
+import re
 from dataclasses import dataclass
 from avito_bridge.models import Offer, Content
 from avito_bridge.content.sizing import size_from_btu
@@ -136,35 +137,39 @@ def render_series(group, prices: dict, cfg: ContentConfig) -> Content:
     type_label = _TYPE_LABEL.get(group.category_id, "Кондиционер")
     inv = _is_inverter(rep)
 
-    title_base = f"{type_label} {group.brand} {group.series}".strip()
+    series_disp = re.sub(r"\s*\([^)]*\)", "", group.series).strip() or group.series
+    title_base = f"{type_label} {group.brand} {series_disp}".strip()
     if inv and "инвертор" not in title_base.lower():
         title_base += " инвертор"
     title = _strip_stopwords(title_base, cfg.stop_words)[: cfg.title_max].strip()
 
-    rows = []
-    sizes = []
+    by_size: dict[int, int] = {}
+    no_size: list[tuple[str, int]] = []
     for m in group.members:
         p = prices.get(m.supplier_sku)
         if not p:
             continue
         size = size_from_btu(m.btu_calc, m.category_id)
         if size:
-            sizes.append(size)
-            area = _AREA_BY_SIZE.get(size)
-            label = f"{size}000 BTU" + (f" (до {area} м²)" if area else "")
+            by_size[size] = min(by_size.get(size, p), p)   # один размер → минимальная цена
         else:
-            label = m.model
-        rows.append((size or 10 ** 6, f"• {label} — {_money(p)}"))
-    rows.sort()
+            no_size.append((m.model, p))
+    rows = []
+    for size in sorted(by_size):
+        area = _AREA_BY_SIZE.get(size)
+        label = f"{size}000 BTU" + (f" (до {area} м²)" if area else "")
+        rows.append(f"• {label} — {_money(by_size[size])}")
+    rows += [f"• {model} — {_money(p)}" for model, p in no_size]
 
+    sizes = sorted(by_size)
     if sizes:
-        head = (f"{group.brand} {group.series}: {type_label.lower()}, "
-                f"типоразмеры {min(sizes)}–{max(sizes)} тыс. BTU в наличии.")
+        head = (f"{group.brand} {series_disp}: {type_label.lower()}, "
+                f"типоразмеры {sizes[0]}–{sizes[-1]} тыс. BTU в наличии.")
     else:
-        head = f"{group.brand} {group.series} — {type_label.lower()}."
+        head = f"{group.brand} {series_disp} — {type_label.lower()}."
     lines = [head, "", _benefit(rep, seed)]
     if rows:
-        lines += ["", "Цены по типоразмерам (в наличии):"] + [r for _, r in rows]
+        lines += ["", "Цены по типоразмерам (в наличии):"] + rows
     specs = _spec_lines(rep.attrs)
     if specs:
         lines += ["", "Характеристики:"] + specs
