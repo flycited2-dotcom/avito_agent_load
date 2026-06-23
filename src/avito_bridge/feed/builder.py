@@ -13,6 +13,8 @@ class FeedConfig:
     product_type_default: str = ""
     ac_type_map: dict = field(default_factory=dict)        # category_id -> AirConditionerType (Вид кондиционера)
     ac_subtype_map: dict = field(default_factory=dict)     # category_id -> AirConditionerSubType (Тип кондиционера)
+    vendor_map: dict = field(default_factory=dict)         # наш бренд -> имя в справочнике Avito (Производитель)
+    vendor_skip: set = field(default_factory=set)          # бренды, которых нет в справочнике Avito → НЕ публиковать
 
 
 def build_ads(offers: list[Offer], cities: list[City], content: dict[str, tuple[str, str]],
@@ -23,15 +25,18 @@ def build_ads(offers: list[Offer], cities: list[City], content: dict[str, tuple[
             continue
         if o.supplier_sku not in content or o.supplier_sku not in prices:
             continue
+        if o.brand in cfg.vendor_skip:        # бренда нет в справочнике Avito → не публикуем (не ошибка)
+            continue
         title, desc = content[o.supplier_sku]
         ptype = cfg.product_type_map.get(o.category_id, cfg.product_type_default)
         ac_t = cfg.ac_type_map.get(o.category_id, "")
         ac_s = cfg.ac_subtype_map.get(o.category_id, "")
+        vendor = cfg.vendor_map.get(o.brand, o.brand)
         for city in cities:
             ads.append(AdRecord(
                 ad_id=make_ad_id(o.supplier_sku, city.id), supplier_sku=o.supplier_sku,
                 city_id=city.id, title=title, description=desc, price=prices[o.supplier_sku],
-                address=city.avito_location, product_type=ptype, vendor=o.brand,
+                address=city.avito_location, product_type=ptype, vendor=vendor,
                 ac_type=ac_t, ac_subtype=ac_s, images=list(o.photos), status="pending",
             ))
             if len(ads) >= cfg.max_active_ads:

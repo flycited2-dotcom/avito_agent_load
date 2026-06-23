@@ -32,6 +32,11 @@ feed:
     2: "Настенный"
     6: "Кассетный"
     7: "Напольный"
+  # Производитель (Vendor) — справочник Avito. Наш бренд -> имя в Avito.
+  vendor_map:
+    "EXPERTAIR by ZILON": "Zilon"
+  # Бренды, которых нет в справочнике Avito → НЕ публикуем (вместо ошибки модерации).
+  vendor_skip: []
 content:
   title_max: 50
   description_max: 7000

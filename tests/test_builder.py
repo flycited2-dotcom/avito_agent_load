@@ -60,3 +60,23 @@ def test_xml_well_formed_and_has_required_tags():
     assert ad.findtext("AirConditionerType") == "Сплит-система"  # category_id=2
     assert ad.findtext("AirConditionerSubType") == "Настенный"
     assert ad.find("Images/Image").get("url") == "https://i/1.jpg"
+
+
+def test_vendor_map_and_skip():
+    cfg = FeedConfig(max_active_ads=10, base_tags={"Category": "Бытовая техника"},
+                     vendor_map={"EXPERTAIR by ZILON": "Zilon"}, vendor_skip={"NoName"})
+
+    def mk(sku, brand):
+        return Offer(supplier_sku=sku, source="s", brand=brand, model="M", category_id=2,
+                     btu_calc=7, attrs={}, cost=Decimal("1"), retail_ref=None, stock=1,
+                     photos=["u"], series=None, content_hash="h")
+
+    offers = [mk("a:1", "EXPERTAIR by ZILON"), mk("b:1", "NoName"), mk("c:1", "Ballu")]
+    content = {o.supplier_sku: ("T", "D") for o in offers}
+    prices = {o.supplier_sku: 1090 for o in offers}
+    ads = build_ads(offers, [City(id="s", name="S", avito_location="S")],
+                    content=content, prices=prices, cfg=cfg)
+    by = {a.supplier_sku: a.vendor for a in ads}
+    assert "b:1" not in by              # NoName в vendor_skip → пропущен
+    assert by["a:1"] == "Zilon"         # сопоставлен по vendor_map
+    assert by["c:1"] == "Ballu"         # как есть

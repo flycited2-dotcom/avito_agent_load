@@ -33,7 +33,9 @@ def load_config(path: Path) -> AppConfig:
                       base_tags=f.get("base_tags", {}),
                       product_type_map=ptmap,
                       product_type_default=f.get("product_type_default", ""),
-                      ac_type_map=actmap, ac_subtype_map=acsmap)
+                      ac_type_map=actmap, ac_subtype_map=acsmap,
+                      vendor_map=f.get("vendor_map", {}) or {},
+                      vendor_skip=set(f.get("vendor_skip", []) or []))
     cc = d.get("content", {})
     content = ContentConfig(title_max=cc.get("title_max", 50),
                             description_max=cc.get("description_max", 7000),
