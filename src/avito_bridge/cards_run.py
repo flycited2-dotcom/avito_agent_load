@@ -26,7 +26,8 @@ def main():
         chat_id=int(config("FOTOGEN_CHAT_ID", "1264067528")),
         queue_db=config("FOTOGEN_QUEUE_DB"), output_dir=config("FOTOGEN_OUTPUT_DIR"),
         cards_dir=cfg.cards.dir, per_run=int(config("FOTOGEN_PER_RUN", "8")),
-        max_pending=int(config("FOTOGEN_MAX_PENDING", "15")))
+        max_pending=int(config("FOTOGEN_MAX_PENDING", "15")),
+        max_total=int(config("FOTOGEN_MAX_TOTAL", "100000")))
     store = CardJobStore(Path("state/card_jobs.db"))
     submitted, published = run_once(groups, fcfg, store)
     print(f"cards: series={len(groups)} submitted={submitted} published={published}")

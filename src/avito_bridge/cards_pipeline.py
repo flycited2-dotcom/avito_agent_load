@@ -29,6 +29,7 @@ class FotogenConfig:
     mode: str = "conditioner"
     per_run: int = 8           # максимум новых задач за один запуск
     max_pending: int = 15      # потолок «в работе» (чтобы не гнать сотни подряд — риск ToS)
+    max_total: int = 100000    # ВСЕГО карточек к генерации (для теста ставим ~20; потом снимем)
 
 
 # ── очередь-API фотоагента ──────────────────────────────────────────────────
@@ -104,6 +105,10 @@ class CardJobStore:
         with self._c() as c:
             return list(c.execute("SELECT key, input_filename FROM card_jobs WHERE status='pending'"))
 
+    def count(self) -> int:
+        with self._c() as c:
+            return c.execute("SELECT count(*) FROM card_jobs").fetchone()[0]
+
     def record(self, key: str, input_filename: str, status: str) -> None:
         with self._c() as c:
             c.execute("INSERT INTO card_jobs(key,input_filename,status) VALUES(?,?,?) "
@@ -155,9 +160,10 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
         for in_fn in failed_inputs(cfg.queue_db, list(in2key)):
             store.record(in2key[in_fn], in_fn, "failed")
 
-    # 2) поставить новые (серии без карточки, ещё не в очереди), с потолком «в работе»
+    # 2) поставить новые (серии без карточки), с потолком «в работе» И общим лимитом max_total
     outstanding = len(store.pending())
-    budget = max(0, min(cfg.per_run, cfg.max_pending - outstanding))
+    total_slots = max(0, cfg.max_total - store.count())   # глобальный лимит карточек (тест ~20)
+    budget = max(0, min(cfg.per_run, cfg.max_pending - outstanding, total_slots))
     for g in groups:
         if submitted >= budget:
             break
