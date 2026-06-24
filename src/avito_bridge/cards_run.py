@@ -4,6 +4,7 @@
   python -m avito_bridge.cards_run
 """
 from __future__ import annotations
+import json
 from pathlib import Path
 from decouple import config
 from avito_bridge.config import load_config
@@ -23,11 +24,13 @@ def main():
     groups = group_by_series(offers)
     if cfg.selected_series:                     # генерируем карточки только для отмеченных серий
         groups = [g for g in groups if g.key in cfg.selected_series]
+    modes_path = Path(config("FOTOGEN_MODES_JSON", "config/card_modes.json"))
+    modes = json.loads(modes_path.read_text(encoding="utf-8")) if modes_path.exists() else {}
     fcfg = FotogenConfig(
         api_url=config("FOTOGEN_API_URL"), token=config("FOTOGEN_API_TOKEN"),
         chat_id=int(config("FOTOGEN_CHAT_ID", "1264067528")),
         queue_db=config("FOTOGEN_QUEUE_DB"), output_dir=config("FOTOGEN_OUTPUT_DIR"),
-        cards_dir=cfg.cards.dir, mode=config("FOTOGEN_MODE", "conditioner"),
+        cards_dir=cfg.cards.dir, mode=config("FOTOGEN_MODE", "conditioner"), modes=modes,
         per_run=int(config("FOTOGEN_PER_RUN", "8")),
         max_pending=int(config("FOTOGEN_MAX_PENDING", "15")),
         max_total=int(config("FOTOGEN_MAX_TOTAL", "100000")))

@@ -95,3 +95,19 @@ def test_run_once_submits_and_publishes(tmp_path):
     assert published == 1                                  # готовая скопирована
     assert (tmp_path / "cards" / f"{card_key('breeze:NC1')}.jpg").read_bytes() == b"READY"
     assert submitted >= 1                                  # новая серия поставлена в очередь
+
+
+def test_run_once_uses_per_series_mode(tmp_path):
+    out = tmp_path / "out"; out.mkdir()
+    cfg = _cfg(tmp_path, queue_db=_make_queue_db(tmp_path, []), output_dir=str(out),
+               mode="conditioner", modes={"breeze|ballu|gloria": "mcp"})
+    store = CardJobStore(tmp_path / "s.db")
+    groups = group_by_series([_o("breeze:NC2", 9, "http://p/2.jpg", series="Gloria")])
+    seen = {}
+
+    def handler(req):
+        seen["mcp"] = b"mcp" in req.content                # mode=mcp ушёл в форму
+        return httpx.Response(200, json={"queued": "ext.jpg"})
+    http = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://x")
+    run_once(groups, cfg, store, http=http, fetch_photo=lambda u: b"img")
+    assert seen.get("mcp") is True

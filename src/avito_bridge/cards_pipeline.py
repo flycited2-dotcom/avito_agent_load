@@ -26,7 +26,8 @@ class FotogenConfig:
     queue_db: str
     output_dir: str
     cards_dir: str
-    mode: str = "conditioner"
+    mode: str = "conditioner"  # режим по умолчанию
+    modes: dict = None         # {series_key: режим} — переопределяет mode для конкретной серии
     per_run: int = 8           # максимум новых задач за один запуск
     max_pending: int = 15      # потолок «в работе» (чтобы не гнать сотни подряд — риск ToS)
     max_total: int = 100000    # ВСЕГО карточек к генерации (для теста ставим ~20; потом снимем)
@@ -34,13 +35,14 @@ class FotogenConfig:
 
 # ── очередь-API фотоагента ──────────────────────────────────────────────────
 def submit_card_job(cfg: FotogenConfig, photo_bytes: bytes, brand: str, model: str,
-                    specs: str, http: httpx.Client | None = None) -> str | None:
+                    specs: str, http: httpx.Client | None = None,
+                    mode: str | None = None) -> str | None:
     """POST /api/submit-job → имя поставленного входного файла (для маппинга)."""
     client = http or httpx.Client(timeout=30)
     r = client.post(
         f"{cfg.api_url.rstrip('/')}/api/submit-job",
         headers={"x-agent-token": cfg.token},
-        data={"mode": cfg.mode, "specs": specs, "brand": brand or "",
+        data={"mode": mode or cfg.mode, "specs": specs, "brand": brand or "",
               "model": model or "", "chat_id": str(cfg.chat_id)},
         files={"photo": (f"{(model or 'card')}.jpg".replace(" ", "_"),
                          io.BytesIO(photo_bytes), "image/jpeg")},
@@ -177,9 +179,10 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
         photo_url = rep.photos[0] if rep.photos else None
         if not photo_url:
             continue
+        mode = (cfg.modes or {}).get(getattr(g, "key", None)) or cfg.mode
         try:
             in_fn = submit_card_job(cfg, fetch_photo(photo_url), g.brand, g.series,
-                                    specs_text(rep.attrs), http=http)
+                                    specs_text(rep.attrs), http=http, mode=mode)
         except Exception:
             continue
         if in_fn:
