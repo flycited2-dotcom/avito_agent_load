@@ -44,6 +44,8 @@ def run_cycle(offers_provider: Callable[[], list[Offer]], cfg: AppConfig,
         rep.stock = sum(m.stock for m in g.members)               # серия в наличии (для build_ads)
         rep.photos = resolve_photos(rep, cfg.cards)               # карточка серии / иначе фото поставщика
         reps.append(rep)
+    # Серии с УНИКАЛЬНОЙ карточкой — в приоритет: они публикуются без блока «повторное размещение».
+    reps.sort(key=lambda r: 0 if any("avito-cards" in p for p in r.photos) else 1)
     ads = build_ads(reps, cfg.cities, content=content, prices=prices, cfg=cfg.feed)
     write_atomic(build_feed_xml(ads, cfg.feed), feed_path)
     return CycleResult(offers_in=len(groups), ads_built=len(ads), skipped=skipped)
