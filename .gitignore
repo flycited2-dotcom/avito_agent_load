@@ -1,6 +1,7 @@
 feed_out/
 state/
 .venv/
+.worktrees/
 __pycache__/
 *.pyc
 .env
