@@ -35,6 +35,16 @@ def test_run_cycle_writes_feed(tmp_path):
     assert "<Ads" in feed_path.read_text(encoding="utf-8")
 
 
+def test_run_cycle_filters_selected_series(tmp_path):
+    from avito_bridge.catalog.series import series_key
+    a, b = _offer("daichi:1"), _offer("daichi:2")
+    cfg = _cfg()
+    cfg.selected_series = frozenset({series_key(a)})      # публикуем только серию a
+    result = run_cycle(offers_provider=lambda: [a, b], cfg=cfg,
+                       feed_path=tmp_path / "f.xml", state_path=tmp_path / "s.db")
+    assert result.ads_built == 1
+
+
 def test_run_cycle_skips_unpriceable(tmp_path):
     bad = _offer("daichi:2")
     bad.cost = None

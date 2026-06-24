@@ -21,6 +21,8 @@ def main():
                              cfg.catalog.exclude_title_patterns)
     offers = collect_offers(raw, Path(config("JAC_STOCK_JSON", "")), cfg.catalog, lambda nc: None)
     groups = group_by_series(offers)
+    if cfg.selected_series:                     # генерируем карточки только для отмеченных серий
+        groups = [g for g in groups if g.key in cfg.selected_series]
     fcfg = FotogenConfig(
         api_url=config("FOTOGEN_API_URL"), token=config("FOTOGEN_API_TOKEN"),
         chat_id=int(config("FOTOGEN_CHAT_ID", "1264067528")),

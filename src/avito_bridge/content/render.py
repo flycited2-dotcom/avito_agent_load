@@ -11,6 +11,8 @@ class ContentConfig:
     title_max: int = 50
     description_max: int = 7000
     stop_words: list[str] = None
+    website_link: str = ""              # текст-ссылка в футер (напр. «Каталог: splithome.ru»)
+    website_link_keys: frozenset = frozenset()   # серии (key), к которым добавляем ссылку (тест → одна)
 
 
 # Тип по категории каталога.
@@ -189,6 +191,8 @@ def render_series(group, prices: dict, cfg: ContentConfig) -> Content:
     if specs:
         lines += ["", "Характеристики:"] + specs
     lines += _footer(seed)
+    if cfg.website_link and getattr(group, "key", None) in cfg.website_link_keys:
+        lines += ["", cfg.website_link]                # ссылка на сайт — только для отмеченных серий
     desc = _strip_stopwords("\n".join(lines), cfg.stop_words)[: cfg.description_max].strip()
     return Content(title=title, description=desc, from_cache=False)
 

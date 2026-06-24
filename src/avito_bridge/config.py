@@ -18,6 +18,7 @@ class AppConfig:
     content: ContentConfig
     catalog: CatalogFilter
     cards: CardConfig
+    selected_series: frozenset = frozenset()   # whitelist серий (key) для публикации; пусто = все
 
 
 def load_config(path: Path) -> AppConfig:
@@ -41,13 +42,16 @@ def load_config(path: Path) -> AppConfig:
     cc = d.get("content", {})
     content = ContentConfig(title_max=cc.get("title_max", 50),
                             description_max=cc.get("description_max", 7000),
-                            stop_words=cc.get("stop_words", []))
+                            stop_words=cc.get("stop_words", []),
+                            website_link=cc.get("website_link", "") or "",
+                            website_link_keys=frozenset(cc.get("website_link_keys", []) or []))
     cat = d.get("catalog", {})
     catalog = CatalogFilter(report_category_ids=cat.get("report_category_ids", [2, 6, 7]),
                             exclude_title_patterns=cat.get("exclude_title_patterns", []))
+    selected_series = frozenset(cat.get("selected_series", []) or [])
     cd = d.get("cards", {})
     cards = CardConfig(enabled=bool(cd.get("enabled", False)), dir=cd.get("dir", ""),
                        base_url=cd.get("base_url", ""),
                        exts=cd.get("exts", [".jpg", ".jpeg", ".png"]))
     return AppConfig(cities=cities, pricing=pricing, feed=feed, content=content,
-                     catalog=catalog, cards=cards)
+                     catalog=catalog, cards=cards, selected_series=selected_series)

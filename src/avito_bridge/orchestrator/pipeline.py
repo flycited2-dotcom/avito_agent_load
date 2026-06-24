@@ -24,6 +24,8 @@ def run_cycle(offers_provider: Callable[[], list[Offer]], cfg: AppConfig,
     """ОДНО объявление на СЕРИЮ: модели серии схлопываются в один листинг с таблицей
     «типоразмер → цена» (см. P1). ad_id/карточка — по стабильной репрезентативной модели."""
     groups = group_by_series(offers_provider())
+    if cfg.selected_series:                     # курирование: публикуем только отмеченные серии
+        groups = [g for g in groups if g.key in cfg.selected_series]
     content: dict[str, tuple[str, str]] = {}
     prices: dict[str, int] = {}
     skipped = 0

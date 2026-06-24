@@ -50,6 +50,18 @@ def test_render_series_price_table_dedup_by_size():
     assert "(Olimpio)" not in c.title               # скобочная латиница убрана из заголовка
 
 
+def test_render_series_website_link_only_for_selected():
+    g = group_by_series([Offer(supplier_sku="b:1", source="breeze", brand="Ballu",
+                               model="Olympio 7", category_id=2, btu_calc=7, attrs={},
+                               cost=Decimal("10000"), retail_ref=None, stock=1, photos=[],
+                               series="Olympio", content_hash="h")])[0]
+    link = "Каталог: splithome.ru"
+    on = ContentConfig(stop_words=[], website_link=link, website_link_keys=frozenset({g.key}))
+    off = ContentConfig(stop_words=[], website_link=link, website_link_keys=frozenset())
+    assert link in render_series(g, {"b:1": 11090}, on).description
+    assert link not in render_series(g, {"b:1": 11090}, off).description    # серия не отмечена → без ссылки
+
+
 def test_render_series_reinterprets_btu_on_price_inversion():
     # btu_calc=25 площадь-карта трактует как размер 7 (самый дешёвый), но цена 78290 — самая высокая.
     # Инверсия → трактуем btu как kBTU → 25000, порядок становится монотонным.
