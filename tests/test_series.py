@@ -36,3 +36,19 @@ def test_no_series_each_its_own_group():
 
 def test_series_key_case_insensitive():
     assert series_key(_o("b:1", "Ballu", "Olympio", 7)) == series_key(_o("b:2", "ballu", "olympio", 9))
+
+
+def test_merges_refrigerant_variants():
+    # Paramount и Paramount R32 — близнецы → одна серия с именем без хладагента.
+    groups = group_by_series([_o("m:1", "Midea", "Paramount", 7),
+                              _o("m:2", "Midea", "Paramount R32", 9),
+                              _o("m:3", "Midea", "Paramount (Inverter)", 12)])
+    assert len(groups) == 1
+    assert groups[0].series == "Paramount"
+    assert [m.btu_calc for m in groups[0].members] == [7, 9, 12]
+
+
+def test_does_not_merge_distinct_series():
+    groups = group_by_series([_o("m:1", "Midea", "Paramount", 7),
+                              _o("m:2", "Midea", "Aurora", 9)])
+    assert len(groups) == 2

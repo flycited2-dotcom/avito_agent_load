@@ -5,9 +5,23 @@
 Серия = (source, brand, series). Модели без серии — каждая отдельной «серией» (по модели).
 Внутри серии члены сортируются по типоразмеру (BTU)."""
 from __future__ import annotations
+import re
 from dataclasses import dataclass, field
 from avito_bridge.models import Offer
 from avito_bridge.content.sizing import size_from_btu
+
+# Хладагент-маркеры (R32/R410A/R290/R22/R134a) — варианты-близнецы серии (напр. Paramount и
+# Paramount R32 — те же кондиционеры, та же цена). Убираем их и скобки/билингву при группировке,
+# чтобы такие серии схлопывались в ОДНУ. Инвертор/он-офф НЕ трогаем — это разные продукты.
+_REFRIG = re.compile(r'(?<![A-Za-zА-Яа-я0-9])R[\s\-]?(?:32|410A?|290|22|134A)(?![A-Za-z0-9])', re.I)
+
+
+def clean_series(s: str) -> str:
+    """Отображаемое имя серии без хладагента и скобок (Paramount R32 → Paramount)."""
+    s = re.sub(r'\s*\([^)]*\)', '', s or '')      # скобки (билингва/латиница)
+    s = _REFRIG.sub('', s)                         # хладагент R32/R410A/…
+    s = re.sub(r'[\s_\-]+', ' ', s).strip(' -–·')
+    return s
 
 
 @dataclass
@@ -31,7 +45,7 @@ class SeriesGroup:
 
 
 def series_key(o: Offer) -> str:
-    s = (o.series or "").strip()
+    s = clean_series(o.series or "")
     if s:
         return f"{o.source}|{(o.brand or '').strip().lower()}|{s.lower()}"
     return f"{o.source}|model|{o.supplier_sku}"   # нет серии → отдельная «серия» по модели
@@ -50,7 +64,8 @@ def group_by_series(offers: list[Offer]) -> list[SeriesGroup]:
         g = groups.get(k)
         if g is None:
             g = SeriesGroup(key=k, source=o.source, brand=(o.brand or "").strip(),
-                            series=(o.series or o.model or "").strip(), category_id=o.category_id)
+                            series=clean_series(o.series or "") or (o.model or "").strip(),
+                            category_id=o.category_id)
             groups[k] = g
         g.members.append(o)
     for g in groups.values():
