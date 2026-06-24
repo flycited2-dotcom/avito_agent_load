@@ -62,6 +62,18 @@ def test_render_series_website_link_only_for_selected():
     assert link not in render_series(g, {"b:1": 11090}, off).description    # серия не отмечена → без ссылки
 
 
+def test_render_series_uses_description_override():
+    g = group_by_series([Offer(supplier_sku="b:1", source="breeze", brand="Ballu",
+                               model="Olympio 7", category_id=2, btu_calc=7, attrs={},
+                               cost=Decimal("10000"), retail_ref=None, stock=1, photos=[],
+                               series="Olympio", content_hash="h")])[0]
+    cfg = ContentConfig(stop_words=[], descriptions={g.key: "Готовый текст про серию Olympio."})
+    c = render_series(g, {"b:1": 11090}, cfg)
+    assert c.description.startswith("Готовый текст про серию Olympio.")
+    assert "11 090" in c.description                  # живая таблица цен дописана
+    assert "Почему берут у нас" not in c.description   # автогенерация-футер не используется
+
+
 def test_render_series_reinterprets_btu_on_price_inversion():
     # btu_calc=25 площадь-карта трактует как размер 7 (самый дешёвый), но цена 78290 — самая высокая.
     # Инверсия → трактуем btu как kBTU → 25000, порядок становится монотонным.

@@ -7,6 +7,7 @@ from avito_bridge.pricing.pricing import PricingConfig
 from avito_bridge.feed.builder import FeedConfig
 from avito_bridge.content.render import ContentConfig
 from avito_bridge.content.cards import CardConfig
+from avito_bridge.content.descriptions import load_descriptions
 from avito_bridge.ingest.normalize import CatalogFilter
 
 
@@ -40,11 +41,14 @@ def load_config(path: Path) -> AppConfig:
                       vendor_map=f.get("vendor_map", {}) or {},
                       vendor_skip=set(f.get("vendor_skip", []) or []))
     cc = d.get("content", {})
+    manifest = cc.get("descriptions_manifest", "")
+    descriptions = load_descriptions(Path(path).parent.parent / manifest) if manifest else {}
     content = ContentConfig(title_max=cc.get("title_max", 50),
                             description_max=cc.get("description_max", 7000),
                             stop_words=cc.get("stop_words", []),
                             website_link=cc.get("website_link", "") or "",
-                            website_link_keys=frozenset(cc.get("website_link_keys", []) or []))
+                            website_link_keys=frozenset(cc.get("website_link_keys", []) or []),
+                            descriptions=descriptions)
     cat = d.get("catalog", {})
     catalog = CatalogFilter(report_category_ids=cat.get("report_category_ids", [2, 6, 7]),
                             exclude_title_patterns=cat.get("exclude_title_patterns", []))

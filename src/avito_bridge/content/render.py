@@ -13,6 +13,7 @@ class ContentConfig:
     stop_words: list[str] = None
     website_link: str = ""              # текст-ссылка в футер (напр. «Каталог: splithome.ru»)
     website_link_keys: frozenset = frozenset()   # серии (key), к которым добавляем ссылку (тест → одна)
+    descriptions: dict = None           # {series_key: готовый текст описания} — переопределяет генерацию
 
 
 # Тип по категории каталога.
@@ -178,19 +179,25 @@ def render_series(group, prices: dict, cfg: ContentConfig) -> Content:
         rows.append(f"• {label} — {_money(by_size[size])}")
     rows += [f"• {model} — {_money(p)}" for model, p in no_size]
 
-    sizes = sorted(by_size)
-    if sizes:
-        head = (f"{group.brand} {series_disp}: {type_label.lower()}, "
-                f"типоразмеры {sizes[0]}–{sizes[-1]} тыс. BTU в наличии.")
-    else:
-        head = f"{group.brand} {series_disp} — {type_label.lower()}."
-    lines = [head, "", _benefit(rep, seed)]
-    if rows:
-        lines += ["", "Цены по типоразмерам (в наличии):"] + rows
-    specs = _spec_lines(rep.attrs)
-    if specs:
-        lines += ["", "Характеристики:"] + specs
-    lines += _footer(seed)
+    override = (cfg.descriptions or {}).get(getattr(group, "key", None))
+    if override:                          # готовый текст (ручной/Codex) + живая таблица цен
+        lines = [override.strip()]
+        if rows:
+            lines += ["", "Цены по типоразмерам (в наличии):"] + rows
+    else:                                 # автогенерация описания
+        sizes = sorted(by_size)
+        if sizes:
+            head = (f"{group.brand} {series_disp}: {type_label.lower()}, "
+                    f"типоразмеры {sizes[0]}–{sizes[-1]} тыс. BTU в наличии.")
+        else:
+            head = f"{group.brand} {series_disp} — {type_label.lower()}."
+        lines = [head, "", _benefit(rep, seed)]
+        if rows:
+            lines += ["", "Цены по типоразмерам (в наличии):"] + rows
+        specs = _spec_lines(rep.attrs)
+        if specs:
+            lines += ["", "Характеристики:"] + specs
+        lines += _footer(seed)
     if cfg.website_link and getattr(group, "key", None) in cfg.website_link_keys:
         lines += ["", cfg.website_link]                # ссылка на сайт — только для отмеченных серий
     desc = _strip_stopwords("\n".join(lines), cfg.stop_words)[: cfg.description_max].strip()
