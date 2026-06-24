@@ -48,3 +48,18 @@ def test_render_series_price_table_dedup_by_size():
     assert "16 090" not in c.description            # дороже 7000 — не показываем
     assert "9000 BTU" in c.description
     assert "(Olimpio)" not in c.title               # скобочная латиница убрана из заголовка
+
+
+def test_render_series_reinterprets_btu_on_price_inversion():
+    # btu_calc=25 площадь-карта трактует как размер 7 (самый дешёвый), но цена 78290 — самая высокая.
+    # Инверсия → трактуем btu как kBTU → 25000, порядок становится монотонным.
+    def mk(sku, btu, cost):
+        return Offer(supplier_sku=sku, source="breeze", brand="Z", model=f"PROGRESS {btu}",
+                     category_id=2, btu_calc=btu, attrs={}, cost=Decimal(cost), retail_ref=None,
+                     stock=1, photos=[], series="PROGRESS", content_hash="h")
+    g = group_by_series([mk("z:1", 25, "74490"), mk("z:2", 12, "35290"), mk("z:3", 18, "60490")])[0]
+    prices = {"z:1": 78290, "z:2": 37090, "z:3": 63590}
+    c = render_series(g, prices, ContentConfig(title_max=50, description_max=7000, stop_words=[]))
+    assert "7000 BTU" not in c.description           # 25 больше НЕ становится «семёркой»
+    assert "25000 BTU" in c.description
+    assert c.description.index("25000 BTU") > c.description.index("18000 BTU")   # порядок по размеру

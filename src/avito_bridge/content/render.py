@@ -143,13 +143,28 @@ def render_series(group, prices: dict, cfg: ContentConfig) -> Content:
         title_base += " инвертор"
     title = _strip_stopwords(title_base, cfg.stop_words)[: cfg.title_max].strip()
 
+    # Выбор трактовки BTU: площадь-карта vs сырой kBTU — берём ту, где цены монотонны по размеру.
+    # (Площадь-карта иногда ошибается: btu_calc=25 → «7», хотя это 25000 BTU дороже 18000.)
+    def _sizes(apply_area):
+        return {m.supplier_sku: size_from_btu(m.btu_calc, m.category_id, apply_area=apply_area)
+                for m in group.members}
+
+    def _monotonic(sz):
+        pairs = sorted((sz[m.supplier_sku], prices[m.supplier_sku]) for m in group.members
+                       if sz.get(m.supplier_sku) and prices.get(m.supplier_sku))
+        return all(pairs[i][1] <= pairs[i + 1][1] for i in range(len(pairs) - 1))
+
+    sz = _sizes(True)
+    if not _monotonic(sz):
+        sz = _sizes(False)                                 # инверсия цен → btu_calc как kBTU
+
     by_size: dict[int, int] = {}
     no_size: list[tuple[str, int]] = []
     for m in group.members:
         p = prices.get(m.supplier_sku)
         if not p:
             continue
-        size = size_from_btu(m.btu_calc, m.category_id)
+        size = sz.get(m.supplier_sku)
         if size:
             by_size[size] = min(by_size.get(size, p), p)   # один размер → минимальная цена
         else:

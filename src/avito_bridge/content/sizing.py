@@ -10,8 +10,10 @@ def _apply_area_map(n: int | None, category_id: int | None) -> int | None:
     return _AREA_TO_SIZE.get(n, n)
 
 
-def size_from_btu(btu, category_id: int | None = None) -> int | None:
-    """Типоразмер (7/9/12/…) из btu_calc. См. ТЗ §11 и channel_caption.size_from_btu."""
+def size_from_btu(btu, category_id: int | None = None, apply_area: bool = True) -> int | None:
+    """Типоразмер (7/9/12/…) из btu_calc. См. ТЗ §11 и channel_caption.size_from_btu.
+    apply_area=False — трактовать btu_calc как kBTU напрямую, без карты площадей
+    (нужно, когда площадь-карта даёт неверный размер; выбор — на уровне серии по монотонности цен)."""
     try:
         v = float(btu)
     except (TypeError, ValueError):
@@ -23,4 +25,4 @@ def size_from_btu(btu, category_id: int | None = None) -> int | None:
     n = int(round(v))
     if not 1 <= n <= 200:
         return None
-    return _apply_area_map(n, category_id)
+    return _apply_area_map(n, category_id) if apply_area else n
