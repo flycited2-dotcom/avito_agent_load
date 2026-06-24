@@ -8,7 +8,7 @@ pricing:
   min_margin_abs: 0       # 0 = строго +5%, без принудительного пола маржи (по решению заказчика)
   rules: []
 feed:
-  max_active_ads: 35       # тест: 35 серий с карточками 3 стилей (conditioner/mcp/kbt). Полный прогон — после выбора стиля
+  max_active_ads: 60       # курируемый каталог: 44 отмеченные серии (selected_series ниже)
   base_tags:
     Category: "Бытовая техника"
     GoodsType: "Климатическое оборудование"
@@ -50,7 +50,51 @@ catalog:
   exclude_title_patterns: ["%мульти%", "%виброопор%", "%охладитель воздуха%", "%зимний комплект%", "%зимн%", "%комплект зимний%"]
   crimea_warehouse: "Симферополь"
   # Курирование каталога: список серий (key из avito-series-select.xlsx) для публикации. Пусто = все.
-  selected_series: []
+  selected_series:
+    - "rusklimat|ac electric|pro"
+    - "rusklimat|ballu|olympio edge"
+    - "rusklimat|ballu|aura"
+    - "rusklimat|ballu|orbis"
+    - "rusklimat|ballu|odyssey pro dc"
+    - "rusklimat|ballu|tessey dc"
+    - "rusklimat|electrolux|smartline"
+    - "rusklimat|electrolux|smartline dc"
+    - "rusklimat|electrolux|enterprise super dc"
+    - "breeze|funai|shogun"
+    - "breeze|funai|sensei 2.0 inverter"
+    - "breeze|funai|daijin inverter"
+    - "breeze|high life|priority class 2.0"
+    - "breeze|hisense|easy classic a"
+    - "breeze|hisense|v"
+    - "breeze|hisense|zoom 2.0 dc inverter"
+    - "breeze|hisense|neo premium classic a wi fi"
+    - "breeze|hisense|city dc inverter"
+    - "breeze|hisense|city 2.0 dc inverter"
+    - "breeze|hisense|black crystal classic a"
+    - "breeze|hisense|neo classic a"
+    - "breeze|hitachi|shiratama"
+    - "daichi|kentatsu|канами"
+    - "breeze|lg|megacool dual inverter"
+    - "breeze|lg|procool dual inverter"
+    - "breeze|lg|artcool mirror dual inverter"
+    - "daichi|midea|анлимитед"
+    - "daichi|midea|парамаунт"
+    - "daichi|midea|парамаунт инвертор"
+    - "daichi|midea|анлимитед инвертор"
+    - "daichi|midea|персона"
+    - "daichi|midea|персона инвертор wi fi"
+    - "breeze|royal clima|felicita"
+    - "breeze|royal clima|attica nero"
+    - "breeze|royal clima|strada"
+    - "breeze|royal clima|grida dc eu inverter"
+    - "rusklimat|shuft|berg"
+    - "rusklimat|shuft|tor"
+    - "rusklimat|shuft|asgard dc black"
+    - "breeze|ultima comfort|elysium nero"
+    - "breeze|ultima comfort|eclipse"
+    - "breeze|ultima comfort|elysium inverter"
+    - "breeze|ultima comfort|elysium"
+    - "breeze|xigma|jetpro"
 # Уникальные карточки от фотоагента: файл avito-cards/{nc_code}.jpg → берётся вместо фото поставщика.
 # Снимает блок Avito «повторное размещение» по фото (модели серии у поставщика делят одно фото).
 cards:
@@ -58,3 +102,4 @@ cards:
   dir: "/opt/oasis/staticfiles/avito-cards"
   base_url: "https://splithome.ru/static/avito-cards"
   exts: [".jpg", ".jpeg", ".png"]
+  require_for_publish: true   # публикуем серию только с уникальной карточкой (исключаем блок «дубль фото»)

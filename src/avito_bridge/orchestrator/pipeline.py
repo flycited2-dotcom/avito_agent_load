@@ -7,7 +7,7 @@ from avito_bridge.config import AppConfig
 from avito_bridge.catalog.series import group_by_series
 from avito_bridge.pricing.pricing import compute_price
 from avito_bridge.content.render import render_series
-from avito_bridge.content.cards import resolve_photos
+from avito_bridge.content.cards import resolve_photos, has_card
 from avito_bridge.feed.builder import build_ads, build_feed_xml
 from avito_bridge.feed.writer import write_atomic
 
@@ -40,6 +40,9 @@ def run_cycle(offers_provider: Callable[[], list[Offer]], cfg: AppConfig,
             skipped += 1
             continue
         rep = g.representative                 # стабильная (младший размер) → стабильный ad_id/карточка
+        if cfg.cards.require_for_publish and not has_card(rep, cfg.cards):
+            skipped += 1                        # без уникальной карточки не публикуем (риск блока «дубль фото»)
+            continue
         c = render_series(g, member_prices, cfg.content)
         content[rep.supplier_sku] = (c.title, c.description)
         prices[rep.supplier_sku] = min(member_prices.values())   # цена Avito = минимальная

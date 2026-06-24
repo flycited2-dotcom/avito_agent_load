@@ -20,6 +20,15 @@ class CardConfig:
     dir: str = ""               # путь к папке с карточками на сервере
     base_url: str = ""          # публичный HTTPS-префикс этой папки
     exts: list = field(default_factory=lambda: [".jpg", ".jpeg", ".png"])
+    require_for_publish: bool = False   # публиковать серию ТОЛЬКО при наличии уникальной карточки
+
+
+def has_card(offer: Offer, cfg: CardConfig) -> bool:
+    """Есть ли для товара сгенерированная уникальная карточка на сервере."""
+    if not (cfg.enabled and cfg.dir):
+        return False
+    key = card_key(offer.supplier_sku)
+    return any((Path(cfg.dir) / f"{key}{ext}").exists() for ext in cfg.exts)
 
 
 def card_key(supplier_sku: str) -> str:

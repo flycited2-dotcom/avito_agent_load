@@ -52,6 +52,7 @@ def load_config(path: Path) -> AppConfig:
     cd = d.get("cards", {})
     cards = CardConfig(enabled=bool(cd.get("enabled", False)), dir=cd.get("dir", ""),
                        base_url=cd.get("base_url", ""),
-                       exts=cd.get("exts", [".jpg", ".jpeg", ".png"]))
+                       exts=cd.get("exts", [".jpg", ".jpeg", ".png"]),
+                       require_for_publish=bool(cd.get("require_for_publish", False)))
     return AppConfig(cities=cities, pricing=pricing, feed=feed, content=content,
                      catalog=catalog, cards=cards, selected_series=selected_series)

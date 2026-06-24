@@ -45,6 +45,14 @@ def test_run_cycle_filters_selected_series(tmp_path):
     assert result.ads_built == 1
 
 
+def test_run_cycle_requires_card_when_configured(tmp_path):
+    cfg = _cfg()
+    cfg.cards = CardConfig(enabled=True, dir=str(tmp_path / "nocards"), require_for_publish=True)
+    result = run_cycle(offers_provider=lambda: [_offer("daichi:1")], cfg=cfg,
+                       feed_path=tmp_path / "f.xml", state_path=tmp_path / "s.db")
+    assert result.ads_built == 0 and result.skipped == 1   # нет карточки → не публикуем
+
+
 def test_run_cycle_skips_unpriceable(tmp_path):
     bad = _offer("daichi:2")
     bad.cost = None
