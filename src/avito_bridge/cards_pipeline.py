@@ -87,6 +87,9 @@ def failed_inputs(queue_db: str, input_filenames: list[str]) -> set[str]:
 
 
 # ── состояние (маппинг серия→задача) ────────────────────────────────────────
+MAX_TRIES = 3   # сколько раз пробуем сгенерировать карточку серии при failed (потом сдаёмся)
+
+
 class CardJobStore:
     def __init__(self, path):
         self.path = Path(path)
@@ -94,14 +97,19 @@ class CardJobStore:
         with self._c() as c:
             c.execute("CREATE TABLE IF NOT EXISTS card_jobs "
                       "(key TEXT PRIMARY KEY, input_filename TEXT, status TEXT)")
+            try:                       # миграция: счётчик попыток (для авто-ретрая failed)
+                c.execute("ALTER TABLE card_jobs ADD COLUMN tries INTEGER DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass                   # колонка уже есть
 
     def _c(self):
         return sqlite3.connect(self.path)
 
     def get(self, key: str):
+        """(input_filename, status, tries) или None."""
         with self._c() as c:
-            return c.execute("SELECT input_filename, status FROM card_jobs WHERE key=?",
-                             (key,)).fetchone()
+            return c.execute("SELECT input_filename, status, COALESCE(tries,0) "
+                             "FROM card_jobs WHERE key=?", (key,)).fetchone()
 
     def pending(self) -> list[tuple[str, str]]:
         with self._c() as c:
@@ -109,13 +117,14 @@ class CardJobStore:
 
     def count(self) -> int:
         with self._c() as c:
-            return c.execute("SELECT count(*) FROM card_jobs").fetchone()[0]
+            return c.execute("SELECT count(*) FROM card_jobs WHERE status!='failed'").fetchone()[0]
 
-    def record(self, key: str, input_filename: str, status: str) -> None:
+    def record(self, key: str, input_filename: str, status: str, tries: int = 0) -> None:
         with self._c() as c:
-            c.execute("INSERT INTO card_jobs(key,input_filename,status) VALUES(?,?,?) "
+            c.execute("INSERT INTO card_jobs(key,input_filename,status,tries) VALUES(?,?,?,?) "
                       "ON CONFLICT(key) DO UPDATE SET input_filename=excluded.input_filename, "
-                      "status=excluded.status", (key, input_filename, status))
+                      "status=excluded.status, tries=excluded.tries",
+                      (key, input_filename, status, tries))
 
 
 _SKIP_SPEC_KEYS = {"Бренд", "Модель", "Серия", "Модель внутреннего блока", "Модель наружного блока"}
@@ -160,7 +169,9 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
                 store.record(in2key[in_fn], in_fn, "done")
                 published += 1
         for in_fn in failed_inputs(cfg.queue_db, list(in2key)):
-            store.record(in2key[in_fn], in_fn, "failed")
+            key = in2key[in_fn]
+            prev = store.get(key)
+            store.record(key, in_fn, "failed", tries=(prev[2] if prev else 1))   # сохраняем счётчик попыток
 
     # 2) поставить новые (серии без карточки), с потолком «в работе» И общим лимитом max_total
     outstanding = len(store.pending())
@@ -173,8 +184,14 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
         if (cards / f"{key}.jpg").exists():
             continue
         st = store.get(key)
-        if st and st[1] in ("pending", "done", "failed"):
-            continue
+        next_tries = 1
+        if st:
+            status, tries = st[1], st[2]
+            if status in ("pending", "done"):
+                continue
+            if status == "failed" and tries >= MAX_TRIES:
+                continue                       # исчерпали попытки — сдаёмся (не долбим агента)
+            next_tries = tries + 1             # failed с запасом попыток → переотправляем
         rep = g.representative
         photo_url = rep.photos[0] if rep.photos else None
         if not photo_url:
@@ -186,7 +203,7 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
         except Exception:
             continue
         if in_fn:
-            store.record(key, in_fn, "pending")
+            store.record(key, in_fn, "pending", tries=next_tries)
             submitted += 1
 
     # Есть незавершённые задачи → будим локального агента (WatchDog поднимет Chrome+агента).

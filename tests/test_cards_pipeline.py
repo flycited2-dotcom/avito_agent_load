@@ -56,7 +56,7 @@ def test_done_and_failed_queries(tmp_path):
 def test_card_job_store(tmp_path):
     s = CardJobStore(tmp_path / "s.db")
     s.record("k1", "ext_1.jpg", "pending")
-    assert s.get("k1") == ("ext_1.jpg", "pending")
+    assert s.get("k1") == ("ext_1.jpg", "pending", 0)
     assert s.pending() == [("k1", "ext_1.jpg")]
     s.record("k1", "ext_1.jpg", "done")
     assert s.pending() == []
@@ -111,3 +111,37 @@ def test_run_once_uses_per_series_mode(tmp_path):
     http = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://x")
     run_once(groups, cfg, store, http=http, fetch_photo=lambda u: b"img")
     assert seen.get("mcp") is True
+
+
+def test_run_once_retries_failed_until_cap(tmp_path):
+    from avito_bridge.content.cards import card_key
+    out = tmp_path / "out"; out.mkdir()
+    cfg = _cfg(tmp_path, queue_db=_make_queue_db(tmp_path, []), output_dir=str(out))
+    store = CardJobStore(tmp_path / "s.db")
+    k = card_key("breeze:NC2")
+    store.record(k, "old.jpg", "failed", tries=1)          # 1 неудачная попытка
+    groups = group_by_series([_o("breeze:NC2", 9, "http://p/2.jpg", series="Gloria")])
+
+    def handler(req):
+        return httpx.Response(200, json={"queued": "ext_new.jpg"})
+    http = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://x")
+    submitted, _ = run_once(groups, cfg, store, http=http, fetch_photo=lambda u: b"img")
+    assert submitted == 1                                  # failed с запасом попыток → переотправлен
+    assert store.get(k)[2] == 2                            # счётчик попыток вырос
+
+
+def test_run_once_gives_up_after_max_tries(tmp_path):
+    from avito_bridge.content.cards import card_key
+    from avito_bridge.cards_pipeline import MAX_TRIES
+    out = tmp_path / "out"; out.mkdir()
+    cfg = _cfg(tmp_path, queue_db=_make_queue_db(tmp_path, []), output_dir=str(out))
+    store = CardJobStore(tmp_path / "s.db")
+    k = card_key("breeze:NC2")
+    store.record(k, "old.jpg", "failed", tries=MAX_TRIES)  # попытки исчерпаны
+    groups = group_by_series([_o("breeze:NC2", 9, "http://p/2.jpg", series="Gloria")])
+
+    def handler(req):
+        return httpx.Response(200, json={"queued": "x"})
+    http = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://x")
+    submitted, _ = run_once(groups, cfg, store, http=http, fetch_photo=lambda u: b"img")
+    assert submitted == 0                                  # больше не долбим агента
