@@ -12,3 +12,10 @@ xlsx_*.json
 *.txt
 *.json
 !**/tests/**
+# Контент и конфиг каталога — отслеживаем несмотря на широкие *.txt/*.json выше
+!avito-descriptions/
+!avito-descriptions/*.txt
+!avito-descriptions/*.json
+!config/
+!config/*.yaml
+!config/card_modes.json
