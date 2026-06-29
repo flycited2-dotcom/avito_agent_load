@@ -1,5 +1,42 @@
 from __future__ import annotations
 from avito_bridge.models import RawProduct
+from avito_bridge.content.sizing import parse_kw
+
+# Мощность ОХЛАЖДЕНИЯ (кВт) по nc_code — достоверный источник типоразмера. Имена ключей разные у
+# поставщиков; берём ТОЛЬКО «холодопроизводительность/производительность охлаждения» (НЕ «потребляемая
+# мощность» — это вход), исключаем макс/мин.
+COOL_KW_QUERY = """
+SELECT p.nc_code AS nc_code, ts.title AS title, pt.value AS value
+FROM catalog_producttech pt
+JOIN catalog_techspec ts ON ts.id = pt.spec_id
+JOIN catalog_product p ON p.id = pt.product_id
+WHERE p.nc_code = ANY(%(ncs)s)
+  AND (ts.title ILIKE 'Холодопроизводительность (кВт)'
+       OR ts.title ILIKE 'Холодопроизводительность, кВт%%ном.%%'
+       OR ts.title ILIKE 'Холодопроизводительность, кВт'
+       OR ts.title ILIKE 'Номинальная производительность охлаждения')
+  AND ts.title NOT ILIKE '%%макс%%' AND ts.title NOT ILIKE '%%мин%%'
+  AND ts.title NOT ILIKE '%%потреб%%';
+"""
+
+# Приоритет ключей мощности охлаждения (точнее → менее точное).
+_KW_KEY_PRIORITY = ["холодопроизводительность (квт)", "холодопроизводительность, квт, ном.",
+                    "холодопроизводительность, квт", "номинальная производительность охлаждения"]
+
+
+def group_cool_kw(rows) -> dict[str, float]:
+    """{nc_code: кВт} — по приоритету ключей берём самое достоверное значение охлаждения."""
+    best: dict[str, tuple[int, float]] = {}
+    for r in rows:
+        nc = r.get("nc_code")
+        kw = parse_kw(r.get("value"))
+        title = (r.get("title") or "").strip().lower()
+        if not nc or kw is None or kw <= 0:
+            continue
+        rank = _KW_KEY_PRIORITY.index(title) if title in _KW_KEY_PRIORITY else len(_KW_KEY_PRIORITY)
+        if nc not in best or rank < best[nc][0]:
+            best[nc] = (rank, kw)
+    return {nc: kw for nc, (_, kw) in best.items()}
 
 CRIMEA_QUERY = """
 SELECT p.source, p.nc_code, b.title AS brand, p.title, p.series, p.category_id,
@@ -75,9 +112,12 @@ def fetch_raw_products(dsn: dict, crimea: str, cats: list[int], deny: list[str])
             if ncs:
                 cur.execute(TECH_QUERY, {"ncs": ncs})
                 tech = group_tech_rows(cur.fetchall())
+                cur.execute(COOL_KW_QUERY, {"ncs": ncs})
+                cool = group_cool_kw(cur.fetchall())
                 for r in raws:
                     if r.nc_code in tech:
                         r.tech = tech[r.nc_code]
+                    r.cool_kw = cool.get(r.nc_code)
             return raws
     finally:
         conn.close()

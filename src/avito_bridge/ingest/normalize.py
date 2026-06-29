@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from avito_bridge.models import RawProduct, Offer
 from avito_bridge.ingest.title_parse import parse_model_title
+from avito_bridge.content.sizing import derive_size
 
 
 @dataclass
@@ -41,10 +42,12 @@ def to_offer(raw: RawProduct, cost: Decimal | None) -> Offer:
             series = ps
         if pk and raw.source == "rusklimat":       # btu_calc у rusklimat недостоверен → берём из модель-кода
             btu = pk
+    # Достоверный типоразмер: мощность охлаждения (кВт) → стандарт; fallback — btu к стандарту.
+    size = derive_size(raw.cool_kw, btu, raw.category_id)
     return Offer(
         supplier_sku=f"{raw.source}:{raw.nc_code or raw.title}",
         source=raw.source, brand=raw.brand or "", model=raw.title,
-        category_id=raw.category_id, btu_calc=btu, attrs=dict(raw.tech),
+        category_id=raw.category_id, btu_calc=size if size else btu, attrs=dict(raw.tech),
         cost=cost, retail_ref=None, stock=raw.stock_qty, photos=list(raw.image_urls),
         series=series, content_hash=content_hash(raw),
     )

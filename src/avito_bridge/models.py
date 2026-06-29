@@ -11,6 +11,7 @@ class RawProduct(BaseModel):
     series: str | None = None
     category_id: int | None = None
     btu_calc: float | None = None
+    cool_kw: float | None = None         # мощность охлаждения, кВт — достоверный источник типоразмера
     price_wholesale: Decimal | None = None
     price_base: Decimal | None = None
     stock_qty: int = 0
