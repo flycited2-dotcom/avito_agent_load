@@ -16,6 +16,7 @@ from pathlib import Path
 import httpx
 
 from avito_bridge.content.cards import card_key
+from avito_bridge.content.render import card_brief
 
 
 @dataclass
@@ -197,9 +198,10 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
         if not photo_url:
             continue
         mode = (cfg.modes or {}).get(getattr(g, "key", None)) or cfg.mode
-        try:
-            in_fn = submit_card_job(cfg, fetch_photo(photo_url), g.brand, g.series,
-                                    specs_text(rep.attrs), http=http, mode=mode)
+        try:                                   # на карточку — ЧИСТЫЙ текст серии, не сырой ТТХ-дамп
+            in_fn = submit_card_job(cfg, fetch_photo(photo_url), g.brand,
+                                    f"{g.brand} {g.series}".strip(), card_brief(g),
+                                    http=http, mode=mode)
         except Exception:
             continue
         if in_fn:

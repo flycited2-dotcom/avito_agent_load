@@ -50,6 +50,22 @@ def test_render_series_price_table_dedup_by_size():
     assert "(Olimpio)" not in c.title               # скобочная латиница убрана из заголовка
 
 
+def test_card_brief_is_clean_series_text():
+    from avito_bridge.content.render import card_brief
+
+    def mk(sku, btu):
+        return Offer(supplier_sku=sku, source="breeze", brand="Midea", model=f"Paramount {btu}",
+                     category_id=2, btu_calc=btu, attrs={"Трубопровод, мм": "9.52"},
+                     cost=Decimal("1"), retail_ref=None, stock=1, photos=[],
+                     series="Парамаунт", content_hash="h")
+    g = group_by_series([mk("a:1", 7), mk("a:2", 12), mk("a:3", 18)])[0]
+    t = card_brief(g)
+    assert t.startswith("Midea Парамаунт")
+    assert "7 / 12 / 18 тыс. BTU" in t                  # размерный ряд серии на карточке
+    assert "Классическая (вкл/выкл)" in t               # не инвертор
+    assert "9.52" not in t and "Трубопровод" not in t   # сырой ТТХ НЕ утекает на карточку
+
+
 def test_render_series_website_link_only_for_selected():
     g = group_by_series([Offer(supplier_sku="b:1", source="breeze", brand="Ballu",
                                model="Olympio 7", category_id=2, btu_calc=7, attrs={},

@@ -45,7 +45,28 @@ def _pick(options: list[str], seed: int) -> str:
 
 
 def _is_inverter(offer: Offer) -> bool:
-    return "инвертор" in f"{offer.model} {offer.series or ''}".lower()
+    nl = f"{offer.model} {offer.series or ''}".lower()
+    return "инвертор" in nl or "inverter" in nl
+
+
+def card_brief(group) -> str:
+    """ЧИСТЫЙ короткий текст серии для карточки-картинки (фотоагент рисует его на плашках).
+    Заменяет сырой ТТХ-дамп: бренд+серия (в model), тип, размерный ряд, площадь, инвертор.
+    Только достоверные структурные данные — без кривых полей БД."""
+    rep = group.representative
+    type_label = _TYPE_LABEL.get(group.category_id, "Кондиционер")
+    sizes = sorted({s for s in (size_from_btu(m.btu_calc, m.category_id) for m in group.members) if s})
+    lines = [f"{group.brand} {group.series}".strip(), type_label]
+    if len(sizes) > 1:
+        lines.append("Типоразмеры: " + " / ".join(str(s) for s in sizes) + " тыс. BTU")
+        a0, a1 = _AREA_BY_SIZE.get(sizes[0]), _AREA_BY_SIZE.get(sizes[-1])
+        if a0 and a1:
+            lines.append(f"Площадь: {a0}–{a1} м²")
+    elif sizes:
+        a = _AREA_BY_SIZE.get(sizes[0])
+        lines.append(f"Мощность: {sizes[0]} тыс. BTU" + (f", до {a} м²" if a else ""))
+    lines.append("Инвертор" if _is_inverter(rep) else "Классическая (вкл/выкл)")
+    return "\n".join(lines)
 
 
 def _title(offer: Offer) -> str:
