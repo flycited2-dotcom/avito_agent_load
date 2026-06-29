@@ -74,6 +74,17 @@ def _o(sku, btu, photo, series="Olympio"):
                  content_hash="h")
 
 
+def test_card_input_photo_prefers_indoor_for_daichi():
+    from avito_bridge.content.cards import card_input_photo
+    daichi = _o("daichi:1", 7, "montage.jpg")
+    daichi.source = "daichi"
+    daichi.photos = ["montage.jpg", "indoor.jpg", "outdoor.jpg"]
+    assert card_input_photo(daichi) == "indoor.jpg"        # daichi: пропускаем монтаж [0]
+    breeze = _o("breeze:1", 7, "indoor.jpg")
+    breeze.photos = ["indoor.jpg", "x.jpg"]
+    assert card_input_photo(breeze) == "indoor.jpg"        # breeze: [0] уже норм
+
+
 def test_run_once_submits_and_publishes(tmp_path):
     # одна серия без карточки → submit; и одна готовая в очереди → publish
     out = tmp_path / "out"; out.mkdir()

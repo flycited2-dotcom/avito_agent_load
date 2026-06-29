@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import httpx
 
-from avito_bridge.content.cards import card_key
+from avito_bridge.content.cards import card_key, card_input_photo
 from avito_bridge.content.render import card_brief
 
 
@@ -194,7 +194,7 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
                 continue                       # исчерпали попытки — сдаёмся (не долбим агента)
             next_tries = tries + 1             # failed с запасом попыток → переотправляем
         rep = g.representative
-        photo_url = rep.photos[0] if rep.photos else None
+        photo_url = card_input_photo(rep)          # кадр внутреннего блока (герой карточки)
         if not photo_url:
             continue
         mode = (cfg.modes or {}).get(getattr(g, "key", None)) or cfg.mode

@@ -33,6 +33,19 @@ def has_card(offer: Offer, cfg: CardConfig) -> bool:
     return any((Path(cfg.dir) / f"{key}{ext}").exists() for ext in cfg.exts)
 
 
+def card_input_photo(offer) -> str | None:
+    """Фото-вход для генерации карточки — кадр ВНУТРЕННЕГО блока (он «герой» карточки).
+    У daichi фото[0] — монтаж (внутренний+пульт+крупный наружный): наружный доминирует, и GPT
+    мельчит внутренний блок. Фото[1] у daichi — чистый внутренний блок → берём его.
+    У breeze/rusklimat фото[0] уже с внутренним блоком."""
+    photos = list(getattr(offer, "photos", []) or [])
+    if not photos:
+        return None
+    if offer.source == "daichi" and len(photos) >= 2:
+        return photos[1]
+    return photos[0]
+
+
 def card_key(supplier_sku: str) -> str:
     """Ключ файла карточки = код товара (часть supplier_sku после ':', т.е. nc_code).
     Кириллицу СОХРАНЯЕМ (контракт прост: «назови файл кодом товара»); заменяем только
