@@ -105,3 +105,16 @@ cards:
   base_url: "https://splithome.ru/static/avito-cards"
   exts: [".jpg", ".jpeg", ".png"]
   require_for_publish: true   # публикуем серию только с уникальной карточкой (исключаем блок «дубль фото»)
+  max_images: 10              # лимит картинок в объявлении (Avito)
+  # 10 серий на ФОТО ПОСТАВЩИКА (несколько фото, без генер-карточки). Многоразмерные, с богатым фотоматериалом.
+  supplier_photo_series:
+    - "breeze|ultima comfort|elysium inverter"
+    - "breeze|royal clima|felicita"
+    - "rusklimat|ballu|olympio edge"
+    - "breeze|funai|shogun"
+    - "daichi|midea|анлимитед"
+    - "rusklimat|shuft|tor"
+    - "rusklimat|ballu|odyssey pro dc"
+    - "breeze|hisense|easy classic a"
+    - "breeze|hisense|city dc inverter"
+    - "breeze|hitachi|shiratama"

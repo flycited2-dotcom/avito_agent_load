@@ -40,14 +40,18 @@ def run_cycle(offers_provider: Callable[[], list[Offer]], cfg: AppConfig,
             skipped += 1
             continue
         rep = g.representative                 # стабильная (младший размер) → стабильный ad_id/карточка
-        if cfg.cards.require_for_publish and not has_card(rep, cfg.cards):
+        is_supplier = g.key in cfg.cards.supplier_photo_series   # серия на фото поставщика (мульти, без карточки)
+        if cfg.cards.require_for_publish and not is_supplier and not has_card(rep, cfg.cards):
             skipped += 1                        # без уникальной карточки не публикуем (риск блока «дубль фото»)
             continue
         c = render_series(g, member_prices, cfg.content)
         content[rep.supplier_sku] = (c.title, c.description)
         prices[rep.supplier_sku] = min(member_prices.values())   # цена Avito = минимальная
         rep.stock = sum(m.stock for m in g.members)               # серия в наличии (для build_ads)
-        rep.photos = resolve_photos(rep, cfg.cards)               # карточка серии / иначе фото поставщика
+        if is_supplier:                                            # фото поставщика (мульти), без генер-карточки
+            rep.photos = list(rep.photos)[: cfg.cards.max_images]
+        else:
+            rep.photos = resolve_photos(rep, cfg.cards)            # карточка серии / иначе фото поставщика
         reps.append(rep)
     # Серии с УНИКАЛЬНОЙ карточкой — в приоритет: они публикуются без блока «повторное размещение».
     reps.sort(key=lambda r: 0 if any("avito-cards" in p for p in r.photos) else 1)

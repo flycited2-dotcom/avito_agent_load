@@ -53,6 +53,19 @@ def test_run_cycle_requires_card_when_configured(tmp_path):
     assert result.ads_built == 0 and result.skipped == 1   # нет карточки → не публикуем
 
 
+def test_run_cycle_supplier_photo_series_bypasses_card(tmp_path):
+    from avito_bridge.catalog.series import series_key
+    o = _offer("daichi:1")
+    o.photos = ["https://i/1.jpg", "https://i/2.jpg", "https://i/3.jpg"]
+    cfg = _cfg()
+    cfg.cards = CardConfig(enabled=True, dir=str(tmp_path / "nocards"), require_for_publish=True,
+                           supplier_photo_series=frozenset({series_key(o)}), max_images=10)
+    feed = tmp_path / "f.xml"
+    r = run_cycle(offers_provider=lambda: [o], cfg=cfg, feed_path=feed, state_path=tmp_path / "s.db")
+    assert r.ads_built == 1                                 # без карточки, но опубликовано (фото поставщика)
+    assert feed.read_text(encoding="utf-8").count("<Image ") == 3   # несколько фото
+
+
 def test_run_cycle_skips_unpriceable(tmp_path):
     bad = _offer("daichi:2")
     bad.cost = None

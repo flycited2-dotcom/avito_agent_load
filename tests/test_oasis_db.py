@@ -19,18 +19,19 @@ def test_row_to_raw_maps_columns():
     row = {"source": "rusklimat", "nc_code": "NC7", "brand": "Ballu",
            "title": "Ballu Olympio 07", "series": None, "category_id": 2,
            "btu_calc": 7, "price_wholesale": Decimal("30000"),
-           "price_base": Decimal("21000"), "crimea_qty": 4, "image_url": "https://i/1.jpg"}
+           "price_base": Decimal("21000"), "crimea_qty": 4,
+           "image_urls": ["https://i/1.jpg", "https://i/2.jpg"]}      # все фото товара
     r = row_to_raw(row)
     assert r.source == "rusklimat" and r.nc_code == "NC7"
     assert r.price_base == Decimal("21000") and r.stock_qty == 4
-    assert r.image_urls == ["https://i/1.jpg"]
+    assert r.image_urls == ["https://i/1.jpg", "https://i/2.jpg"]
 
 
 def test_row_to_raw_handles_null_image():
     r = row_to_raw({"source": "daichi", "nc_code": "N", "brand": "B", "title": "T",
                     "series": "S", "category_id": 6, "btu_calc": 60,
                     "price_wholesale": Decimal("1"), "price_base": None,
-                    "crimea_qty": 0, "image_url": None})
+                    "crimea_qty": 0, "image_urls": None})
     assert r.image_urls == []
 
 

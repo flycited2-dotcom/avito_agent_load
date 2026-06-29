@@ -21,6 +21,8 @@ class CardConfig:
     base_url: str = ""          # публичный HTTPS-префикс этой папки
     exts: list = field(default_factory=lambda: [".jpg", ".jpeg", ".png"])
     require_for_publish: bool = False   # публиковать серию ТОЛЬКО при наличии уникальной карточки
+    supplier_photo_series: frozenset = frozenset()   # серии на фото поставщика (мульти, без генер-карточки)
+    max_images: int = 10        # максимум картинок в объявлении (лимит Avito)
 
 
 def has_card(offer: Offer, cfg: CardConfig) -> bool:
@@ -48,4 +50,4 @@ def resolve_photos(offer: Offer, cfg: CardConfig) -> list[str]:
         for ext in cfg.exts:
             if (Path(cfg.dir) / f"{key}{ext}").exists():
                 return [f"{cfg.base_url.rstrip('/')}/{quote(key + ext)}"]
-    return list(offer.photos)
+    return list(offer.photos)[: cfg.max_images]      # фото поставщика (несколько), кап по лимиту Avito

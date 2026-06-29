@@ -4,8 +4,8 @@ from avito_bridge.models import RawProduct
 CRIMEA_QUERY = """
 SELECT p.source, p.nc_code, b.title AS brand, p.title, p.series, p.category_id,
        p.btu_calc, p.price_wholesale, s.price_base, s.quantity AS crimea_qty,
-       (SELECT i.url FROM catalog_productimage i
-        WHERE i.product_id = p.id ORDER BY i."order" LIMIT 1) AS image_url
+       (SELECT array_agg(i.url ORDER BY i."order") FROM catalog_productimage i
+        WHERE i.product_id = p.id) AS image_urls
 FROM catalog_product p
 JOIN stock_stock s ON s.product_id = p.id
 LEFT JOIN catalog_brand b ON b.id = p.brand_id
@@ -50,14 +50,14 @@ def group_tech_rows(rows, max_specs: int = 12) -> dict[str, dict]:
 
 
 def row_to_raw(row: dict) -> RawProduct:
-    img = row.get("image_url")
+    imgs = [u for u in (row.get("image_urls") or []) if u][:10]   # все фото товара (Avito максимум 10)
     return RawProduct(
         source=row["source"], nc_code=row.get("nc_code"), brand=row.get("brand"),
         title=row.get("title") or "", series=row.get("series"),
         category_id=row.get("category_id"), btu_calc=row.get("btu_calc"),
         price_wholesale=row.get("price_wholesale"), price_base=row.get("price_base"),
         stock_qty=int(row.get("crimea_qty") or 0),
-        image_urls=[img] if img else [], tech={},
+        image_urls=imgs, tech={},
     )
 
 

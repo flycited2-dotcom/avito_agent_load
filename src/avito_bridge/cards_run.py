@@ -24,6 +24,7 @@ def main():
     groups = group_by_series(offers)
     if cfg.selected_series:                     # генерируем карточки только для отмеченных серий
         groups = [g for g in groups if g.key in cfg.selected_series]
+    groups = [g for g in groups if g.key not in cfg.cards.supplier_photo_series]   # эти — на фото поставщика
     modes_path = Path(config("FOTOGEN_MODES_JSON", "config/card_modes.json"))
     modes = json.loads(modes_path.read_text(encoding="utf-8")) if modes_path.exists() else {}
     fcfg = FotogenConfig(
