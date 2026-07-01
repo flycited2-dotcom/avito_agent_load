@@ -57,8 +57,14 @@ catalog:
   force_include:
     "НС-1690797": { price: 18990, series: "ACE-07 FH/N6" }   # AC ELECTRIC мобильный 7k
     "НС-1690798": { price: 19990, series: "ACE-09 FH/N6" }   # AC ELECTRIC мобильный 9k
+  # Ручное фото для товаров без фото в БД: {nc_code: URL}. Кладём jpg в /static/manual-photos/.
+  manual_photos:
+    "НС-1763718": "https://splithome.ru/static/manual-photos/tessey.jpg"   # Ballu Tessey DC 7k (rep)
+    "НС-1763719": "https://splithome.ru/static/manual-photos/tessey.jpg"   # Ballu Tessey DC 9k
+    "НС-1763720": "https://splithome.ru/static/manual-photos/tessey.jpg"   # Ballu Tessey DC 12k
   # Курирование каталога: список серий (key из avito-series-select.xlsx) для публикации. Пусто = все.
   selected_series:
+    - "rusklimat|ballu|tessey dc"
     - "daichi|axioma|h"
     - "daichi|axioma|h инвертор"
     - "rusklimat|ballu|olympio legend"
