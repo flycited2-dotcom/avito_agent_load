@@ -76,7 +76,7 @@ def test_header_title_inverter_front_no_dup():
                      stock=1, photos=[], series="City DC Inverter", content_hash="h")
     g = group_by_series([mk("b:1", 7), mk("b:2", 18)])[0]
     c = render_series(g, {"b:1": 33390, "b:2": 73790}, ContentConfig(stop_words=[]))
-    assert c.title.startswith("Инверторная сплит-система Hisense City DC")   # инвертор впереди
+    assert c.title.startswith("Инвертор · сплит-система Hisense City DC")    # инвертор впереди
     assert "Inverter" not in c.title and len(c.title) <= 50                  # дубль убран, влезает
 
 
