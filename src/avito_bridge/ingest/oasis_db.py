@@ -131,8 +131,11 @@ def fetch_raw_products(dsn: dict, crimea: str, cats: list[int], deny: list[str],
                     rp = row_to_raw(row)
                     rp.stock_qty = 1
                     rp.forced = True
-                    price = force_include.get(rp.nc_code)
+                    spec = force_include.get(rp.nc_code) or {}
+                    price = spec.get("price") if isinstance(spec, dict) else spec
                     rp.price_override = Decimal(str(price)) if price else None
+                    if isinstance(spec, dict) and spec.get("series"):   # разводит товары по отд. объявлениям
+                        rp.series = spec["series"]
                     raws.append(rp)
             ncs = [r.nc_code for r in raws if r.nc_code]
             if ncs:

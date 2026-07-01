@@ -52,10 +52,11 @@ catalog:
   report_category_ids: [2, 6, 7]
   exclude_title_patterns: ["%мульти%", "%виброопор%", "%охладитель воздуха%", "%зимний комплект%", "%зимн%", "%комплект зимний%"]
   crimea_warehouse: "Симферополь"
-  # Принудительно в фид (минуя наличие БД) — товары под заказ, {nc_code: ручная цена ₽}.
+  # Принудительно в фид (минуя наличие БД) — товары под заказ. {nc: {price, series}}; series разводит
+  # товары по РАЗНЫМ объявлениям (без series — схлопываются в одну серию).
   force_include:
-    "НС-1690797": 18990   # AC ELECTRIC ACE-07 FH/N6 — мобильный 7k
-    "НС-1690798": 19990   # AC ELECTRIC ACE-09 FH/N6 — мобильный 9k
+    "НС-1690797": { price: 18990, series: "ACE-07 FH/N6" }   # AC ELECTRIC мобильный 7k
+    "НС-1690798": { price: 19990, series: "ACE-09 FH/N6" }   # AC ELECTRIC мобильный 9k
   # Курирование каталога: список серий (key из avito-series-select.xlsx) для публикации. Пусто = все.
   selected_series:
     - "rusklimat|ac electric|pro"

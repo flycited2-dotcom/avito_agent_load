@@ -50,7 +50,10 @@ def load_config(path: Path) -> AppConfig:
                             website_link_keys=frozenset(cc.get("website_link_keys", []) or []),
                             descriptions=descriptions)
     cat = d.get("catalog", {})
-    force_include = {str(k): v for k, v in (cat.get("force_include", {}) or {}).items()}
+    force_include = {}                           # {nc: {price, series}} — series разводит товары по разным объявлениям
+    for k, v in (cat.get("force_include", {}) or {}).items():
+        force_include[str(k)] = ({"price": v.get("price"), "series": v.get("series")}
+                                 if isinstance(v, dict) else {"price": v, "series": None})
     catalog = CatalogFilter(report_category_ids=cat.get("report_category_ids", [2, 6, 7]),
                             exclude_title_patterns=cat.get("exclude_title_patterns", []),
                             force_include=force_include)
