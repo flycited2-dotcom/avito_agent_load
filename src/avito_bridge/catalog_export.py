@@ -45,7 +45,8 @@ def main() -> None:
     raw = fetch_raw_products(dsn, "Симферополь", cfg.catalog.report_category_ids,
                              cfg.catalog.exclude_title_patterns,
                              force_include=cfg.catalog.force_include,
-                             manual_photos=cfg.catalog.manual_photos)
+                             manual_photos=cfg.catalog.manual_photos,
+                             manual_price_override=cfg.catalog.manual_price_override)
     offers = collect_offers(raw, Path(config("JAC_STOCK_JSON", "")), cfg.catalog, lambda nc: None)
     print(json.dumps(build_catalog_json(offers, cfg), ensure_ascii=False))
 
