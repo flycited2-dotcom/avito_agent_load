@@ -1,0 +1,56 @@
+{
+  "uploads": [
+    {
+      "upload_id": 559743947,
+      "status": "processing",
+      "source": "Url",
+      "started_at": "2026-07-01T17:48:04Z",
+      "stats": {
+        "title": "Обработано объявлений",
+        "slug": "sections_stats",
+        "count": 57,
+        "sections": [
+          {
+            "title": "Успешно опубликовано",
+            "slug": "successful",
+            "count": 57,
+            "sections": []
+          }
+        ]
+      },
+      "events": [],
+      "feed_urls": [
+        {
+          "name": "",
+          "url": "https://api.avito.ru/autoload/v2/feed/content/6a4552d3d3ede60f2622d6a9/173db34b-d484-40f1-b64c-565877385e78"
+        }
+      ]
+    },
+    {
+      "upload_id": 559723126,
+      "status": "success",
+      "source": "Url",
+      "started_at": "2026-07-01T16:48:02Z",
+      "stats": {
+        "title": "Обработано объявлений",
+        "slug": "sections_stats",
+        "count": 57,
+        "sections": [
+          {
+            "title": "Успешно опубликовано",
+            "slug": "successful",
+            "count": 57,
+            "sections": []
+          }
+        ]
+      },
+      "events": [],
+      "feed_urls": [
+        {
+          "name": "",
+          "url": "https://api.avito.ru/autoload/v2/feed/content/6a4544c23177fc415d980dad/173db34b-d484-40f1-b64c-565877385e78"
+        }
+      ]
+    }
+  ]
+}

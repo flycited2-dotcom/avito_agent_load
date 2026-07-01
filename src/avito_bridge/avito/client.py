@@ -7,6 +7,7 @@ EP_TOKEN = "/token"                                   # POST client_credentials
 EP_SELF = "/core/v1/accounts/self"
 EP_PROFILE = "/autoload/v2/profiles"                  # подтвердить по порталу (Фаза 0)
 EP_UPLOAD = "/autoload/v1/upload"                     # подтвердить по порталу
+EP_UPLOADS_V4 = "/autoload/v4/uploads"
 
 
 def ep_last_report(uid):
@@ -57,3 +58,23 @@ class AvitoClient:
         r = self.http.get(ep_last_report(uid), headers=self._auth())
         r.raise_for_status()
         return r.json()
+
+    def list_uploads(self) -> list[dict]:
+        """GET /autoload/v4/uploads — список прогонов автозагрузки СО статистикой (не deprecated,
+        в отличие от /autoload/v2/reports)."""
+        r = self.http.get(EP_UPLOADS_V4, headers=self._auth())
+        r.raise_for_status()
+        return r.json().get("uploads", [])
+
+    def last_successful_items(self) -> list[dict]:
+        """GET /autoload/v4/uploads/last_successful/items — постатейный статус последней
+        УСПЕШНОЙ загрузки: {ad_id, avito_id, avito_status, url, messages[]} на объявление."""
+        r = self.http.get(f"{EP_UPLOADS_V4}/last_successful/items", headers=self._auth())
+        r.raise_for_status()
+        return r.json().get("items", [])
+
+
+def status_by_ad_id(items: list[dict]) -> dict[str, dict]:
+    """{ad_id: item} — по нашему ad_id (см. avito_bridge.feed.ad_id.make_ad_id) находим реальный
+    статус объявления на Avito."""
+    return {it["ad_id"]: it for it in items if it.get("ad_id")}
