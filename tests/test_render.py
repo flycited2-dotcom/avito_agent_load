@@ -60,6 +60,26 @@ def test_smart_title_fixes_caps():
     assert _smart_title("Midea Парамаунт") == "Midea Парамаунт"      # уже норм — не трогаем
 
 
+def test_header_title_drops_nastennaya_adds_area():
+    g = group_by_series([Offer(supplier_sku="b:1", source="rusklimat", brand="Electrolux",
+                               model="Smartline", category_id=2, btu_calc=9, attrs={},
+                               cost=Decimal("10000"), retail_ref=None, stock=1, photos=[],
+                               series="Smartline", content_hash="h")])[0]
+    c = render_series(g, {"b:1": 21990}, ContentConfig(stop_words=[]))
+    assert c.title == "Сплит-система Electrolux Smartline (до 25 м²)"    # без «Настенная», + площадь
+
+
+def test_header_title_inverter_front_no_dup():
+    def mk(sku, btu):
+        return Offer(supplier_sku=sku, source="breeze", brand="Hisense", model=f"City {btu}",
+                     category_id=2, btu_calc=btu, attrs={}, cost=Decimal("10000"), retail_ref=None,
+                     stock=1, photos=[], series="City DC Inverter", content_hash="h")
+    g = group_by_series([mk("b:1", 7), mk("b:2", 18)])[0]
+    c = render_series(g, {"b:1": 33390, "b:2": 73790}, ContentConfig(stop_words=[]))
+    assert c.title.startswith("Инверторная сплит-система Hisense City DC")   # инвертор впереди
+    assert "Inverter" not in c.title and len(c.title) <= 50                  # дубль убран, влезает
+
+
 def test_card_brief_is_clean_series_text():
     from avito_bridge.content.render import card_brief
 

@@ -173,6 +173,48 @@ def _money(p: int) -> str:
     return f"{p:,}".replace(",", " ") + " ₽"
 
 
+# Тип для ШАПКИ объявления: без «Настенная», инвертор — впереди (чтобы не обрезалось на «…инвер»).
+_TYPE_SHORT = {2: "Сплит-система", 6: "Полупромышленный кондиционер", 7: "Мобильный кондиционер"}
+
+
+def _header_type(category_id: int | None, inverter: bool) -> str:
+    if category_id == 2 and inverter:
+        return "Инверторная сплит-система"
+    return _TYPE_SHORT.get(category_id, "Кондиционер")
+
+
+def _area_str(sizes: list[int]) -> str:
+    """Площадь для шапки: «до 25 м²» (один размер) или «20–70 м²» (диапазон)."""
+    areas = [_AREA_BY_SIZE.get(s) for s in sizes if _AREA_BY_SIZE.get(s)]
+    if not areas:
+        return ""
+    lo, hi = min(areas), max(areas)
+    return f"до {hi} м²" if lo == hi else f"{lo}–{hi} м²"
+
+
+def _fit_title(header: str, name: str, area: str, maxlen: int) -> str:
+    """Собрать шапку ≤ maxlen: с площадью если влезает; иначе без площади; иначе подрезать по слову."""
+    if area and len(f"{header} {name} ({area})") <= maxlen:
+        return f"{header} {name} ({area})"
+    base = f"{header} {name}"
+    if len(base) <= maxlen:
+        return base
+    words = base.split()
+    while len(words) > 2 and len(" ".join(words)) > maxlen:
+        words.pop()
+    return " ".join(words)
+
+
+def _build_title(group, series_disp: str, inv: bool, sizes: list[int], cfg: ContentConfig) -> str:
+    header = _header_type(group.category_id, inv)
+    tname = series_disp
+    if inv:                               # убрать дубль «Inverter/инвертор» из модели — тип уже говорит
+        tname = re.sub(r"\b(inverter|инвертор\w*)\b", "", tname, flags=re.I)
+        tname = re.sub(r"\s{2,}", " ", tname).strip(" -–")
+    name = _smart_title(f"{group.brand} {tname}".strip())
+    return _strip_stopwords(_fit_title(header, name, _area_str(sizes), cfg.title_max), cfg.stop_words).strip()
+
+
 def render_series(group, prices: dict, cfg: ContentConfig) -> Content:
     """Описание ОДНОГО объявления на серию: заголовок + таблица «типоразмер → цена»
     (только в наличии) + продающий текст. `prices` = {supplier_sku члена: цена}.
@@ -181,14 +223,7 @@ def render_series(group, prices: dict, cfg: ContentConfig) -> Content:
     seed = _seed(rep)
     type_label = _TYPE_LABEL.get(group.category_id, "Кондиционер")
     inv = _is_inverter(rep)
-
     series_disp = re.sub(r"\s*\([^)]*\)", "", group.series).strip() or group.series
-    name = _smart_title(f"{group.brand} {series_disp}".strip())   # чтобы Avito не делал КАПС строчным
-    title_base = f"{type_label} {name}".strip()
-    low = title_base.lower()
-    if inv and "инвертор" not in low and "inverter" not in low:    # не задваивать Inverter/инвертор
-        title_base += " инвертор"
-    title = _strip_stopwords(title_base, cfg.stop_words)[: cfg.title_max].strip()
 
     # Типоразмер достоверный (btu_calc стандартизован на ingest из мощности кВт) — прямое чтение.
     sz = {m.supplier_sku: size_from_btu(m.btu_calc, m.category_id) for m in group.members}
@@ -211,13 +246,15 @@ def render_series(group, prices: dict, cfg: ContentConfig) -> Content:
         rows.append(f"• {label} — {_money(by_size[size])}")
     rows += [f"• {model} — {_money(p)}" for model, p in no_size]
 
+    sizes = sorted(by_size)
+    title = _build_title(group, series_disp, inv, sizes, cfg)   # шапка: тип+бренд+модель+площадь
+
     override = (cfg.descriptions or {}).get(getattr(group, "key", None))
     if override:                          # готовый текст (ручной/Codex) + живая таблица цен
         lines = [override.strip()]
         if rows:
             lines += ["", "Цены по типоразмерам (в наличии):"] + rows
     else:                                 # автогенерация описания
-        sizes = sorted(by_size)
         if sizes:
             head = (f"{group.brand} {series_disp}: {type_label.lower()}, "
                     f"типоразмеры {sizes[0]}–{sizes[-1]} тыс. BTU в наличии.")
