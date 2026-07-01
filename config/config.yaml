@@ -8,7 +8,7 @@ pricing:
   min_margin_abs: 0       # 0 = строго +5%, без принудительного пола маржи (по решению заказчика)
   rules: []
 feed:
-  max_active_ads: 60       # курируемый каталог: 44 отмеченные серии (selected_series ниже)
+  max_active_ads: 100       # курируемый каталог: 44 отмеченные серии (selected_series ниже)
   base_tags:
     Category: "Бытовая техника"
     GoodsType: "Климатическое оборудование"
@@ -59,6 +59,30 @@ catalog:
     "НС-1690798": { price: 19990, series: "ACE-09 FH/N6" }   # AC ELECTRIC мобильный 9k
   # Курирование каталога: список серий (key из avito-series-select.xlsx) для публикации. Пусто = все.
   selected_series:
+    - "daichi|axioma|h"
+    - "daichi|axioma|h инвертор"
+    - "rusklimat|ballu|olympio legend"
+    - "rusklimat|ballu|odyssey dc"
+    - "rusklimat|ballu|tessey dc"
+    - "daichi|daichi|айс"
+    - "daichi|daichi|эйр 2 инвертор"
+    - "breeze|funai|sensei 2.0"
+    - "breeze|funai|kagami"
+    - "breeze|hisense|city 2.0 classic a"
+    - "breeze|hisense|zoom dc inverter wi fi"
+    - "daichi|kentatsu|ичи"
+    - "daichi|midea|изи"
+    - "daichi|midea|изи инвертор"
+    - "breeze|royal clima|gloria"
+    - "breeze|royal clima|perfetto dc eu inverter"
+    - "breeze|royal clima|royal supremo nero full dc eu inverter"
+    - "rusklimat|royal thermo|siena dc"
+    - "breeze|ultima comfort|exceed inverter"
+    - "breeze|ultima comfort|exceed"
+    - "breeze|xigma|sky"
+    - "breeze|xigma|turbocool"
+    - "breeze|xigma|sky inverter"
+    - "breeze|xigma|turbocool inverter"
     - "rusklimat|ac electric|pro"
     - "rusklimat|ballu|olympio edge"
     - "rusklimat|ballu|aura"
