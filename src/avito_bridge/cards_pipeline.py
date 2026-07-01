@@ -202,7 +202,10 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
             in_fn = submit_card_job(cfg, fetch_photo(photo_url), g.brand,
                                     f"{g.brand} {g.series}".strip(), card_brief(g),
                                     http=http, mode=mode)
-        except Exception:
+        except Exception as e:
+            # Раньше ошибка сети/API проглатывалась молча — теперь виден ключ серии и причина
+            # (важно для GUI «Контент-студии», где вывод cards_run показывается пользователю).
+            print(f"card submit failed for {getattr(g, 'key', key)}: {e}")
             continue
         if in_fn:
             store.record(key, in_fn, "pending", tries=next_tries)
