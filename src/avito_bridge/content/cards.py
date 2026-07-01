@@ -61,6 +61,9 @@ def resolve_photos(offer: Offer, cfg: CardConfig) -> list[str]:
     if cfg.enabled and cfg.dir:
         key = card_key(offer.supplier_sku)
         for ext in cfg.exts:
-            if (Path(cfg.dir) / f"{key}{ext}").exists():
-                return [f"{cfg.base_url.rstrip('/')}/{quote(key + ext)}"]
+            f = Path(cfg.dir) / f"{key}{ext}"
+            if f.exists():
+                ver = int(f.stat().st_mtime)     # версия по mtime → при перегенерации URL меняется,
+                url = f"{cfg.base_url.rstrip('/')}/{quote(key + ext)}?v={ver}"   # Avito перекачивает карточку
+                return [url]
     return list(offer.photos)[: cfg.max_images]      # фото поставщика (несколько), кап по лимиту Avito

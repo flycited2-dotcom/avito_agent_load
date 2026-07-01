@@ -19,7 +19,7 @@ def test_resolve_url_percent_encodes_cyrillic(tmp_path):
     (tmp_path / "НК-1478151.jpg").write_bytes(b"img")
     cfg = CardConfig(enabled=True, dir=str(tmp_path), base_url="https://x/c", exts=[".jpg"])
     o = _o("rusklimat:НК-1478151", ["https://supplier/p.jpg"])
-    assert resolve_photos(o, cfg) == ["https://x/c/%D0%9D%D0%9A-1478151.jpg"]
+    assert resolve_photos(o, cfg)[0].startswith("https://x/c/%D0%9D%D0%9A-1478151.jpg?v=")  # +версия mtime
 
 
 def test_resolve_uses_supplier_photo_when_no_card(tmp_path):
@@ -32,7 +32,7 @@ def test_resolve_uses_card_when_present(tmp_path):
     (tmp_path / "NC7.jpg").write_bytes(b"img")
     cfg = CardConfig(enabled=True, dir=str(tmp_path), base_url="https://x/c/", exts=[".jpg"])
     o = _o("rusklimat:NC7", ["https://supplier/p.jpg"])
-    assert resolve_photos(o, cfg) == ["https://x/c/NC7.jpg"]   # карточка вместо фото поставщика
+    assert resolve_photos(o, cfg)[0].startswith("https://x/c/NC7.jpg?v=")   # карточка + версия mtime
 
 
 def test_resolve_disabled_returns_supplier(tmp_path):
