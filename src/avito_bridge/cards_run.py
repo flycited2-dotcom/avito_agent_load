@@ -20,7 +20,8 @@ def main():
            "dbname": config("DB_NAME"), "user": config("DB_USER"), "password": config("DB_PASSWORD")}
     raw = fetch_raw_products(dsn, "Симферополь", cfg.catalog.report_category_ids,
                              cfg.catalog.exclude_title_patterns,
-                             force_include=cfg.catalog.force_include)
+                             force_include=cfg.catalog.force_include,
+                             manual_photos=cfg.catalog.manual_photos)
     offers = collect_offers(raw, Path(config("JAC_STOCK_JSON", "")), cfg.catalog, lambda nc: None)
     groups = group_by_series(offers)
     if cfg.selected_series:                     # карточки для отмеченных серий (+ forced)

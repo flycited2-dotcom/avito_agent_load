@@ -14,7 +14,8 @@ def main():
     deny = cfg.catalog.exclude_title_patterns
     raw = fetch_raw_products(dsn, crimea="Симферополь",
                              cats=cfg.catalog.report_category_ids, deny=deny,
-                             force_include=cfg.catalog.force_include)
+                             force_include=cfg.catalog.force_include,
+                             manual_photos=cfg.catalog.manual_photos)
     jac_path = Path(config("JAC_STOCK_JSON", "/opt/splithub_api_telegram/data/jac_stock_latest.json"))
     offers = collect_offers(raw, jac_path, cfg.catalog, breez_base_lookup=lambda nc: None)
     result = run_cycle(lambda: offers, cfg, feed_path=Path("feed_out/feed.xml"),

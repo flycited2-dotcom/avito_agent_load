@@ -112,9 +112,11 @@ def row_to_raw(row: dict) -> RawProduct:
 
 
 def fetch_raw_products(dsn: dict, crimea: str, cats: list[int], deny: list[str],
-                       force_include: dict | None = None) -> list[RawProduct]:
+                       force_include: dict | None = None,
+                       manual_photos: dict | None = None) -> list[RawProduct]:
     """Боевой путь (Фаза 0). Покрыт интеграционно при дымовом прогоне, не в юнит-тестах.
-    force_include={nc_code: цена} — добрать эти товары минуя наличие БД (под заказ), с ручной ценой."""
+    force_include={nc_code: цена} — добрать эти товары минуя наличие БД (под заказ), с ручной ценой.
+    manual_photos={nc_code: url} — фото для товаров, у которых нет фото в БД."""
     import psycopg2
     from psycopg2.extras import RealDictCursor
     conn = psycopg2.connect(host=dsn["host"], port=dsn["port"], dbname=dsn["dbname"],
@@ -147,6 +149,9 @@ def fetch_raw_products(dsn: dict, crimea: str, cats: list[int], deny: list[str],
                     if r.nc_code in tech:
                         r.tech = tech[r.nc_code]
                     r.cool_kw = cool.get(r.nc_code)
+            for r in raws:                          # ручное фото — где в БД фото нет
+                if not r.image_urls and (manual_photos or {}).get(r.nc_code):
+                    r.image_urls = [manual_photos[r.nc_code]]
             return raws
     finally:
         conn.close()
