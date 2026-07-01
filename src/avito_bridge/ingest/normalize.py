@@ -11,6 +11,7 @@ from avito_bridge.content.sizing import derive_size
 class CatalogFilter:
     report_category_ids: list[int]
     exclude_title_patterns: list[str]   # шаблоны вида "%мульти%" (ILIKE-семантика)
+    force_include: dict = None           # {nc_code: цена} — принудительно в фид, минуя наличие БД
 
 
 def _matches_like(title: str, pattern: str) -> bool:
@@ -50,4 +51,5 @@ def to_offer(raw: RawProduct, cost: Decimal | None) -> Offer:
         category_id=raw.category_id, btu_calc=size if size else btu, attrs=dict(raw.tech),
         cost=cost, retail_ref=None, stock=raw.stock_qty, photos=list(raw.image_urls),
         series=series, content_hash=content_hash(raw),
+        price_override=raw.price_override, forced=raw.forced,
     )

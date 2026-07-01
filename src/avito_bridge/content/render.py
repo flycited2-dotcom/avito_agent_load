@@ -44,6 +44,27 @@ def _pick(options: list[str], seed: int) -> str:
     return options[seed % len(options)]
 
 
+# Акронимы/токены, которые НЕ трогаем (иначе испортим). Модель-коды и версии ловим по цифрам/дефису.
+_KEEP_UPPER = {"DC", "EU", "AC", "LG", "MDV", "LED", "USB", "BTU", "II", "III", "IV", "HD", "UV"}
+
+
+def _smart_title(s: str) -> str:
+    """Длинные КАПС-слова → Капс (Avito принудительно делает строчными КАПС длиннее ~3 букв:
+    «FUNAI SENSEI» → на Avito «funai sensei»). Акронимы (DC/EU/LG), модель-коды и версии (R32, 2.0,
+    N6, Wi-Fi) сохраняем. Title-Case-слова (Midea, Hisense, Inverter) не трогаем."""
+    out = []
+    for w in s.split():
+        if any(ch.isdigit() for ch in w) or "-" in w or "/" in w:
+            out.append(w)                              # модель-коды/версии/хладагент/Wi-Fi
+        elif w.upper() in _KEEP_UPPER:
+            out.append(w)                              # акронимы
+        elif w.isupper() and len(w) >= 3:
+            out.append(w[:1] + w[1:].lower())          # ДЛИННЫЙ КАПС → Капс
+        else:
+            out.append(w)                              # уже норм
+    return " ".join(out)
+
+
 def _is_inverter(offer: Offer) -> bool:
     nl = f"{offer.model} {offer.series or ''}".lower()
     return "инвертор" in nl or "inverter" in nl
@@ -162,8 +183,10 @@ def render_series(group, prices: dict, cfg: ContentConfig) -> Content:
     inv = _is_inverter(rep)
 
     series_disp = re.sub(r"\s*\([^)]*\)", "", group.series).strip() or group.series
-    title_base = f"{type_label} {group.brand} {series_disp}".strip()
-    if inv and "инвертор" not in title_base.lower():
+    name = _smart_title(f"{group.brand} {series_disp}".strip())   # чтобы Avito не делал КАПС строчным
+    title_base = f"{type_label} {name}".strip()
+    low = title_base.lower()
+    if inv and "инвертор" not in low and "inverter" not in low:    # не задваивать Inverter/инвертор
         title_base += " инвертор"
     title = _strip_stopwords(title_base, cfg.stop_words)[: cfg.title_max].strip()
 

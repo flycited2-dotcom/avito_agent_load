@@ -27,6 +27,8 @@ def _markup_for(offer: Offer, cfg: PricingConfig) -> float:
 
 
 def compute_price(offer: Offer, cfg: PricingConfig) -> PriceResult:
+    if offer.price_override is not None and offer.price_override > 0:   # ручная цена (force_include)
+        return PriceResult(ok=True, price=int(offer.price_override), markup_pct=0)
     if offer.cost is None or offer.cost <= 0:
         return PriceResult(ok=False, reason="cost<=0 or missing")
     pct = _markup_for(offer, cfg)

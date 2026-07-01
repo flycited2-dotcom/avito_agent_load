@@ -17,6 +17,8 @@ class RawProduct(BaseModel):
     stock_qty: int = 0
     image_urls: list[str] = Field(default_factory=list)
     tech: dict[str, str] = Field(default_factory=dict)
+    price_override: Decimal | None = None  # ручная цена (force_include, товары вне наличия БД)
+    forced: bool = False                   # добавлен принудительно (минуя фильтр наличия)
 
 
 class Offer(BaseModel):
@@ -33,6 +35,8 @@ class Offer(BaseModel):
     photos: list[str] = Field(default_factory=list)
     series: str | None = None
     content_hash: str = ""
+    price_override: Decimal | None = None  # ручная цена (force_include)
+    forced: bool = False                   # добавлен принудительно (минуя фильтр наличия/whitelist)
 
 
 class PriceResult(BaseModel):

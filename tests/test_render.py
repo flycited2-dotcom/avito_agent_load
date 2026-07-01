@@ -50,6 +50,16 @@ def test_render_series_price_table_dedup_by_size():
     assert "(Olimpio)" not in c.title               # скобочная латиница убрана из заголовка
 
 
+def test_smart_title_fixes_caps():
+    from avito_bridge.content.render import _smart_title
+    assert _smart_title("FUNAI SENSEI 2.0 Inverter") == "Funai Sensei 2.0 Inverter"
+    assert _smart_title("HIGH LIFE PRIORITY CLASS 2.0") == "High Life Priority Class 2.0"
+    assert _smart_title("Hisense CITY DC Inverter") == "Hisense City DC Inverter"
+    assert _smart_title("LG PROCOOL DUAL Inverter") == "LG Procool Dual Inverter"
+    assert _smart_title("AC ELECTRIC PRO") == "AC Electric Pro"
+    assert _smart_title("Midea Парамаунт") == "Midea Парамаунт"      # уже норм — не трогаем
+
+
 def test_card_brief_is_clean_series_text():
     from avito_bridge.content.render import card_brief
 

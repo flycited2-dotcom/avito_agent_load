@@ -50,8 +50,10 @@ def load_config(path: Path) -> AppConfig:
                             website_link_keys=frozenset(cc.get("website_link_keys", []) or []),
                             descriptions=descriptions)
     cat = d.get("catalog", {})
+    force_include = {str(k): v for k, v in (cat.get("force_include", {}) or {}).items()}
     catalog = CatalogFilter(report_category_ids=cat.get("report_category_ids", [2, 6, 7]),
-                            exclude_title_patterns=cat.get("exclude_title_patterns", []))
+                            exclude_title_patterns=cat.get("exclude_title_patterns", []),
+                            force_include=force_include)
     selected_series = frozenset(cat.get("selected_series", []) or [])
     cd = d.get("cards", {})
     cards = CardConfig(enabled=bool(cd.get("enabled", False)), dir=cd.get("dir", ""),

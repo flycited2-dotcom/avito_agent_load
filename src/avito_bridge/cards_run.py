@@ -19,11 +19,13 @@ def main():
     dsn = {"host": config("DB_HOST", "localhost"), "port": config("DB_PORT", "5432"),
            "dbname": config("DB_NAME"), "user": config("DB_USER"), "password": config("DB_PASSWORD")}
     raw = fetch_raw_products(dsn, "Симферополь", cfg.catalog.report_category_ids,
-                             cfg.catalog.exclude_title_patterns)
+                             cfg.catalog.exclude_title_patterns,
+                             force_include=cfg.catalog.force_include)
     offers = collect_offers(raw, Path(config("JAC_STOCK_JSON", "")), cfg.catalog, lambda nc: None)
     groups = group_by_series(offers)
-    if cfg.selected_series:                     # генерируем карточки только для отмеченных серий
-        groups = [g for g in groups if g.key in cfg.selected_series]
+    if cfg.selected_series:                     # карточки для отмеченных серий (+ forced)
+        groups = [g for g in groups if g.key in cfg.selected_series
+                  or any(getattr(m, "forced", False) for m in g.members)]
     groups = [g for g in groups if g.key not in cfg.cards.supplier_photo_series]   # эти — на фото поставщика
     modes_path = Path(config("FOTOGEN_MODES_JSON", "config/card_modes.json"))
     modes = json.loads(modes_path.read_text(encoding="utf-8")) if modes_path.exists() else {}

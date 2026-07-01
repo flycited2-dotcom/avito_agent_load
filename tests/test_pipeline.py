@@ -53,6 +53,20 @@ def test_run_cycle_requires_card_when_configured(tmp_path):
     assert result.ads_built == 0 and result.skipped == 1   # нет карточки → не публикуем
 
 
+def test_forced_offer_price_override_and_publish(tmp_path):
+    from avito_bridge.pricing.pricing import compute_price
+    o = _offer("rusklimat:НС-1690797")
+    o.price_override = Decimal("18990")
+    o.forced = True
+    o.cost = None                                          # нет опта — не важно, ручная цена
+    assert compute_price(o, _cfg().pricing).price == 18990
+    cfg = _cfg()
+    cfg.selected_series = frozenset({"что-то-другое"})     # forced публикуется, даже не в whitelist
+    r = run_cycle(offers_provider=lambda: [o], cfg=cfg,
+                  feed_path=tmp_path / "f.xml", state_path=tmp_path / "s.db")
+    assert r.ads_built == 1
+
+
 def test_run_cycle_supplier_photo_series_bypasses_card(tmp_path):
     from avito_bridge.catalog.series import series_key
     o = _offer("daichi:1")

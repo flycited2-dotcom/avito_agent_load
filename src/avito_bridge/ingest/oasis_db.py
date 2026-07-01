@@ -1,4 +1,5 @@
 from __future__ import annotations
+from decimal import Decimal
 from avito_bridge.models import RawProduct
 from avito_bridge.content.sizing import parse_kw
 
@@ -67,6 +68,18 @@ ORDER BY p.id, ts."order";
 """
 
 
+# Принудительный набор по nc_code (минуя наличие/склад) — для force_include (товары под заказ).
+FORCE_QUERY = """
+SELECT p.source, p.nc_code, b.title AS brand, p.title, p.series, p.category_id,
+       p.btu_calc, p.price_wholesale,
+       (SELECT array_agg(i.url ORDER BY i."order") FROM catalog_productimage i
+        WHERE i.product_id = p.id) AS image_urls
+FROM catalog_product p
+LEFT JOIN catalog_brand b ON b.id = p.brand_id
+WHERE p.nc_code = ANY(%(ncs)s);
+"""
+
+
 def build_query_params(crimea: str, cats: list[int], deny: list[str]) -> dict:
     return {"crimea": crimea, "cats": cats, "deny": deny}
 
@@ -98,8 +111,10 @@ def row_to_raw(row: dict) -> RawProduct:
     )
 
 
-def fetch_raw_products(dsn: dict, crimea: str, cats: list[int], deny: list[str]) -> list[RawProduct]:
-    """Боевой путь (Фаза 0). Покрыт интеграционно при дымовом прогоне, не в юнит-тестах."""
+def fetch_raw_products(dsn: dict, crimea: str, cats: list[int], deny: list[str],
+                       force_include: dict | None = None) -> list[RawProduct]:
+    """Боевой путь (Фаза 0). Покрыт интеграционно при дымовом прогоне, не в юнит-тестах.
+    force_include={nc_code: цена} — добрать эти товары минуя наличие БД (под заказ), с ручной ценой."""
     import psycopg2
     from psycopg2.extras import RealDictCursor
     conn = psycopg2.connect(host=dsn["host"], port=dsn["port"], dbname=dsn["dbname"],
@@ -108,6 +123,17 @@ def fetch_raw_products(dsn: dict, crimea: str, cats: list[int], deny: list[str])
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(CRIMEA_QUERY, build_query_params(crimea, cats, deny))
             raws = [row_to_raw(r) for r in cur.fetchall()]
+            have = {r.nc_code for r in raws}
+            todo = [nc for nc in (force_include or {}) if nc not in have]
+            if todo:                                   # принудительно добавленные товары (под заказ)
+                cur.execute(FORCE_QUERY, {"ncs": todo})
+                for row in cur.fetchall():
+                    rp = row_to_raw(row)
+                    rp.stock_qty = 1
+                    rp.forced = True
+                    price = force_include.get(rp.nc_code)
+                    rp.price_override = Decimal(str(price)) if price else None
+                    raws.append(rp)
             ncs = [r.nc_code for r in raws if r.nc_code]
             if ncs:
                 cur.execute(TECH_QUERY, {"ncs": ncs})
