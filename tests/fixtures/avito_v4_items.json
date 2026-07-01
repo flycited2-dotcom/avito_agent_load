@@ -1,0 +1,60 @@
+{
+  "items": [
+    {
+      "section": {
+        "slug": "success_skipped",
+        "title": "Без изменений"
+      },
+      "ad_id": "0538c8c6f2190ea229023c7d",
+      "avito_id": 8132204832,
+      "feed_name": "",
+      "url": "https://www.avito.ru/items/8132204832",
+      "messages": [
+        {
+          "code": 3002,
+          "title": "",
+          "description": "Объявление активировалось",
+          "type": "info",
+          "updated_at": "2026-06-26T01:11:13Z"
+        },
+        {
+          "code": 2303,
+          "title": "Произведена автоподстановка номера телефона",
+          "description": "",
+          "type": "warning",
+          "updated_at": "2026-07-01T11:57:44Z"
+        }
+      ],
+      "avito_date_end": "2026-07-26T04:12:33.530000+03:00",
+      "avito_status": "active"
+    },
+    {
+      "section": {
+        "slug": "success_skipped",
+        "title": "Без изменений"
+      },
+      "ad_id": "0600deada09bf35b009a255e",
+      "avito_id": 8131989150,
+      "feed_name": "",
+      "url": "https://www.avito.ru/items/8131989150",
+      "messages": [
+        {
+          "code": 2303,
+          "title": "Произведена автоподстановка номера телефона",
+          "description": "",
+          "type": "warning",
+          "updated_at": "2026-07-01T11:57:51Z"
+        },
+        {
+          "code": 3002,
+          "title": "",
+          "description": "Объявление активировалось",
+          "type": "info",
+          "updated_at": "2026-06-29T15:48:08Z"
+        }
+      ],
+      "avito_date_end": "2026-07-25T19:01:43.836000+03:00",
+      "avito_status": "active"
+    }
+  ]
+}
