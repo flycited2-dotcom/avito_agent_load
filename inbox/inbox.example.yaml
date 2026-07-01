@@ -1,0 +1,13 @@
+# Образец. Скопируй в inbox.yaml и заполни своими товарами.
+items:
+  # Товар в наличии, но без фото в БД — даём своё фото + текст:
+  - series_key: "rusklimat|ballu|tessey dc"
+    photos: ["НС-1763718"]        # фото лежит в inbox/photos/НС-1763718.jpg (или .webp/.png)
+    description: "tessey.txt"      # текст лежит в inbox/descriptions/tessey.txt (опц.)
+
+  # Товар под заказ (нет в наличии) — принудительно, с ручной ценой, отдельным объявлением:
+  - force_nc: "НС-1690797"
+    price: 18990
+    series_name: "ACE-07 FH/N6"
+    photos: ["НС-1690797"]         # если у него нет фото в БД
+    description: "ace07.txt"
