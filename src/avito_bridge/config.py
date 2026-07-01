@@ -56,10 +56,12 @@ def load_config(path: Path) -> AppConfig:
                                  if isinstance(v, dict) else {"price": v, "series": None})
     manual_photos = {str(k): v for k, v in (cat.get("manual_photos", {}) or {}).items()}
     manual_price_override = {str(k): v for k, v in (cat.get("manual_price_override", {}) or {}).items()}
+    manual_card_brief = {str(k): v for k, v in (cat.get("manual_card_brief", {}) or {}).items()}
     catalog = CatalogFilter(report_category_ids=cat.get("report_category_ids", [2, 6, 7]),
                             exclude_title_patterns=cat.get("exclude_title_patterns", []),
                             force_include=force_include, manual_photos=manual_photos,
-                            manual_price_override=manual_price_override)
+                            manual_price_override=manual_price_override,
+                            manual_card_brief=manual_card_brief)
     selected_series = frozenset(cat.get("selected_series", []) or [])
     cd = d.get("cards", {})
     cards = CardConfig(enabled=bool(cd.get("enabled", False)), dir=cd.get("dir", ""),

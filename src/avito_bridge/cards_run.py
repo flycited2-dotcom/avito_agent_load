@@ -54,7 +54,7 @@ def main() -> None:
         max_pending=int(config("FOTOGEN_MAX_PENDING", "15")),
         max_total=int(config("FOTOGEN_MAX_TOTAL", "100000")))
     store = CardJobStore(Path("state/card_jobs.db"))
-    submitted, published = run_once(groups, fcfg, store)
+    submitted, published = run_once(groups, fcfg, store, manual_brief=cfg.catalog.manual_card_brief)
     print(f"cards: series={len(groups)} submitted={submitted} published={published}")
 
 

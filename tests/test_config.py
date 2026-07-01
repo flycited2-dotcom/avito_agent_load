@@ -32,3 +32,20 @@ def test_load_config_parses_manual_price_override(tmp_path):
         encoding="utf-8")
     cfg = load_config(tmp_path / "config.yaml")
     assert cfg.catalog.manual_price_override == {"НС-1": 24990}
+
+
+def test_load_config_parses_manual_card_brief(tmp_path):
+    (tmp_path / "config.yaml").write_text(
+        "cities:\n"
+        "  - {id: simferopol, name: Симферополь, avito_location: Симферополь}\n"
+        "pricing: {rounding: up_to_90, default_markup_pct: 5, min_margin_abs: 0, rules: []}\n"
+        "feed: {max_active_ads: 200}\n"
+        "content: {title_max: 50, description_max: 7000, stop_words: []}\n"
+        "catalog:\n"
+        "  report_category_ids: [2,6,7]\n"
+        "  exclude_title_patterns: []\n"
+        "  manual_card_brief:\n"
+        "    \"НС-1\": \"Тихий, мощный, Wi-Fi\"\n",
+        encoding="utf-8")
+    cfg = load_config(tmp_path / "config.yaml")
+    assert cfg.catalog.manual_card_brief == {"НС-1": "Тихий, мощный, Wi-Fi"}

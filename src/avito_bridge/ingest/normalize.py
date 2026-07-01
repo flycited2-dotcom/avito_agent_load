@@ -14,6 +14,7 @@ class CatalogFilter:
     force_include: dict = None           # {nc_code: цена} — принудительно в фид, минуя наличие БД
     manual_photos: dict = None           # {nc_code: url} — фото для товаров без фото в БД (ручное)
     manual_price_override: dict = None   # {nc_code: цена} — ручная цена для ЛЮБОГО товара (не только forced)
+    manual_card_brief: dict = None       # {nc_code: текст} — ручное УТП для карточки, вместо card_brief()
 
 
 def _matches_like(title: str, pattern: str) -> bool:
