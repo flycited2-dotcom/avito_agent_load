@@ -1,5 +1,7 @@
 from decimal import Decimal
-from avito_bridge.ingest.oasis_db import row_to_raw, build_query_params, CRIMEA_QUERY, group_tech_rows
+from avito_bridge.models import RawProduct
+from avito_bridge.ingest.oasis_db import (row_to_raw, build_query_params, CRIMEA_QUERY,
+                                          group_tech_rows, apply_manual_price_override)
 
 
 def test_group_tech_rows():
@@ -43,3 +45,23 @@ def test_query_params_use_config():
 def test_query_text_targets_crimea_warehouse():
     assert "warehouse = %(crimea)s" in CRIMEA_QUERY
     assert "btu_calc > 0" in CRIMEA_QUERY
+
+
+def test_apply_manual_price_override_sets_price_on_regular_in_stock_raw():
+    """Ручная цена должна работать и для ОБЫЧНОГО товара в наличии (не только для forced) —
+    владелец хочет иметь возможность подправить цену у любой серии из GUI."""
+    raw = RawProduct(source="breeze", nc_code="NC1", title="X", price_wholesale=Decimal("10000"))
+    apply_manual_price_override([raw], {"NC1": 24990})
+    assert raw.price_override == Decimal("24990")
+
+
+def test_apply_manual_price_override_ignores_unmatched_nc():
+    raw = RawProduct(source="breeze", nc_code="NC1", title="X")
+    apply_manual_price_override([raw], {"NC2": 24990})
+    assert raw.price_override is None
+
+
+def test_apply_manual_price_override_handles_empty_overrides():
+    raw = RawProduct(source="breeze", nc_code="NC1", title="X")
+    apply_manual_price_override([raw], {})
+    assert raw.price_override is None

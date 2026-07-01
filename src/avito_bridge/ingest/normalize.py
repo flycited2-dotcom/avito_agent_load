@@ -13,6 +13,7 @@ class CatalogFilter:
     exclude_title_patterns: list[str]   # шаблоны вида "%мульти%" (ILIKE-семантика)
     force_include: dict = None           # {nc_code: цена} — принудительно в фид, минуя наличие БД
     manual_photos: dict = None           # {nc_code: url} — фото для товаров без фото в БД (ручное)
+    manual_price_override: dict = None   # {nc_code: цена} — ручная цена для ЛЮБОГО товара (не только forced)
 
 
 def _matches_like(title: str, pattern: str) -> bool:
