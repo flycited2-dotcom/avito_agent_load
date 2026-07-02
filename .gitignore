@@ -19,3 +19,6 @@ xlsx_*.json
 !config/
 !config/*.yaml
 !config/card_modes.json
+# !**/tests/** выше случайно возвращал в трекинг кэш байткода — исключаем обратно
+tests/__pycache__/
+*.egg-info/
