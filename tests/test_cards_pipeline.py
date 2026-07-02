@@ -108,6 +108,24 @@ def test_run_once_submits_and_publishes(tmp_path):
     assert submitted >= 1                                  # новая серия поставлена в очередь
 
 
+def test_run_once_uses_manual_card_brief_override(tmp_path):
+    """Владелец может задать своё УТП для карточки (напр. у товара «под заказ» с бедными
+    техданными) — вместо авто-сгенерированного card_brief() (бренд/тип/размер/инвертор)."""
+    out = tmp_path / "out"; out.mkdir()
+    cfg = _cfg(tmp_path, queue_db=_make_queue_db(tmp_path, []), output_dir=str(out))
+    store = CardJobStore(tmp_path / "s.db")
+    groups = group_by_series([_o("breeze:NC9", 9, "http://p/9.jpg", series="Gloria")])
+    seen = {}
+
+    def handler(req):
+        seen["body"] = req.content.decode("utf-8", errors="ignore")
+        return httpx.Response(200, json={"queued": "ext.jpg"})
+    http = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://x")
+    run_once(groups, cfg, store, http=http, fetch_photo=lambda u: b"img",
+            manual_brief={"NC9": "Тихий, мощный, Wi-Fi"})
+    assert "Тихий, мощный, Wi-Fi" in seen["body"]
+
+
 def test_run_once_uses_per_series_mode(tmp_path):
     out = tmp_path / "out"; out.mkdir()
     cfg = _cfg(tmp_path, queue_db=_make_queue_db(tmp_path, []), output_dir=str(out),
@@ -156,3 +174,21 @@ def test_run_once_gives_up_after_max_tries(tmp_path):
     http = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://x")
     submitted, _ = run_once(groups, cfg, store, http=http, fetch_photo=lambda u: b"img")
     assert submitted == 0                                  # больше не долбим агента
+
+
+def test_run_once_prints_reason_when_submit_fails(tmp_path, capsys):
+    """Раньше ошибка отправки (сеть/API) проглатывалась молча (except Exception: continue) —
+    submitted=0 без единого следа причины. Найдено вживую: GUI показывает вывод cards_run
+    пользователю напрямую (кнопка «Сгенерировать карточку»), молчание невозможно продиагностировать."""
+    out = tmp_path / "out"; out.mkdir()
+    cfg = _cfg(tmp_path, queue_db=_make_queue_db(tmp_path, []), output_dir=str(out))
+    store = CardJobStore(tmp_path / "s.db")
+    groups = group_by_series([_o("breeze:NC3", 9, "http://p/3.jpg", series="Aura")])
+
+    def handler(req):
+        return httpx.Response(500, text="internal error")
+    http = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://x")
+    submitted, _ = run_once(groups, cfg, store, http=http, fetch_photo=lambda u: b"img")
+
+    assert submitted == 0
+    assert "breeze|ballu|aura" in capsys.readouterr().out   # причина видна, не молчание

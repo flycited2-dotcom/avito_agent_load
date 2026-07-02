@@ -111,12 +111,24 @@ def row_to_raw(row: dict) -> RawProduct:
     )
 
 
+def apply_manual_price_override(raws: list[RawProduct], overrides: dict) -> None:
+    """Ручная цена для ЛЮБОГО товара (не только forced) — правит raw.price_override на месте.
+    В отличие от force_include (тянет товар в фид минуя наличие БД), это ТОЛЬКО про цену: обычный
+    товар в наличии остаётся обычным, просто с ручной ценой вместо опт+наценка (см. compute_price)."""
+    for r in raws:
+        price = (overrides or {}).get(r.nc_code)
+        if price is not None:
+            r.price_override = Decimal(str(price))
+
+
 def fetch_raw_products(dsn: dict, crimea: str, cats: list[int], deny: list[str],
                        force_include: dict | None = None,
-                       manual_photos: dict | None = None) -> list[RawProduct]:
+                       manual_photos: dict | None = None,
+                       manual_price_override: dict | None = None) -> list[RawProduct]:
     """Боевой путь (Фаза 0). Покрыт интеграционно при дымовом прогоне, не в юнит-тестах.
     force_include={nc_code: цена} — добрать эти товары минуя наличие БД (под заказ), с ручной ценой.
-    manual_photos={nc_code: url} — фото для товаров, у которых нет фото в БД."""
+    manual_photos={nc_code: url} — фото для товаров, у которых нет фото в БД.
+    manual_price_override={nc_code: цена} — ручная цена для ЛЮБОГО товара (см. apply_manual_price_override)."""
     import psycopg2
     from psycopg2.extras import RealDictCursor
     conn = psycopg2.connect(host=dsn["host"], port=dsn["port"], dbname=dsn["dbname"],
@@ -152,6 +164,7 @@ def fetch_raw_products(dsn: dict, crimea: str, cats: list[int], deny: list[str],
             for r in raws:                          # ручное фото — где в БД фото нет
                 if not r.image_urls and (manual_photos or {}).get(r.nc_code):
                     r.image_urls = [manual_photos[r.nc_code]]
+            apply_manual_price_override(raws, manual_price_override)
             return raws
     finally:
         conn.close()

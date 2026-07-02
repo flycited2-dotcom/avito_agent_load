@@ -149,7 +149,8 @@ def _http_get(url: str) -> bytes:
 
 
 def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
-             http: httpx.Client | None = None, fetch_photo=None) -> tuple[int, int]:
+             http: httpx.Client | None = None, fetch_photo=None,
+             manual_brief: dict | None = None) -> tuple[int, int]:
     """Один проход. Возвращает (submitted, published)."""
     cards = Path(cfg.cards_dir)
     cards.mkdir(parents=True, exist_ok=True)
@@ -198,11 +199,16 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
         if not photo_url:
             continue
         mode = (cfg.modes or {}).get(getattr(g, "key", None)) or cfg.mode
-        try:                                   # на карточку — ЧИСТЫЙ текст серии, не сырой ТТХ-дамп
+        rep_nc = rep.supplier_sku.split(":", 1)[-1]
+        brief = (manual_brief or {}).get(rep_nc) or card_brief(g)   # ручное УТП переопределяет авто
+        try:
             in_fn = submit_card_job(cfg, fetch_photo(photo_url), g.brand,
-                                    f"{g.brand} {g.series}".strip(), card_brief(g),
+                                    f"{g.brand} {g.series}".strip(), brief,
                                     http=http, mode=mode)
-        except Exception:
+        except Exception as e:
+            # Раньше ошибка сети/API проглатывалась молча — теперь виден ключ серии и причина
+            # (важно для GUI «Контент-студии», где вывод cards_run показывается пользователю).
+            print(f"card submit failed for {getattr(g, 'key', key)}: {e}")
             continue
         if in_fn:
             store.record(key, in_fn, "pending", tries=next_tries)
