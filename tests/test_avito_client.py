@@ -75,6 +75,30 @@ def test_last_successful_items_returns_items_list():
     assert items[0]["avito_status"] == "active"
 
 
+def test_last_successful_items_walks_all_pages():
+    """Реальный ответ (живой запрос 2026-07-02): perPage фиксирован сервером = 20,
+    meta = {perPage, page, pages, total}. Без пагинации статус получали только первые 20
+    объявлений из 65 — у остальных серий в студии врали прочерком."""
+    def page_items(page, n):
+        return [{"ad_id": f"p{page}-{i}", "avito_status": "active"} for i in range(n)]
+
+    def handler(req):
+        if req.url.path == "/token":
+            return httpx.Response(200, json={"access_token": "T", "expires_in": 999})
+        if req.url.path == "/autoload/v4/uploads/last_successful/items":
+            page = int(req.url.params.get("page", "1"))
+            n = 20 if page < 3 else 5          # 20+20+5 = 45, страниц 3
+            return httpx.Response(200, json={
+                "items": page_items(page, n),
+                "meta": {"perPage": 20, "page": page, "pages": 3, "total": 45}})
+        return httpx.Response(404)
+
+    items = _client(handler).last_successful_items()
+    assert len(items) == 45
+    assert items[0]["ad_id"] == "p1-0"
+    assert items[-1]["ad_id"] == "p3-4"
+
+
 def test_status_by_ad_id_indexes_items():
     from avito_bridge.avito.client import status_by_ad_id
     items = [{"ad_id": "a1", "avito_status": "active"}, {"ad_id": "a2", "avito_status": "blocked"}]

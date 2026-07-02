@@ -68,10 +68,23 @@ class AvitoClient:
 
     def last_successful_items(self) -> list[dict]:
         """GET /autoload/v4/uploads/last_successful/items — постатейный статус последней
-        УСПЕШНОЙ загрузки: {ad_id, avito_id, avito_status, url, messages[]} на объявление."""
-        r = self.http.get(f"{EP_UPLOADS_V4}/last_successful/items", headers=self._auth())
-        r.raise_for_status()
-        return r.json().get("items", [])
+        УСПЕШНОЙ загрузки: {ad_id, avito_id, avito_status, url, messages[]} на объявление.
+
+        Пагинация (подтверждено живым запросом 2026-07-02): perPage фиксирован сервером (=20,
+        параметр per_page игнорируется), meta = {perPage, page, pages, total} — идём по page,
+        пока не пройдём meta.pages. Без meta в ответе (старый/усечённый формат) — одна страница."""
+        items: list[dict] = []
+        page = 1
+        while True:
+            r = self.http.get(f"{EP_UPLOADS_V4}/last_successful/items",
+                              headers=self._auth(), params={"page": page})
+            r.raise_for_status()
+            data = r.json()
+            items.extend(data.get("items", []))
+            pages = (data.get("meta") or {}).get("pages") or 1
+            if page >= pages:
+                return items
+            page += 1
 
 
 def status_by_ad_id(items: list[dict]) -> dict[str, dict]:
