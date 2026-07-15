@@ -49,3 +49,35 @@ def test_load_config_parses_manual_card_brief(tmp_path):
         encoding="utf-8")
     cfg = load_config(tmp_path / "config.yaml")
     assert cfg.catalog.manual_card_brief == {"НС-1": "Тихий, мощный, Wi-Fi"}
+
+
+def test_load_config_defaults_profile_to_conditioners_behavior(tmp_path):
+    """Боевой config.yaml без секции profile: работает как раньше (oasis_db + серии)."""
+    (tmp_path / "config.yaml").write_text(
+        "cities:\n"
+        "  - {id: simferopol, name: Симферополь, avito_location: Симферополь}\n"
+        "pricing: {rounding: up_to_90, default_markup_pct: 5, min_margin_abs: 0, rules: []}\n"
+        "feed: {max_active_ads: 200}\n"
+        "content: {title_max: 50, description_max: 7000, stop_words: []}\n"
+        "catalog: {report_category_ids: [2], exclude_title_patterns: []}\n",
+        encoding="utf-8")
+    cfg = load_config(tmp_path / "config.yaml")
+    assert cfg.source == "oasis_db"
+    assert cfg.grouping == "series"
+    assert cfg.profile_name == ""
+
+
+def test_load_config_parses_profile_section(tmp_path):
+    (tmp_path / "config.yaml").write_text(
+        "profile: {name: wreaths, source: ritualb2b_site, grouping: per_item}\n"
+        "cities:\n"
+        "  - {id: simferopol, name: Симферополь, avito_location: Симферополь}\n"
+        "pricing: {rounding: up_to_90, default_markup_pct: 5, min_margin_abs: 0, rules: []}\n"
+        "feed: {max_active_ads: 200}\n"
+        "content: {title_max: 50, description_max: 7000, stop_words: []}\n"
+        "catalog: {report_category_ids: [], exclude_title_patterns: []}\n",
+        encoding="utf-8")
+    cfg = load_config(tmp_path / "config.yaml")
+    assert cfg.profile_name == "wreaths"
+    assert cfg.source == "ritualb2b_site"
+    assert cfg.grouping == "per_item"

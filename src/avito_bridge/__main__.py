@@ -1,27 +1,23 @@
 from __future__ import annotations
+import argparse
 from pathlib import Path
-from decouple import config
 from avito_bridge.config import load_config
-from avito_bridge.ingest import collect_offers
-from avito_bridge.ingest.oasis_db import fetch_raw_products
+from avito_bridge.ingest.sources import get_source
 from avito_bridge.orchestrator.pipeline import run_cycle
 
 
 def main():
-    cfg = load_config(Path("config/config.yaml"))
-    dsn = {"host": config("DB_HOST", "localhost"), "port": config("DB_PORT", "5432"),
-           "dbname": config("DB_NAME"), "user": config("DB_USER"), "password": config("DB_PASSWORD")}
-    deny = cfg.catalog.exclude_title_patterns
-    raw = fetch_raw_products(dsn, crimea="Симферополь",
-                             cats=cfg.catalog.report_category_ids, deny=deny,
-                             force_include=cfg.catalog.force_include,
-                             manual_photos=cfg.catalog.manual_photos,
-                             manual_price_override=cfg.catalog.manual_price_override)
-    jac_path = Path(config("JAC_STOCK_JSON", "/opt/splithub_api_telegram/data/jac_stock_latest.json"))
-    offers = collect_offers(raw, jac_path, cfg.catalog, breez_base_lookup=lambda nc: None)
-    result = run_cycle(lambda: offers, cfg, feed_path=Path("feed_out/feed.xml"),
+    ap = argparse.ArgumentParser(description="Сборка XML-фида Avito по профилю бизнеса")
+    ap.add_argument("--config", default="config/config.yaml",
+                    help="путь к конфигу профиля (default: боевой кондиционерный)")
+    args = ap.parse_args()
+    cfg = load_config(Path(args.config))
+    offers = get_source(cfg.source)(cfg)
+    result = run_cycle(lambda: offers, cfg, feed_path=Path(cfg.feed_path),
                        state_path=Path("state/state.db"))
-    print(f"offers_in={result.offers_in} ads_built={result.ads_built} skipped={result.skipped}")
+    label = cfg.profile_name or "default"
+    print(f"profile={label} offers_in={result.offers_in} "
+          f"ads_built={result.ads_built} skipped={result.skipped}")
 
 
 if __name__ == "__main__":

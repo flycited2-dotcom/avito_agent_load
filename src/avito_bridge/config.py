@@ -20,6 +20,12 @@ class AppConfig:
     catalog: CatalogFilter
     cards: CardConfig
     selected_series: frozenset = frozenset()   # whitelist серий (key) для публикации; пусто = все
+    # Секция profile (универсальные профили бизнеса, docs/specs/2026-07-04-*):
+    # дефолты = историческое поведение кондиционерного конфига без секции.
+    profile_name: str = ""
+    source: str = "oasis_db"       # адаптер источника товаров (ingest/sources.py)
+    grouping: str = "series"       # series (кондиционеры) | per_item (венки: 1 товар = 1 объявление)
+    feed_path: str = "feed_out/feed.xml"   # свой файл фида на профиль (второй бизнес не затирает первый)
 
 
 def load_config(path: Path) -> AppConfig:
@@ -70,5 +76,10 @@ def load_config(path: Path) -> AppConfig:
                        require_for_publish=bool(cd.get("require_for_publish", False)),
                        supplier_photo_series=frozenset(cd.get("supplier_photo_series", []) or []),
                        max_images=int(cd.get("max_images", 10)))
+    prof = d.get("profile", {}) or {}
     return AppConfig(cities=cities, pricing=pricing, feed=feed, content=content,
-                     catalog=catalog, cards=cards, selected_series=selected_series)
+                     catalog=catalog, cards=cards, selected_series=selected_series,
+                     profile_name=prof.get("name", ""),
+                     source=prof.get("source", "oasis_db"),
+                     grouping=prof.get("grouping", "series"),
+                     feed_path=prof.get("feed_path", "feed_out/feed.xml"))
