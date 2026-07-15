@@ -1,0 +1,55 @@
+# ЗАМОРОЖЕННЫЙ профиль для снапшот-теста фида (test_feed_snapshot.py).
+# Структурная копия боевого config/config.yaml с правками для тестируемости:
+#   - selected_series пуст (фиктивные серии теста не проходили бы whitelist)
+#   - cards.require_for_publish: false (в тесте нет файлов карточек)
+#   - descriptions_manifest пуст (автогенерация → стабильный текст)
+# НЕ синхронизировать с боевым конфигом — смысл файла в неизменности.
+cities:
+  - {id: "simferopol", name: "Симферополь", avito_location: "Республика Крым, Симферополь"}
+pricing:
+  rounding: up_to_90
+  default_markup_pct: 5
+  min_margin_abs: 0
+  rules: []
+feed:
+  max_active_ads: 100
+  base_tags:
+    Category: "Бытовая техника"
+    GoodsType: "Климатическое оборудование"
+    GoodsSubType: "Кондиционеры"
+    AdType: "Товар приобретен на продажу"
+    Condition: "Новое"
+  product_type_default: "Кондиционеры и запчасти"
+  product_type_map: {}
+  ac_type_map:
+    2: "Сплит-система"
+    6: "Сплит-система"
+    7: "Мобильный"
+  ac_subtype_map:
+    2: "Настенный"
+    6: "Кассетный"
+    7: "Напольный"
+  vendor_map:
+    "EXPERTAIR by ZILON": "Zilon"
+  vendor_skip: ["NOAVITO"]
+content:
+  title_max: 50
+  description_max: 7000
+  stop_words: ["скидка только сегодня", "звоните"]
+  descriptions_manifest: ""
+  website_link: ""
+  website_link_keys: []
+catalog:
+  report_category_ids: [2, 6, 7]
+  exclude_title_patterns: []
+  force_include: {}
+  manual_photos: {}
+  selected_series: []
+cards:
+  enabled: true
+  dir: "/nonexistent/avito-cards"
+  base_url: "https://splithome.ru/static/avito-cards"
+  exts: [".jpg", ".jpeg", ".png"]
+  require_for_publish: false
+  max_images: 10
+  supplier_photo_series: []
