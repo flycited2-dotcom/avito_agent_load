@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Callable
 from avito_bridge.models import Offer
 from avito_bridge.config import AppConfig
-from avito_bridge.catalog.series import group_by_series
+from avito_bridge.catalog.series import group_by_series, group_per_item
 from avito_bridge.pricing.pricing import compute_price
 from avito_bridge.content.render import render_series
 from avito_bridge.content.cards import resolve_photos, has_card
@@ -23,7 +23,8 @@ def run_cycle(offers_provider: Callable[[], list[Offer]], cfg: AppConfig,
               feed_path: Path, state_path: Path) -> CycleResult:
     """ОДНО объявление на СЕРИЮ: модели серии схлопываются в один листинг с таблицей
     «типоразмер → цена» (см. P1). ad_id/карточка — по стабильной репрезентативной модели."""
-    groups = group_by_series(offers_provider())
+    offers = offers_provider()
+    groups = group_per_item(offers) if cfg.grouping == "per_item" else group_by_series(offers)
     if cfg.selected_series:                     # курирование: публикуем только отмеченные серии (+ forced)
         groups = [g for g in groups if g.key in cfg.selected_series
                   or any(getattr(m, "forced", False) for m in g.members)]

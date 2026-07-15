@@ -52,3 +52,20 @@ def test_does_not_merge_distinct_series():
     groups = group_by_series([_o("m:1", "Midea", "Paramount", 7),
                               _o("m:2", "Midea", "Aurora", 9)])
     assert len(groups) == 2
+
+
+def test_group_per_item_each_offer_own_group():
+    # per_item (профили типа венков): 1 товар = 1 объявление, никакого схлопывания
+    from avito_bridge.catalog.series import group_per_item
+    offers = [
+        Offer(supplier_sku="rb2b:w-01", source="ritualb2b", brand="", model="Венок «Памяти»",
+              category_id=None, stock=1),
+        Offer(supplier_sku="rb2b:w-02", source="ritualb2b", brand="", model="Корзина «Вечность»",
+              category_id=None, stock=1),
+    ]
+    groups = group_per_item(offers)
+    assert len(groups) == 2
+    assert groups[0].key == "ritualb2b|item|rb2b:w-01"
+    assert groups[0].representative is offers[0]
+    assert groups[0].series == "Венок «Памяти»"
+    assert [m.supplier_sku for g in groups for m in g.members] == ["rb2b:w-01", "rb2b:w-02"]

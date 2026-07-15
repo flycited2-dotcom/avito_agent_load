@@ -63,6 +63,15 @@ def _msize(o: Offer) -> int:
     return size_from_btu(o.btu_calc, o.category_id) or 0
 
 
+def group_per_item(offers: list[Offer]) -> list[SeriesGroup]:
+    """Профили без серийной логики (grouping: per_item — напр. венки): один товар =
+    одна группа = одно объявление. Без схлопывания по имени и сортировки по BTU."""
+    return [SeriesGroup(key=f"{o.source}|item|{o.supplier_sku}", source=o.source,
+                        brand=(o.brand or "").strip(), series=(o.model or "").strip(),
+                        category_id=o.category_id, members=[o])
+            for o in offers]
+
+
 def group_by_series(offers: list[Offer]) -> list[SeriesGroup]:
     """Список SeriesGroup. Внутри — модели по возрастанию типоразмера; группы — в порядке
     первого появления (детерминированно)."""
