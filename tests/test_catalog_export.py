@@ -1,3 +1,5 @@
+import json
+import sys
 from decimal import Decimal
 from avito_bridge.models import Offer, City
 from avito_bridge.pricing.pricing import PricingConfig
@@ -38,6 +40,43 @@ def test_build_catalog_json_groups_by_series_with_price_and_stock():
     members = {m["nc_code"]: m for m in g["members"]}
     assert members["НС-1"]["price"] == 10590        # 10000*1.05=10500 → round_up_90=10590
     assert members["НС-1"]["price_ok"] is True
+
+
+def test_build_catalog_json_per_item_grouping():
+    # Профили без серий (grouping: per_item — венки): каждый товар = своя строка каталога,
+    # даже если серия/модель совпадают (кондиционерное схлопывание не должно сработать).
+    cfg = _cfg()
+    cfg.grouping = "per_item"
+    offers = [_offer("ritualb2b:w-1"), _offer("ritualb2b:w-2")]
+    data = build_catalog_json(offers, cfg)
+    assert len(data["series"]) == 2
+    assert all("|item|" in g["key"] for g in data["series"])
+
+
+PROFILE_YAML = """\
+profile:
+  name: test-profile
+  source: fake_source
+  grouping: per_item
+catalog:
+  selected_series: []
+"""
+
+
+def test_main_reads_profile_config_and_dispatches_source(tmp_path, monkeypatch, capsys):
+    # Студия зовёт catalog_export с --config <профиль>: источник берётся из profile.source,
+    # а не хардкодом oasis (иначе селектор профилей в GUI показывал бы всем кондиционеры).
+    from avito_bridge import catalog_export
+    from avito_bridge.ingest import sources
+    profile = tmp_path / "test.yaml"
+    profile.write_text(PROFILE_YAML, encoding="utf-8")
+    monkeypatch.setitem(sources.SOURCES, "fake_source",
+                        lambda cfg: [_offer("x:1"), _offer("x:2")])
+    monkeypatch.setattr(sys, "argv", ["catalog_export", "--config", str(profile)])
+    catalog_export.main()
+    data = json.loads(capsys.readouterr().out)
+    assert len(data["series"]) == 2
+    assert all("|item|" in g["key"] for g in data["series"])
 
 
 def test_build_catalog_json_marks_forced_and_has_card(tmp_path):

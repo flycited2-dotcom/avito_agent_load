@@ -1,17 +1,16 @@
-"""Экспорт ПОЛНОГО каталога (все серии из БД, не только опубликованные) для GUI «Контент-студия».
-Запускается на VPS по SSH: `python -m avito_bridge.catalog_export` → JSON в stdout.
-Студия сливает этот вывод с локальным config.yaml (selected_series), чтобы показать таблицу
-«что есть в БД» × «что публикуется» и дать переключить публикацию галочкой."""
+"""Экспорт ПОЛНОГО каталога профиля (все серии источника, не только опубликованные) для GUI
+«Контент-студия». Запускается на VPS по SSH: `python -m avito_bridge.catalog_export
+[--config profiles/x.yaml]` → JSON в stdout. Студия сливает этот вывод с локальным YAML профиля
+(selected_series), чтобы показать таблицу «что есть в источнике» × «что публикуется»."""
 from __future__ import annotations
+import argparse
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from decouple import config
 from avito_bridge.config import AppConfig, load_config
 from avito_bridge.models import Offer
-from avito_bridge.ingest import collect_offers
-from avito_bridge.ingest.oasis_db import fetch_raw_products
-from avito_bridge.catalog.series import group_by_series, SeriesGroup
+from avito_bridge.ingest.sources import get_source
+from avito_bridge.catalog.series import group_by_series, group_per_item, SeriesGroup
 from avito_bridge.pricing.pricing import compute_price
 from avito_bridge.content.cards import has_card
 
@@ -33,21 +32,19 @@ def _group_json(g: SeriesGroup, cfg: AppConfig) -> dict:
 
 
 def build_catalog_json(offers: list[Offer], cfg: AppConfig) -> dict:
-    groups = group_by_series(offers)
+    # та же группировка, что в боевом pipeline: строки таблицы студии = объявления фида
+    groups = group_per_item(offers) if cfg.grouping == "per_item" else group_by_series(offers)
     return {"generated_at": datetime.now(timezone.utc).isoformat(),
             "series": [_group_json(g, cfg) for g in groups]}
 
 
 def main() -> None:
-    cfg = load_config(Path("config/config.yaml"))
-    dsn = {"host": config("DB_HOST", "localhost"), "port": config("DB_PORT", "5432"),
-           "dbname": config("DB_NAME"), "user": config("DB_USER"), "password": config("DB_PASSWORD")}
-    raw = fetch_raw_products(dsn, "Симферополь", cfg.catalog.report_category_ids,
-                             cfg.catalog.exclude_title_patterns,
-                             force_include=cfg.catalog.force_include,
-                             manual_photos=cfg.catalog.manual_photos,
-                             manual_price_override=cfg.catalog.manual_price_override)
-    offers = collect_offers(raw, Path(config("JAC_STOCK_JSON", "")), cfg.catalog, lambda nc: None)
+    ap = argparse.ArgumentParser(description="Экспорт каталога профиля в JSON для GUI студии")
+    ap.add_argument("--config", default="config/config.yaml",
+                    help="путь к YAML профиля (default: боевой кондиционерный)")
+    args = ap.parse_args()
+    cfg = load_config(Path(args.config))
+    offers = get_source(cfg.source)(cfg)
     print(json.dumps(build_catalog_json(offers, cfg), ensure_ascii=False))
 
 
