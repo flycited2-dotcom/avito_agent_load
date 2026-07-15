@@ -27,8 +27,14 @@ def fetch_oasis(cfg: AppConfig) -> list[Offer]:
     return collect_offers(raw, jac_path, cfg.catalog, breez_base_lookup=lambda nc: None)
 
 
+def fetch_ritualb2b(cfg: AppConfig) -> list[Offer]:
+    from avito_bridge.ingest.ritualb2b_site import fetch_ritualb2b as _fetch
+    return _fetch(cfg)
+
+
 SOURCES: dict[str, Callable[[AppConfig], list[Offer]]] = {
     "oasis_db": fetch_oasis,
+    "ritualb2b_site": fetch_ritualb2b,
 }
 
 

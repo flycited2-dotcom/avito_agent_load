@@ -1,0 +1,59 @@
+# Профиль «Ритуальные венки и корзинки» (ritualb2b.ru) — ВТОРОЙ бизнес.
+# Схема: docs/specs/2026-07-04-universal-business-profiles.md
+# Запуск: python -m avito_bridge --config profiles/wreaths.yaml
+#
+# ⚠️ ДО ПЕРВОЙ ПУБЛИКАЦИИ: base_tags ниже — лучшая догадка; точную категорию
+# Автозагрузки подтверждает владелец по ЛК ВТОРОГО аккаунта Avito (риск №1 спеки).
+profile:
+  name: wreaths
+  source: ritualb2b_site        # products.js сайта (ingest/ritualb2b_site.py)
+  grouping: per_item            # 1 товар = 1 объявление, серии не нужны
+  feed_path: feed_out/wreaths.xml
+
+cities:
+  - {id: "simferopol", name: "Симферополь", avito_location: "Республика Крым, Симферополь"}
+
+pricing:
+  rounding: none                # цена сайта = финальная розница, в фид как есть
+  default_markup_pct: 0
+  min_margin_abs: 0
+  rules: []
+
+feed:
+  max_active_ads: 100
+  base_tags:
+    Category: "Для дома и дачи"           # ← подтвердить по ЛК Автозагрузки (см. шапку)
+    GoodsType: "Хозяйственные товары"     # ← подтвердить
+    AdType: "Товар приобретен на продажу"
+    Condition: "Новое"
+  product_type_default: ""
+  product_type_map: {}
+  ac_type_map: {}
+  ac_subtype_map: {}
+  vendor_map: {}
+  vendor_skip: []
+
+content:
+  title_max: 50
+  description_max: 7000
+  stop_words: []
+  descriptions_manifest: ""
+  description_attr: desc_long   # готовые тексты сайта (descLong), генератор не зовётся
+  website_link: ""
+  website_link_keys: []
+
+catalog:
+  report_category_ids: []
+  exclude_title_patterns: []
+  force_include: {}
+  manual_photos: {}
+  selected_series: []           # пусто = публикуем весь каталог сайта (в наличии)
+
+cards:
+  enabled: false                # фото товаров с сайта; генер-карточки подключим позже (mode ritual)
+  dir: ""
+  base_url: ""
+  exts: [".jpg", ".jpeg", ".png"]
+  require_for_publish: false
+  max_images: 10
+  supplier_photo_series: []

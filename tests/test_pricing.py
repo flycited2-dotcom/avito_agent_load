@@ -41,3 +41,11 @@ def test_rule_override_by_category():
                         rules=[{"match": {"category_id": 7}, "markup_pct": 30}])
     r = compute_price(_offer(Decimal("10000"), category_id=7), cfg)
     assert r.markup_pct == 30 and r.price == 13090   # 10000*1.30=13000 → 13090
+
+
+def test_rounding_none_keeps_site_price_intact():
+    # Профили, где источник отдаёт финальную розницу (ritualb2b): 2300 → 2300, не 2390
+    cfg = PricingConfig(default_markup_pct=0, min_margin_abs=0, rounding="none", rules=[])
+    r = compute_price(_offer(Decimal("2300"), source="ritualb2b", category_id=None,
+                             btu_calc=None), cfg)
+    assert r.ok and r.price == 2300

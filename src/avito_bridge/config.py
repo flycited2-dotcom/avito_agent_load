@@ -54,7 +54,8 @@ def load_config(path: Path) -> AppConfig:
                             stop_words=cc.get("stop_words", []),
                             website_link=cc.get("website_link", "") or "",
                             website_link_keys=frozenset(cc.get("website_link_keys", []) or []),
-                            descriptions=descriptions)
+                            descriptions=descriptions,
+                            description_attr=cc.get("description_attr", "") or "")
     cat = d.get("catalog", {})
     force_include = {}                           # {nc: {price, series}} — series разводит товары по разным объявлениям
     for k, v in (cat.get("force_include", {}) or {}).items():

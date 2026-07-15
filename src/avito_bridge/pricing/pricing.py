@@ -39,5 +39,7 @@ def compute_price(offer: Offer, cfg: PricingConfig) -> PriceResult:
     if raw - cost < min_margin:
         raw = cost + min_margin
         min_applied = True
-    price = round_up_90(raw)
+    # rounding "none" — источник отдаёт финальную розницу (напр. сайт ritualb2b),
+    # цена в фиде должна совпадать с сайтом копейка в копейку.
+    price = int(raw) if cfg.rounding == "none" else round_up_90(raw)
     return PriceResult(ok=True, price=price, markup_pct=pct, min_margin_applied=min_applied)

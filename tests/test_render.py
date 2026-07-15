@@ -133,3 +133,18 @@ def test_render_series_reinterprets_btu_on_price_inversion():
     assert "7000 BTU" not in c.description           # 25 больше НЕ становится «семёркой»
     assert "25000 BTU" in c.description
     assert c.description.index("25000 BTU") > c.description.index("18000 BTU")   # порядок по размеру
+
+
+def test_render_uses_description_attr_when_configured():
+    # Профили с готовыми текстами (ritualb2b: descLong с сайта): title = model,
+    # description = attrs[description_attr], кондиционерный генератор не зовётся.
+    from avito_bridge.catalog.series import group_per_item
+    o = Offer(supplier_sku="ritualb2b:venok-avrora", source="ritualb2b", brand="",
+              model="Венок «Аврора»", category_id=None, cost=Decimal("2300"), stock=1,
+              attrs={"desc_long": "Венок ручной работы, фиолетово-зелёная гамма."})
+    g = group_per_item([o])[0]
+    cfg = ContentConfig(title_max=50, description_max=7000, stop_words=[],
+                        description_attr="desc_long")
+    c = render_series(g, {"ritualb2b:venok-avrora": 2300}, cfg)
+    assert c.title == "Венок «Аврора»"
+    assert c.description == "Венок ручной работы, фиолетово-зелёная гамма."

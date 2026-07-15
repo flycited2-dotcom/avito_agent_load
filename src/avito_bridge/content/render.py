@@ -14,6 +14,8 @@ class ContentConfig:
     website_link: str = ""              # текст-ссылка в футер (напр. «Каталог: splithome.ru»)
     website_link_keys: frozenset = frozenset()   # серии (key), к которым добавляем ссылку (тест → одна)
     descriptions: dict = None           # {series_key: готовый текст описания} — переопределяет генерацию
+    description_attr: str = ""          # профили с готовыми текстами (ritualb2b: descLong с сайта):
+                                        # имя attrs-поля товара с описанием; title = model, генератор не зовётся
 
 
 # Тип по категории каталога.
@@ -220,6 +222,10 @@ def render_series(group, prices: dict, cfg: ContentConfig) -> Content:
     (только в наличии) + продающий текст. `prices` = {supplier_sku члена: цена}.
     `group` — SeriesGroup (duck-typed: brand, series, category_id, members, representative)."""
     rep = group.representative
+    if cfg.description_attr and (rep.attrs or {}).get(cfg.description_attr):
+        # Готовый текст из источника (per_item-профили): кондиционерная генерация не нужна.
+        return Content(title=(rep.model or group.series)[: cfg.title_max],
+                       description=rep.attrs[cfg.description_attr][: cfg.description_max])
     seed = _seed(rep)
     type_label = _TYPE_LABEL.get(group.category_id, "Кондиционер")
     inv = _is_inverter(rep)
