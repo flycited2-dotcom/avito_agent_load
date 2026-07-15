@@ -27,6 +27,6 @@ def test_wreaths_profile_builds_feed_from_site_catalog(tmp_path):
     assert "Венок «Аврора»" in xml                    # title = model с сайта
     assert "<Price>2300</Price>" in xml               # цена сайта без округления
     assert "api/img.php?f=" in xml                    # фото сайта
-    assert "<Category>Для дома и дачи</Category>" in xml
+    assert "<Category>Растения</Category>" in xml          # НЕ «Для дома и дачи»: группа сайта ≠ категория Автозагрузки (код 1008)
     assert "Сплит-система" not in xml                 # кондиционерная логика не протекла
     assert "AirConditionerType" not in xml
