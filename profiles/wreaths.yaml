@@ -2,8 +2,8 @@
 # Схема: docs/specs/2026-07-04-universal-business-profiles.md
 # Запуск: python -m avito_bridge --config profiles/wreaths.yaml
 #
-# ⚠️ ДО ПЕРВОЙ ПУБЛИКАЦИИ: base_tags ниже — лучшая догадка; точную категорию
-# Автозагрузки подтверждает владелец по ЛК ВТОРОГО аккаунта Avito (риск №1 спеки).
+# Аккаунт Avito №2 (профиль 402 499 218): ключи Автозагрузки — в .env
+# (AVITO_CLIENT_ID_WREATHS / AVITO_CLIENT_SECRET_WREATHS), в git не кладём.
 profile:
   name: wreaths
   source: ritualb2b_site        # products.js сайта (ingest/ritualb2b_site.py)
@@ -21,9 +21,14 @@ pricing:
 
 feed:
   max_active_ads: 100
+  # Категория подтверждена владельцем по ЛК 2026-07-15:
+  # «Главная / Для дома и дачи / Растения / Панно и искусственные растения»
+  # (маппинг крошки→теги — как у кондиционеров: Category→GoodsType→GoodsSubType);
+  # финальная валидация — отчёт первой загрузки (v4 uploads).
   base_tags:
-    Category: "Для дома и дачи"           # ← подтвердить по ЛК Автозагрузки (см. шапку)
-    GoodsType: "Хозяйственные товары"     # ← подтвердить
+    Category: "Для дома и дачи"
+    GoodsType: "Растения"
+    GoodsSubType: "Панно и искусственные растения"
     AdType: "Товар приобретен на продажу"
     Condition: "Новое"
   product_type_default: ""
