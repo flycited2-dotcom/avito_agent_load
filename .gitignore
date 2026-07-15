@@ -1,5 +1,6 @@
 feed_out/
-state/
+# только рантайм-каталог в корне; НЕ src/avito_bridge/state/ (однажды из-за этого потеряли модуль)
+/state/
 .venv/
 .worktrees/
 __pycache__/
