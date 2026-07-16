@@ -45,7 +45,9 @@ def load_config(path: Path) -> AppConfig:
                       product_type_default=f.get("product_type_default", ""),
                       ac_type_map=actmap, ac_subtype_map=acsmap,
                       vendor_map=f.get("vendor_map", {}) or {},
-                      vendor_skip=set(f.get("vendor_skip", []) or []))
+                      vendor_skip=set(f.get("vendor_skip", []) or []),
+                      ad_id_revision={str(k): int(v)
+                                      for k, v in (f.get("ad_id_revision", {}) or {}).items()})
     cc = d.get("content", {})
     manifest = cc.get("descriptions_manifest", "")
     descriptions = load_descriptions(Path(path).parent.parent / manifest) if manifest else {}
