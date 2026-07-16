@@ -40,7 +40,10 @@ def build_ads(offers: list[Offer], cities: list[City], content: dict[str, tuple[
                 supplier_sku=o.supplier_sku,
                 city_id=city.id, title=title, description=desc, price=prices[o.supplier_sku],
                 address=city.avito_location, product_type=ptype, vendor=vendor,
-                ac_type=ac_t, ac_subtype=ac_s, images=list(o.photos), status="pending",
+                ac_type=ac_t, ac_subtype=ac_s,
+                extra_tags={k.split(":", 1)[1]: v for k, v in (o.attrs or {}).items()
+                            if k.startswith("avito_tag:")},
+                images=list(o.photos), status="pending",
             ))
             if len(ads) >= cfg.max_active_ads:
                 return ads
@@ -64,6 +67,8 @@ def build_feed_xml(ads: list[AdRecord], cfg: FeedConfig) -> str:
             etree.SubElement(ad, "AirConditionerType").text = a.ac_type
         if a.ac_subtype:
             etree.SubElement(ad, "AirConditionerSubType").text = a.ac_subtype
+        for tag in sorted(a.extra_tags):                   # generic-теги профилей (GoodsType/…)
+            etree.SubElement(ad, tag).text = a.extra_tags[tag]
         etree.SubElement(ad, "Title").text = a.title
         etree.SubElement(ad, "Description").text = a.description
         etree.SubElement(ad, "Price").text = str(a.price)

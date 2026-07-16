@@ -7,6 +7,10 @@ def test_oasis_db_source_registered():
     assert callable(fetch)
 
 
+def test_carver_xlsx_source_registered():
+    assert callable(get_source("carver_xlsx"))
+
+
 def test_unknown_source_raises_with_available_list():
     with pytest.raises(ValueError, match="oasis_db"):
         get_source("no_such_source")

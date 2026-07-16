@@ -1,0 +1,348 @@
+# Профиль «Бытовая техника» (МБТ+КБТ из опт-прайса БытТехОпт) — ОСНОВНОЙ аккаунт Avito,
+# тот же, что кондиционеры. Схема: docs/specs/2026-07-04-universal-business-profiles.md
+# Запуск (dry-run): python -m avito_bridge --config profiles/appliances.yaml
+#
+# СТАТУС: ЧЕРНОВИК ДЛЯ DRY-RUN — до боевой публикации требуется решение владельца:
+#   1) ФОТО: в прайсе их нет, Avito без Images не публикует (главный блокер);
+#   2) наценки: взяты из «наценки по группам товара.xlsx» excel-automation (2–10%),
+#      это наценки ПРАЙСА для клиентов — подтвердить, что для Avito такие же;
+#   3) GoodsType/GoodsSubType — ДОГАДКИ по дереву Avito (см. урок венков, код 1008):
+#      валидируются только реальным отчётом первой загрузки;
+#   4) в этом файле НЕТ стабилизаторов и генераторов (их нет в priceopt_*.xls;
+#      1 генератор есть в Прайс_ТЛТ_20260716.xlsx — отдельный источник, отдельный шаг);
+#   5) все 1626 позиций прайса «Под заказ» — публикуем как товар под заказ.
+#
+# Слияние с кондиционерным фидом основного аккаунта — отдельный шаг после «добро»:
+# у Avito один URL фида на аккаунт, файлы надо объединять при публикации.
+profile:
+  name: appliances
+  source: price_xls             # опт-прайс .xls (ingest/price_xls.py)
+  grouping: per_item            # 1 позиция прайса = 1 объявление
+  feed_path: feed_out/appliances.xml
+  source_options:
+    path: "C:/Users/TLT-1/Documents/GitHub/excel-automation/input/priceopt_20260716.xls"
+    description_template: |-
+      {model}
+
+      Новый, в заводской упаковке, официальная гарантия производителя.
+      Товар под заказ: срок поставки 1–3 рабочих дня.
+      Симферополь: самовывоз или доставка по городу и Крыму.
+      Работаем с 2015 года, магазин климатической и бытовой техники.
+    # Whitelist групп прайса: МБТ + КБТ (посуду, ножи, мойки, ТВ, электронику
+    # и кондиционеры сознательно НЕ берём). 54 группы, ~500 позиций.
+    selected_groups:
+      # ── МБТ: кухня ──
+      - "Электрочайники"
+      - "Мясорубки"
+      - "Миксеры"
+      - "Блендеры"
+      - "Аэрогрили"
+      - "Мультиварки"
+      - "Кофеварки, кофемашины"
+      - "Кофемолки"
+      - "Тостеры"
+      - "Соковыжималки"
+      - "Измельчители"
+      - "Блинницы"
+      - "Бутербродницы и вафельницы"
+      - "Грили и электрошашлычницы"
+      - "Хлебопечки"
+      - "Сушилки для овощей и фруктов"
+      - "Ломтерезки"
+      - "Духовки настольные"
+      - "Плитки настольные"
+      - "Весы кухонные"
+      - "Микроволновые печи"
+      - "Микроволновые печи встраиваемые"
+      # ── КБТ: холод ──
+      - "Холодильники с нижней морозильной камерой"
+      - "Холодильники с верхней морозильной камерой"
+      - "Холодильники встраиваемые"
+      - "Морозильные камеры"
+      - "Морозильные лари"
+      # ── КБТ: плиты/духовки/вытяжки ──
+      - "Электрические плиты"
+      - "Плиты с газовой духовкой"
+      - "Плиты с электро-духовкой"
+      - "Комбинированные плиты"
+      - "Поверхности газовые"
+      - "Поверхности электрические"
+      - "Поверхности домино"
+      - "Духовые шкафы"
+      - "Вытяжки"
+      - "Вытяжки встраиваемые"
+      # ── КБТ: посудомойки ──
+      - "Посудомоечные машины встраиваемые"
+      - "Посудомойки полноразмерные (60 см)"
+      - "Посудомойки узкие (45 см)"
+      # ── КБТ: стирка ──
+      - "Стиральные машины с фронтальной загрузкой"
+      - "Стиральные машины с сушкой"
+      - "Стиральные машины с вертикальной загрузкой"
+      - "Стиральные машины полуавтоматические центрифуги"
+      - "Сушильные автоматы"
+      # ── МБТ: дом ──
+      - "Пылесосы колбовые"
+      - "Пылесосы роботы"
+      - "Пылесосы вертикальные"
+      - "Пылесосы с мешком"
+      - "Утюги и гладильные системы"
+      - "Водонагреватели накопительные"
+      # ── МБТ: красота (Category, вероятно, другая — см. вопросы владельцу) ──
+      - "Фены"
+      - "Машинки для стрижки и триммеры"
+    # Категорийные теги Avito per группа — ДОГАДКИ (валидация отчётом загрузки).
+    group_tags:
+      "Электрочайники": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Мясорубки": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Миксеры": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Блендеры": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Аэрогрили": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Мультиварки": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Кофеварки, кофемашины": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Кофемолки": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Тостеры": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Соковыжималки": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Измельчители": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Блинницы": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Бутербродницы и вафельницы": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Грили и электрошашлычницы": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Хлебопечки": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Сушилки для овощей и фруктов": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Ломтерезки": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Духовки настольные": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Плитки настольные": {GoodsType: "Для кухни", GoodsSubType: "Плиты и духовые шкафы"}
+      "Весы кухонные": {GoodsType: "Для кухни", GoodsSubType: "Мелкая кухонная техника"}
+      "Микроволновые печи": {GoodsType: "Для кухни", GoodsSubType: "Микроволновые печи"}
+      "Микроволновые печи встраиваемые": {GoodsType: "Для кухни", GoodsSubType: "Микроволновые печи"}
+      "Холодильники с нижней морозильной камерой": {GoodsType: "Для кухни", GoodsSubType: "Холодильники и морозильные камеры"}
+      "Холодильники с верхней морозильной камерой": {GoodsType: "Для кухни", GoodsSubType: "Холодильники и морозильные камеры"}
+      "Холодильники встраиваемые": {GoodsType: "Для кухни", GoodsSubType: "Холодильники и морозильные камеры"}
+      "Морозильные камеры": {GoodsType: "Для кухни", GoodsSubType: "Холодильники и морозильные камеры"}
+      "Морозильные лари": {GoodsType: "Для кухни", GoodsSubType: "Холодильники и морозильные камеры"}
+      "Электрические плиты": {GoodsType: "Для кухни", GoodsSubType: "Плиты и духовые шкафы"}
+      "Плиты с газовой духовкой": {GoodsType: "Для кухни", GoodsSubType: "Плиты и духовые шкафы"}
+      "Плиты с электро-духовкой": {GoodsType: "Для кухни", GoodsSubType: "Плиты и духовые шкафы"}
+      "Комбинированные плиты": {GoodsType: "Для кухни", GoodsSubType: "Плиты и духовые шкафы"}
+      "Поверхности газовые": {GoodsType: "Для кухни", GoodsSubType: "Плиты и духовые шкафы"}
+      "Поверхности электрические": {GoodsType: "Для кухни", GoodsSubType: "Плиты и духовые шкафы"}
+      "Поверхности домино": {GoodsType: "Для кухни", GoodsSubType: "Плиты и духовые шкафы"}
+      "Духовые шкафы": {GoodsType: "Для кухни", GoodsSubType: "Плиты и духовые шкафы"}
+      "Вытяжки": {GoodsType: "Для кухни", GoodsSubType: "Вытяжки"}
+      "Вытяжки встраиваемые": {GoodsType: "Для кухни", GoodsSubType: "Вытяжки"}
+      "Посудомоечные машины встраиваемые": {GoodsType: "Для кухни", GoodsSubType: "Посудомоечные машины"}
+      "Посудомойки полноразмерные (60 см)": {GoodsType: "Для кухни", GoodsSubType: "Посудомоечные машины"}
+      "Посудомойки узкие (45 см)": {GoodsType: "Для кухни", GoodsSubType: "Посудомоечные машины"}
+      "Стиральные машины с фронтальной загрузкой": {GoodsType: "Для дома", GoodsSubType: "Стиральные машины"}
+      "Стиральные машины с сушкой": {GoodsType: "Для дома", GoodsSubType: "Стиральные машины"}
+      "Стиральные машины с вертикальной загрузкой": {GoodsType: "Для дома", GoodsSubType: "Стиральные машины"}
+      "Стиральные машины полуавтоматические центрифуги": {GoodsType: "Для дома", GoodsSubType: "Стиральные машины"}
+      "Сушильные автоматы": {GoodsType: "Для дома", GoodsSubType: "Стиральные машины"}
+      "Пылесосы колбовые": {GoodsType: "Для дома", GoodsSubType: "Пылесосы"}
+      "Пылесосы роботы": {GoodsType: "Для дома", GoodsSubType: "Пылесосы"}
+      "Пылесосы вертикальные": {GoodsType: "Для дома", GoodsSubType: "Пылесосы"}
+      "Пылесосы с мешком": {GoodsType: "Для дома", GoodsSubType: "Пылесосы"}
+      "Утюги и гладильные системы": {GoodsType: "Для дома", GoodsSubType: "Утюги"}
+      "Водонагреватели накопительные": {GoodsType: "Для дома", GoodsSubType: "Водонагреватели"}
+      "Фены": {GoodsType: "Красота и здоровье", GoodsSubType: "Фены и приборы для укладки"}
+      "Машинки для стрижки и триммеры": {GoodsType: "Красота и здоровье", GoodsSubType: "Машинки для стрижки"}
+
+cities:
+  - {id: "simferopol", name: "Симферополь", avito_location: "Республика Крым, Симферополь"}
+
+pricing:
+  # Наценки — из «наценки по группам товара.xlsx» (excel-automation, наценки прайса
+  # для клиентов): 2–10%. ВОПРОС ВЛАДЕЛЬЦУ: для Avito те же или выше (розница)?
+  rounding: none                # опт+2–10% на мелочёвке: округление …90 исказило бы наценку
+  default_markup_pct: 5
+  min_margin_abs: 0
+  rules:
+    - {match: {series: "Мультиварки"}, markup_pct: 2}
+    - {match: {series: "Измельчители"}, markup_pct: 4}
+    - {match: {series: "Духовки настольные"}, markup_pct: 3}
+    - {match: {series: "Плитки настольные"}, markup_pct: 2}
+    - {match: {series: "Микроволновые печи"}, markup_pct: 2}
+    - {match: {series: "Холодильники с нижней морозильной камерой"}, markup_pct: 4}
+    - {match: {series: "Холодильники с верхней морозильной камерой"}, markup_pct: 4}
+    - {match: {series: "Морозильные камеры"}, markup_pct: 2}
+    - {match: {series: "Морозильные лари"}, markup_pct: 2}
+    - {match: {series: "Электрические плиты"}, markup_pct: 3}
+    - {match: {series: "Плиты с газовой духовкой"}, markup_pct: 4}
+    - {match: {series: "Плиты с электро-духовкой"}, markup_pct: 4}
+    - {match: {series: "Духовые шкафы"}, markup_pct: 7}
+    - {match: {series: "Стиральные машины с фронтальной загрузкой"}, markup_pct: 3}
+    - {match: {series: "Стиральные машины с вертикальной загрузкой"}, markup_pct: 3}
+    - {match: {series: "Стиральные машины полуавтоматические центрифуги"}, markup_pct: 3}
+    - {match: {series: "Пылесосы колбовые"}, markup_pct: 3}
+    - {match: {series: "Пылесосы роботы"}, markup_pct: 2}
+    - {match: {series: "Пылесосы с мешком"}, markup_pct: 3}
+    - {match: {series: "Водонагреватели накопительные"}, markup_pct: 4}
+
+feed:
+  max_active_ads: 600           # ~500 позиций из whitelist
+  base_tags:
+    Category: "Бытовая техника"
+    AdType: "Товар приобретен на продажу"
+    Condition: "Новое"
+  product_type_default: ""
+  product_type_map: {}
+  ac_type_map: {}
+  ac_subtype_map: {}
+  vendor_map: {}
+  vendor_skip: []
+
+content:
+  title_max: 50
+  description_max: 7000
+  stop_words: []
+  descriptions_manifest: ""
+  description_attr: desc_long   # текст собирает адаптер по description_template
+  website_link: ""
+  website_link_keys: []
+
+catalog:
+  report_category_ids: []
+  exclude_title_patterns: []
+  force_include: {}
+  manual_photos:
+    00-00001435: "https://splithome.ru/static/cf-cards/excel_sakura-sa-7684w.jpg"
+    UT-00248146: "https://splithome.ru/static/cf-cards/excel_blackton-vca1401b.jpg"
+    00-00000041: "https://splithome.ru/static/cf-cards/excel_roborock-f25-lt-rus.jpg"
+    UT-00192377: "https://splithome.ru/static/cf-cards/excel_ballu-bwh-s-100-shell.jpg"
+    UT-00192379: "https://splithome.ru/static/cf-cards/excel_ballu-bwh-s-30-shell.jpg"
+    UT-00031062: "https://splithome.ru/static/cf-cards/excel_ballu-bwh-s-50-primex.jpg"
+    UT-00192380: "https://splithome.ru/static/cf-cards/excel_ballu-bwh-s-50-shell.jpg"
+    UT-00192382: "https://splithome.ru/static/cf-cards/excel_ballu-bwh-s-80-shell.jpg"
+    UT-00253773: "https://splithome.ru/static/cf-cards/excel_candy-cs15v-em1.jpg"
+    UT-00022314: "https://splithome.ru/static/cf-cards/excel_edisson-er-100-v.jpg"
+    UT-00019038: "https://splithome.ru/static/cf-cards/excel_edisson-er-80-v.jpg"
+    UT-00148879: "https://splithome.ru/static/cf-cards/excel_edisson-es-30-v.jpg"
+    UT-00144491: "https://splithome.ru/static/cf-cards/excel_electrolux-ewh-10-q-bic-u.jpg"
+    UT-00031079: "https://splithome.ru/static/cf-cards/excel_hyundai-h-sws15-80v-ui696.jpg"
+    UT-00252527: "https://splithome.ru/static/cf-cards/excel_midea-mwh10-15mpcu.jpg"
+    UT-00252238: "https://splithome.ru/static/cf-cards/excel_vanward-ewh-100.jpg"
+    UT-00239781: "https://splithome.ru/static/cf-cards/excel_gorenje-bm251sg2bg.jpg"
+    UT-00176946: "https://splithome.ru/static/cf-cards/excel_hansa-ammb25e1wh.jpg"
+    00-00001236: "https://splithome.ru/static/cf-cards/excel_korting-kcm-1001-ex.jpg"
+    UT-00249031: "https://splithome.ru/static/cf-cards/excel_bq-cm2000.jpg"
+    UT-00225847: "https://splithome.ru/static/cf-cards/excel_gorenje-bm201ag1x-20-800.jpg"
+    UT-00017585: "https://splithome.ru/static/cf-cards/excel_magnit-rmm-2410.jpg"
+    UT-00017588: "https://splithome.ru/static/cf-cards/excel_magnit-rmm-2413.jpg"
+    UT-00018126: "https://splithome.ru/static/cf-cards/excel_philips-hr3705.jpg"
+    00-00002597: "https://splithome.ru/static/cf-cards/excel_supra-mxs-529.jpg"
+    UT-00252947: "https://splithome.ru/static/cf-cards/excel_blackton-pm100b.jpg"
+    00-00000330: "https://splithome.ru/static/cf-cards/excel_blackton-pm101b.jpg"
+    00-00000331: "https://splithome.ru/static/cf-cards/excel_blackton-pm101w.jpg"
+    UT-00250447: "https://splithome.ru/static/cf-cards/excel_vitek-vt-1435.jpg"
+    UT-00250445: "https://splithome.ru/static/cf-cards/excel_vitek-vt-1443.jpg"
+    UT-00247853: "https://splithome.ru/static/cf-cards/excel_saturn-renova-fm3s-50b1.jpg"
+    UT-00052909: "https://splithome.ru/static/cf-cards/excel_don-r-103-mi.jpg"
+    00-00002658: "https://splithome.ru/static/cf-cards/excel_-m412.jpg"
+    00-00002654: "https://splithome.ru/static/cf-cards/excel_-m514.jpg"
+    UT-00052736: "https://splithome.ru/static/cf-cards/excel_-170.jpg"
+    UT-00214246: "https://splithome.ru/static/cf-cards/excel_-210kdn.jpg"
+    UT-00246831: "https://splithome.ru/static/cf-cards/excel_-m210kdn.jpg"
+    UT-00252665: "https://splithome.ru/static/cf-cards/excel_blackton-mg1111.jpg"
+    00-00000327: "https://splithome.ru/static/cf-cards/excel_bq-mg1010.jpg"
+    UT-00187993: "https://splithome.ru/static/cf-cards/excel_bq-mg2005.jpg"
+    00-00001592: "https://splithome.ru/static/cf-cards/excel_delta-dl-6101m.jpg"
+    00-00002572: "https://splithome.ru/static/cf-cards/excel_delta-lux-de-600m.jpg"
+    00-00001586: "https://splithome.ru/static/cf-cards/excel_delta-lux-de-602m.jpg"
+    00-00001302: "https://splithome.ru/static/cf-cards/excel_willmark-wmg-1905s.jpg"
+    00-00000253: "https://splithome.ru/static/cf-cards/excel_willmark-wmg-2033js.jpg"
+    UT-00148334: "https://splithome.ru/static/cf-cards/excel_willmark-wmg-2043jw.jpg"
+    UT-00178830: "https://splithome.ru/static/cf-cards/excel_willmark-wmg-2083w.jpg"
+    UT-00241642: "https://splithome.ru/static/cf-cards/excel_energy-en-004b.jpg"
+    UT-00236654: "https://splithome.ru/static/cf-cards/excel_homestar-hs-1204.jpg"
+    00-00002592: "https://splithome.ru/static/cf-cards/excel_-106.jpg"
+    00-00002594: "https://splithome.ru/static/cf-cards/excel_-107.jpg"
+    00-00002593: "https://splithome.ru/static/cf-cards/excel_-6502.jpg"
+    UT-00178952: "https://splithome.ru/static/cf-cards/excel_blackton-hp102b.jpg"
+    UT-00049650: "https://splithome.ru/static/cf-cards/excel_eurostek-evc-3002.jpg"
+    UT-00234975: "https://splithome.ru/static/cf-cards/excel_eurostek-evc-4511.jpg"
+    UT-00248336: "https://splithome.ru/static/cf-cards/excel_eurostek-evc-4512.jpg"
+    UT-00248338: "https://splithome.ru/static/cf-cards/excel_eurostek-evc-4514.jpg"
+    00-00002628: "https://splithome.ru/static/cf-cards/excel_eurostek-evc-4517.jpg"
+    00-00001569: "https://splithome.ru/static/cf-cards/excel_eurostek-evc-4519.jpg"
+    UT-00234973: "https://splithome.ru/static/cf-cards/excel_eurostek-evc-kp05.jpg"
+    UT-00248454: "https://splithome.ru/static/cf-cards/excel_lg-vc5316nntr.jpg"
+    UT-00013277: "https://splithome.ru/static/cf-cards/excel_samsung-sc18m21a0sb.jpg"
+    UT-00007810: "https://splithome.ru/static/cf-cards/excel_samsung-sc4520s36.jpg"
+    UT-00237066: "https://splithome.ru/static/cf-cards/excel_samsung-vc15k4116vr.jpg"
+    UT-00252572: "https://splithome.ru/static/cf-cards/excel_samsung-vc18m21b0s2-e.jpg"
+    UT-00011601: "https://splithome.ru/static/cf-cards/excel_bbk-20mws-729s-bs.jpg"
+    UT-00253343: "https://splithome.ru/static/cf-cards/excel_beko-moc20100w1.jpg"
+    UT-00236206: "https://splithome.ru/static/cf-cards/excel_bq-mwo-20006sm-w.jpg"
+    UT-00149184: "https://splithome.ru/static/cf-cards/excel_comfee-cmw207d02w.jpg"
+    00-00001479: "https://splithome.ru/static/cf-cards/excel_gorenje-mo20ce1w5.jpg"
+    UT-00194274: "https://splithome.ru/static/cf-cards/excel_hyundai-hym-d3001.jpg"
+    UT-00004266: "https://splithome.ru/static/cf-cards/excel_lg-ms2042db.jpg"
+    UT-00004268: "https://splithome.ru/static/cf-cards/excel_lg-ms2044v.jpg"
+    UT-00004916: "https://splithome.ru/static/cf-cards/excel_lg-ms20r42d.jpg"
+    00-00001648: "https://splithome.ru/static/cf-cards/excel_midea-em720c2pr-w.jpg"
+    00-00001687: "https://splithome.ru/static/cf-cards/excel_sakura-sa-7052w.jpg"
+    00-00000254: "https://splithome.ru/static/cf-cards/excel_samsung-ms23dg4504atbw.jpg"
+    UT-00144764: "https://splithome.ru/static/cf-cards/excel_samsung-ms23k3614ak-bw.jpg"
+    UT-00236225: "https://splithome.ru/static/cf-cards/excel_starwind-smw3820.jpg"
+    UT-00236302: "https://splithome.ru/static/cf-cards/excel_starwind-smw4420.jpg"
+    UT-00248691: "https://splithome.ru/static/cf-cards/excel_galanz-mog-2011dw.jpg"
+    00-00001317: "https://splithome.ru/static/cf-cards/excel_general-electronics-ge-dg420s.jpg"
+    00-00000016: "https://splithome.ru/static/cf-cards/excel_hyundai-hym-d3040.jpg"
+    UT-00149005: "https://splithome.ru/static/cf-cards/excel_lg-mb63w35gib.jpg"
+    UT-00253703: "https://splithome.ru/static/cf-cards/excel_samsung-mg23dg4524agbw.jpg"
+    UT-00193837: "https://splithome.ru/static/cf-cards/excel_samsung-mg23k3515ak-bw.jpg"
+    UT-00252327: "https://splithome.ru/static/cf-cards/excel_samsung-mg23k3515aw-bw.jpg"
+    00-00000533: "https://splithome.ru/static/cf-cards/excel_candy-csh44183d-2-07.jpg"
+    UT-00246821: "https://splithome.ru/static/cf-cards/excel_candy-csh44283dw-2-07.jpg"
+    00-00002671: "https://splithome.ru/static/cf-cards/excel_gorenje-w3ngpi61sast-c.jpg"
+    00-00001077: "https://splithome.ru/static/cf-cards/excel_gorenje-w5ngpi72sbs-c.jpg"
+    UT-00250422: "https://splithome.ru/static/cf-cards/excel_lg-f2y1ns3w.jpg"
+    UT-00249873: "https://splithome.ru/static/cf-cards/excel_lg-f2y1vs3w.jpg"
+    UT-00251955: "https://splithome.ru/static/cf-cards/excel_lg-f2y1ws6w.jpg"
+    UT-00225625: "https://splithome.ru/static/cf-cards/excel_lg-tw4v3rs6w.jpg"
+    UT-00253718: "https://splithome.ru/static/cf-cards/excel_samsung-ww70ag4s21ve-ld.jpg"
+    00-00002656: "https://splithome.ru/static/cf-cards/excel_stinol-wsts-510-c.jpg"
+    00-00002681: "https://splithome.ru/static/cf-cards/excel_stinol-wstu-410-b.jpg"
+    UT-00253913: "https://splithome.ru/static/cf-cards/excel_homeline-wmci7120-new.jpg"
+    UT-00252230: "https://splithome.ru/static/cf-cards/excel_homeline-wmwi7110.jpg"
+    UT-00247056: "https://splithome.ru/static/cf-cards/excel_beko-df7412gb.jpg"
+    00-00000192: "https://splithome.ru/static/cf-cards/excel_midea-md200h90w-t-ru.jpg"
+    UT-00253683: "https://splithome.ru/static/cf-cards/excel_-dm-mc8-03.jpg"
+    UT-00242919: "https://splithome.ru/static/cf-cards/excel_blackton-si1113.jpg"
+    UT-00246881: "https://splithome.ru/static/cf-cards/excel_braun-fi3124pu.jpg"
+    UT-00143505: "https://splithome.ru/static/cf-cards/excel_braun-si-3041.jpg"
+    UT-00143506: "https://splithome.ru/static/cf-cards/excel_braun-si-3054.jpg"
+    UT-00050690: "https://splithome.ru/static/cf-cards/excel_braun-si1009or.jpg"
+    UT-00192948: "https://splithome.ru/static/cf-cards/excel_braun-si3042-vi.jpg"
+    UT-00050680: "https://splithome.ru/static/cf-cards/excel_braun-si3055bk.jpg"
+    UT-00248554: "https://splithome.ru/static/cf-cards/excel_braun-si3194bk.jpg"
+    UT-00251368: "https://splithome.ru/static/cf-cards/excel_braun-si5256bl.jpg"
+    UT-00244119: "https://splithome.ru/static/cf-cards/excel_bq-sic1002.jpg"
+    UT-00171673: "https://splithome.ru/static/cf-cards/excel_babyliss-5790pe-2300.jpg"
+    00-00001342: "https://splithome.ru/static/cf-cards/excel_babyliss-5910e.jpg"
+    00-00001343: "https://splithome.ru/static/cf-cards/excel_babyliss-as960e.jpg"
+    00-00001344: "https://splithome.ru/static/cf-cards/excel_babyliss-as970e.jpg"
+    00-00002670: "https://splithome.ru/static/cf-cards/excel_gorenje-nrk51814w4.jpg"
+    UT-00253291: "https://splithome.ru/static/cf-cards/excel_gorenje-nrk6201es4.jpg"
+    UT-00253677: "https://splithome.ru/static/cf-cards/excel_grundig-gkpn66930lww.jpg"
+    00-00002527: "https://splithome.ru/static/cf-cards/excel_hyundai-cc2054wt.jpg"
+    UT-00148348: "https://splithome.ru/static/cf-cards/excel_lg-ga-b419seul.jpg"
+    UT-00199583: "https://splithome.ru/static/cf-cards/excel_lg-ga-b509lqyl.jpg"
+    00-00000189: "https://splithome.ru/static/cf-cards/excel_midea-mdrb457fgf46id.jpg"
+    UT-00253428: "https://splithome.ru/static/cf-cards/excel_midea-mdrb469mgf46i.jpg"
+    UT-00252262: "https://splithome.ru/static/cf-cards/excel_midea-mdrb471mgf33o.jpg"
+    00-00002652: "https://splithome.ru/static/cf-cards/excel_midea-mdrb509fgf33id.jpg"
+    00-00002497: "https://splithome.ru/static/cf-cards/excel_midea-mdrb509fgf46id.jpg"
+  # Непустой whitelist включает безопасный режим: до назначения фото не публикуется НИЧЕГО.
+  # Windows-студия добавляет сюда только позиции с импортированной/ручной карточкой.
+  selected_series: ["__none__", "price_xls|item|pricexls:00-00001435", "price_xls|item|pricexls:UT-00248146", "price_xls|item|pricexls:00-00000041", "price_xls|item|pricexls:UT-00192377", "price_xls|item|pricexls:UT-00192379", "price_xls|item|pricexls:UT-00031062", "price_xls|item|pricexls:UT-00192380", "price_xls|item|pricexls:UT-00192382", "price_xls|item|pricexls:UT-00253773", "price_xls|item|pricexls:UT-00022314", "price_xls|item|pricexls:UT-00019038", "price_xls|item|pricexls:UT-00148879", "price_xls|item|pricexls:UT-00144491", "price_xls|item|pricexls:UT-00031079", "price_xls|item|pricexls:UT-00252527", "price_xls|item|pricexls:UT-00252238", "price_xls|item|pricexls:UT-00239781", "price_xls|item|pricexls:UT-00176946", "price_xls|item|pricexls:00-00001236", "price_xls|item|pricexls:UT-00249031", "price_xls|item|pricexls:UT-00225847", "price_xls|item|pricexls:UT-00017585", "price_xls|item|pricexls:UT-00017588", "price_xls|item|pricexls:UT-00018126", "price_xls|item|pricexls:00-00002597", "price_xls|item|pricexls:UT-00252947", "price_xls|item|pricexls:00-00000330", "price_xls|item|pricexls:00-00000331", "price_xls|item|pricexls:UT-00250447", "price_xls|item|pricexls:UT-00250445", "price_xls|item|pricexls:UT-00247853", "price_xls|item|pricexls:UT-00052909", "price_xls|item|pricexls:00-00002658", "price_xls|item|pricexls:00-00002654", "price_xls|item|pricexls:UT-00052736", "price_xls|item|pricexls:UT-00214246", "price_xls|item|pricexls:UT-00246831", "price_xls|item|pricexls:UT-00252665", "price_xls|item|pricexls:00-00000327", "price_xls|item|pricexls:UT-00187993", "price_xls|item|pricexls:00-00001592", "price_xls|item|pricexls:00-00002572", "price_xls|item|pricexls:00-00001586", "price_xls|item|pricexls:00-00001302", "price_xls|item|pricexls:00-00000253", "price_xls|item|pricexls:UT-00148334", "price_xls|item|pricexls:UT-00178830", "price_xls|item|pricexls:UT-00241642", "price_xls|item|pricexls:UT-00236654", "price_xls|item|pricexls:00-00002592", "price_xls|item|pricexls:00-00002594", "price_xls|item|pricexls:00-00002593", "price_xls|item|pricexls:UT-00178952", "price_xls|item|pricexls:UT-00049650", "price_xls|item|pricexls:UT-00234975", "price_xls|item|pricexls:UT-00248336", "price_xls|item|pricexls:UT-00248338", "price_xls|item|pricexls:00-00002628", "price_xls|item|pricexls:00-00001569", "price_xls|item|pricexls:UT-00234973", "price_xls|item|pricexls:UT-00248454", "price_xls|item|pricexls:UT-00013277", "price_xls|item|pricexls:UT-00007810", "price_xls|item|pricexls:UT-00237066", "price_xls|item|pricexls:UT-00252572", "price_xls|item|pricexls:UT-00011601", "price_xls|item|pricexls:UT-00253343", "price_xls|item|pricexls:UT-00236206", "price_xls|item|pricexls:UT-00149184", "price_xls|item|pricexls:00-00001479", "price_xls|item|pricexls:UT-00194274", "price_xls|item|pricexls:UT-00004266", "price_xls|item|pricexls:UT-00004268", "price_xls|item|pricexls:UT-00004916", "price_xls|item|pricexls:00-00001648", "price_xls|item|pricexls:00-00001687", "price_xls|item|pricexls:00-00000254", "price_xls|item|pricexls:UT-00144764", "price_xls|item|pricexls:UT-00236225", "price_xls|item|pricexls:UT-00236302", "price_xls|item|pricexls:UT-00248691", "price_xls|item|pricexls:00-00001317", "price_xls|item|pricexls:00-00000016", "price_xls|item|pricexls:UT-00149005", "price_xls|item|pricexls:UT-00253703", "price_xls|item|pricexls:UT-00193837", "price_xls|item|pricexls:UT-00252327", "price_xls|item|pricexls:00-00000533", "price_xls|item|pricexls:UT-00246821", "price_xls|item|pricexls:00-00002671", "price_xls|item|pricexls:00-00001077", "price_xls|item|pricexls:UT-00250422", "price_xls|item|pricexls:UT-00249873", "price_xls|item|pricexls:UT-00251955", "price_xls|item|pricexls:UT-00225625", "price_xls|item|pricexls:UT-00253718", "price_xls|item|pricexls:00-00002656", "price_xls|item|pricexls:00-00002681", "price_xls|item|pricexls:UT-00253913", "price_xls|item|pricexls:UT-00252230", "price_xls|item|pricexls:UT-00247056", "price_xls|item|pricexls:00-00000192", "price_xls|item|pricexls:UT-00253683", "price_xls|item|pricexls:UT-00242919", "price_xls|item|pricexls:UT-00246881",
+    "price_xls|item|pricexls:UT-00143505", "price_xls|item|pricexls:UT-00143506", "price_xls|item|pricexls:UT-00050690", "price_xls|item|pricexls:UT-00192948", "price_xls|item|pricexls:UT-00050680", "price_xls|item|pricexls:UT-00248554", "price_xls|item|pricexls:UT-00251368", "price_xls|item|pricexls:UT-00244119", "price_xls|item|pricexls:UT-00171673", "price_xls|item|pricexls:00-00001342", "price_xls|item|pricexls:00-00001343", "price_xls|item|pricexls:00-00001344", "price_xls|item|pricexls:00-00002670", "price_xls|item|pricexls:UT-00253291", "price_xls|item|pricexls:UT-00253677", "price_xls|item|pricexls:00-00002527", "price_xls|item|pricexls:UT-00148348", "price_xls|item|pricexls:UT-00199583", "price_xls|item|pricexls:00-00000189", "price_xls|item|pricexls:UT-00253428", "price_xls|item|pricexls:UT-00252262", "price_xls|item|pricexls:00-00002652", "price_xls|item|pricexls:00-00002497"]
+
+cards:
+  enabled: false                # фото НЕТ — блокер боевой публикации (см. шапку файла)
+  dir: ""
+  base_url: ""
+  exts: [".jpg", ".jpeg", ".png"]
+  require_for_publish: false
+  max_images: 10
+  supplier_photo_series: []

@@ -9,6 +9,8 @@ dependencies = [
   "lxml>=5.0",
   "python-decouple>=3.8",
   "PyYAML>=6.0",
+  "xlrd>=2.0",
+  "openpyxl>=3.1",
 ]
 
 [project.optional-dependencies]

@@ -32,9 +32,21 @@ def fetch_ritualb2b(cfg: AppConfig) -> list[Offer]:
     return _fetch(cfg)
 
 
+def fetch_price_xls(cfg: AppConfig) -> list[Offer]:
+    from avito_bridge.ingest.price_xls import fetch_price_xls as _fetch
+    return _fetch(cfg)
+
+
+def fetch_carver_xlsx(cfg: AppConfig) -> list[Offer]:
+    from avito_bridge.ingest.carver_xlsx import fetch_carver_xlsx as _fetch
+    return _fetch(cfg)
+
+
 SOURCES: dict[str, Callable[[AppConfig], list[Offer]]] = {
     "oasis_db": fetch_oasis,
     "ritualb2b_site": fetch_ritualb2b,
+    "price_xls": fetch_price_xls,
+    "carver_xlsx": fetch_carver_xlsx,
 }
 
 

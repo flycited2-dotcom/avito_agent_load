@@ -65,6 +65,7 @@ class AdRecord(BaseModel):
     vendor: str = ""
     ac_type: str = ""
     ac_subtype: str = ""
+    extra_tags: dict[str, str] = Field(default_factory=dict)  # произвольные категорийные теги (attrs avito_tag:*)
     images: list[str] = Field(default_factory=list)
     status: str = "pending"
 

@@ -89,3 +89,10 @@ def test_build_catalog_json_marks_forced_and_has_card(tmp_path):
     assert g["forced"] is True
     assert g["has_card"] is True
     assert g["members"][0]["price"] == 18990
+
+
+def test_build_catalog_json_marks_manual_photo_as_card():
+    cfg = _cfg()
+    cfg.catalog.manual_photos = {"НС-1": "https://splithome.ru/static/manual-photos/НС-1.jpg"}
+    data = build_catalog_json([_offer("breeze:НС-1")], cfg)
+    assert data["series"][0]["has_card"] is True

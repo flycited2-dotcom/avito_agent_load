@@ -23,10 +23,12 @@ def _member_json(m: Offer, cfg: AppConfig) -> dict:
 
 
 def _group_json(g: SeriesGroup, cfg: AppConfig) -> dict:
+    representative_nc = g.representative.supplier_sku.split(":", 1)[-1]
     return {"key": g.key, "source": g.source, "brand": g.brand, "series": g.series,
             "category_id": g.category_id,
             "stock_total": sum(m.stock for m in g.members),
-            "has_card": has_card(g.representative, cfg.cards),
+            "has_card": (has_card(g.representative, cfg.cards)
+                         or bool((cfg.catalog.manual_photos or {}).get(representative_nc))),
             "forced": any(m.forced for m in g.members),
             "members": [_member_json(m, cfg) for m in g.members]}
 

@@ -1,0 +1,91 @@
+from decimal import Decimal
+
+import avito_bridge.ingest.carver_xlsx as carver
+
+
+ROWS = [
+    {"row": 4, "article": "ATS-10000-3PIN", "model": "ATS-10000 3pin",
+     "name": "Автомат ввода резерва CARVER ATS-10000 3pin",
+     "characteristics": "Мощность: 10 кВт", "price": 11679.0, "kind": "ats"},
+    {"row": 7, "article": "PPG-1900IS", "model": "PPG-1900IS",
+     "name": "Генератор бензиновый CARVER PPG-1900IS",
+     "characteristics": "Мощность: 2 кВт", "price": 22786.0, "kind": "generator"},
+]
+
+
+def test_sku_for_model_is_stable_and_filename_safe():
+    assert carver.sku_for_model("ATS-10000 3pin") == "ATS-10000-3PIN"
+    assert carver.sku_for_model("PPG-6500АM") == "PPG-6500AM"
+
+
+def test_build_offers_preserves_kind_description_photo_and_override():
+    offers = carver.build_offers(
+        ROWS, {"description_template": "{name}\n{characteristics}"},
+        manual_photos={"PPG-1900IS": "https://example.test/ppg.jpg"},
+        manual_price_override={"PPG-1900IS": 29990},
+    )
+    ats, generator = offers
+    assert ats.supplier_sku == "carver:ATS-10000-3PIN"
+    assert ats.series == "Автоматика ATS"
+    assert generator.source == "carver_xlsx"
+    assert generator.brand == "CARVER"
+    assert generator.cost == Decimal("22786.0")
+    assert generator.photos == ["https://example.test/ppg.jpg"]
+    assert generator.price_override == Decimal("29990")
+    assert "Мощность: 2 кВт" in generator.attrs["desc_long"]
+
+
+class Cell:
+    def __init__(self, value=None):
+        self.value = value
+
+
+class Start:
+    def __init__(self, row):
+        self.row = row
+
+
+class Anchor:
+    def __init__(self, zero_based_row):
+        self._from = Start(zero_based_row)
+
+
+class Picture:
+    def __init__(self, zero_based_row, data):
+        self.anchor = Anchor(zero_based_row)
+        self._bytes = data
+
+    def _data(self):
+        return self._bytes
+
+
+class Sheet:
+    max_row = 4
+    _images = [Picture(3, b"image-bytes")]
+
+    def cell(self, row, column):
+        values = {
+            (4, 2): "PPG-1900IS",
+            (4, 3): "Генератор бензиновый CARVER PPG-1900IS",
+            (4, 5): "Мощность: 2 кВт",
+            (4, 6): 22786,
+        }
+        return Cell(values.get((row, column)))
+
+
+class Book:
+    sheetnames = [carver.SHEET_NAME]
+    active = Sheet()
+
+    def __getitem__(self, name):
+        assert name == carver.SHEET_NAME
+        return self.active
+
+
+def test_parser_and_embedded_photo_use_same_excel_row(monkeypatch):
+    monkeypatch.setattr(carver, "load_workbook", lambda *a, **k: Book())
+    parsed = carver.parse_carver_xlsx("ignored.xlsx")
+    photos = carver.extract_embedded_photos("ignored.xlsx")
+    assert parsed[0]["article"] == "PPG-1900IS"
+    assert parsed[0]["row"] == 4
+    assert photos == {"PPG-1900IS": b"image-bytes"}
