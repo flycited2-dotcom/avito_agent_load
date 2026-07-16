@@ -80,6 +80,32 @@ def test_run_cycle_supplier_photo_series_bypasses_card(tmp_path):
     assert feed.read_text(encoding="utf-8").count("<Image ") == 3   # несколько фото
 
 
+def test_fully_manual_offer_uses_uploaded_photo_without_generated_card(tmp_path):
+    o = _offer("manual:manual-rc-gr28hn-a1b2c3d4")
+    o.source = "manual"
+    o.price_override = Decimal("26550")
+    o.forced = True
+    o.photos = ["https://splithome.ru/static/manual-photos/manual-x.jpg"]
+    cfg = _cfg()
+    cfg.cards = CardConfig(enabled=True, dir=str(tmp_path / "nocards"),
+                           require_for_publish=True)
+    feed = tmp_path / "manual.xml"
+    result = run_cycle(lambda: [o], cfg, feed, tmp_path / "state.db")
+    assert result.ads_built == 1
+    assert "manual-x.jpg" in feed.read_text(encoding="utf-8")
+
+
+def test_fully_manual_offer_without_photo_is_skipped(tmp_path):
+    o = _offer("manual:manual-no-photo")
+    o.source = "manual"
+    o.price_override = Decimal("26550")
+    o.forced = True
+    o.photos = []
+    cfg = _cfg()
+    result = run_cycle(lambda: [o], cfg, tmp_path / "manual.xml", tmp_path / "state.db")
+    assert result.ads_built == 0 and result.skipped == 1
+
+
 def test_run_cycle_skips_unpriceable(tmp_path):
     bad = _offer("daichi:2")
     bad.cost = None

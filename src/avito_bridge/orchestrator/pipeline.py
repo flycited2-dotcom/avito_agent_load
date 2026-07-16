@@ -42,7 +42,13 @@ def run_cycle(offers_provider: Callable[[], list[Offer]], cfg: AppConfig,
             skipped += 1
             continue
         rep = g.representative                 # стабильная (младший размер) → стабильный ad_id/карточка
-        is_supplier = g.key in cfg.cards.supplier_photo_series   # серия на фото поставщика (мульти, без карточки)
+        # Полностью ручной товар использует загруженное владельцем уникальное фото и не обязан
+        # ждать фотоагента. Но без единого фото такой товар в фид не допускаем.
+        is_manual = rep.source == "manual"
+        if is_manual and not rep.photos:
+            skipped += 1
+            continue
+        is_supplier = (g.key in cfg.cards.supplier_photo_series or is_manual)
         if cfg.cards.require_for_publish and not is_supplier and not has_card(rep, cfg.cards):
             skipped += 1                        # без уникальной карточки не публикуем (риск блока «дубль фото»)
             continue
