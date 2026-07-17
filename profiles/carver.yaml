@@ -21,15 +21,17 @@ cities:
   - {id: "simferopol", name: "Симферополь", avito_location: "Республика Крым, Симферополь"}
 
 pricing:
-  # Временно без наценки. Публикация в Studio заблокирована до решения владельца.
+  # Первоначально без наценки. В Studio это заполняется через «Настроить публикацию».
+  # Пока price_confirmed: false, Studio не позволит случайно опубликовать закупочную цену.
   rounding: none
   default_markup_pct: 0
   min_margin_abs: 0
   rules: []
+  price_confirmed: false
 
 feed:
   max_active_ads: 23
-  # Category/GoodsType намеренно не указаны: их надо подтвердить по справочнику Avito.
+  # Category/GoodsType задаются один раз через окно «Настроить публикацию» в Studio.
   base_tags:
     AdType: "Товар приобретен на продажу"
     Condition: "Новое"
