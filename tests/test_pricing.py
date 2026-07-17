@@ -49,3 +49,31 @@ def test_rounding_none_keeps_site_price_intact():
     r = compute_price(_offer(Decimal("2300"), source="ritualb2b", category_id=None,
                              btu_calc=None), cfg)
     assert r.ok and r.price == 2300
+
+
+def test_carver_markup_rounds_up_to_10():
+    cfg = PricingConfig(default_markup_pct=7, min_margin_abs=0,
+                        rounding="up_to_10", rules=[])
+    result = compute_price(
+        _offer(Decimal("22786"), source="carver_xlsx", category_id=None,
+               btu_calc=None),
+        cfg,
+    )
+    assert result.price == 24390
+
+
+def test_round_up_to_100_is_not_up_to_90():
+    cfg = PricingConfig(default_markup_pct=0, min_margin_abs=0,
+                        rounding="up_to_100", rules=[])
+    assert compute_price(_offer(Decimal("12491")), cfg).price == 12500
+
+
+def test_unknown_rounding_mode_is_rejected():
+    cfg = PricingConfig(default_markup_pct=0, min_margin_abs=0,
+                        rounding="typo", rules=[])
+    try:
+        compute_price(_offer(Decimal("10000")), cfg)
+    except ValueError as exc:
+        assert "Неизвестный режим округления" in str(exc)
+    else:
+        raise AssertionError("unknown rounding mode must fail")

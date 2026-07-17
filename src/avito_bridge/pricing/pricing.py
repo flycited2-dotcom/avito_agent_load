@@ -1,4 +1,5 @@
 from __future__ import annotations
+import math
 from dataclasses import dataclass, field
 from decimal import Decimal
 from avito_bridge.models import Offer, PriceResult
@@ -8,6 +9,25 @@ def round_up_90(raw: float) -> int:
     """Округление ВВЕРХ до ближайшего числа, оканчивающегося на …90 (порт marked_price)."""
     base = (int(raw) // 100) * 100
     return base + 90 if raw <= base + 90 else base + 190
+
+
+def round_up(raw: float, step: int) -> int:
+    """Округлить цену вверх до ближайшего положительного шага."""
+    if step <= 0:
+        raise ValueError("Шаг округления должен быть больше нуля")
+    return int(math.ceil(raw / step) * step)
+
+
+def _rounded_price(raw: float, mode: str) -> int:
+    if mode == "none":
+        return int(raw)
+    if mode == "up_to_10":
+        return round_up(raw, 10)
+    if mode == "up_to_90":
+        return round_up_90(raw)
+    if mode == "up_to_100":
+        return round_up(raw, 100)
+    raise ValueError(f"Неизвестный режим округления: {mode}")
 
 
 @dataclass
@@ -39,7 +59,5 @@ def compute_price(offer: Offer, cfg: PricingConfig) -> PriceResult:
     if raw - cost < min_margin:
         raw = cost + min_margin
         min_applied = True
-    # rounding "none" — источник отдаёт финальную розницу (напр. сайт ritualb2b),
-    # цена в фиде должна совпадать с сайтом копейка в копейку.
-    price = int(raw) if cfg.rounding == "none" else round_up_90(raw)
+    price = _rounded_price(raw, cfg.rounding)
     return PriceResult(ok=True, price=price, markup_pct=pct, min_margin_applied=min_applied)
