@@ -1,13 +1,14 @@
 # CARVER: 23 позиции из прайса со встроенными фотографиями от 15.07.2026.
-# Безопасный черновик: категория Avito и розничная наценка ещё не подтверждены,
-# поэтому Windows-студия блокирует публикацию этого профиля, а whitelist пуст.
+# Безопасный профиль: путь к локальному прайсу задаётся на каждой машине отдельно,
+# а whitelist по умолчанию не публикует ни одного товара.
 profile:
   name: carver
   source: carver_xlsx
   grouping: per_item
   feed_path: feed_out/carver.xml
+  public_feed_path: "/opt/oasis/staticfiles/avito-feed-carver.xml"
   source_options:
-    path: "C:/Users/TLT-1/Desktop/Прайс_генераторы_CARVER_фото_15.07.xlsx"
+    path: ""
     description_template: |-
       {name}
 
@@ -21,20 +22,22 @@ cities:
   - {id: "simferopol", name: "Симферополь", avito_location: "Республика Крым, Симферополь"}
 
 pricing:
-  # Первоначально без наценки. В Studio это заполняется через «Настроить публикацию».
-  # Пока price_confirmed: false, Studio не позволит случайно опубликовать закупочную цену.
-  rounding: none
-  default_markup_pct: 0
+  # Подтверждённые пользователем параметры для прайса от 15.07.2026.
+  rounding: up_to_10
+  default_markup_pct: 7
   min_margin_abs: 0
   rules: []
   price_confirmed: false
 
 feed:
   max_active_ads: 23
-  # Category/GoodsType задаются один раз через окно «Настроить публикацию» в Studio.
+  # Кандидат из указанного пользователем пути; подтверждается отчётом Avito на одном товаре.
   base_tags:
     AdType: "Товар приобретен на продажу"
     Condition: "Новое"
+    Category: "Ремонт и строительство"
+    GoodsType: "Инструменты"
+    GoodsSubType: "Генераторы"
   product_type_default: ""
   product_type_map: {}
   ac_type_map: {}

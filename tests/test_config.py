@@ -1,4 +1,9 @@
+from pathlib import Path
+
 from avito_bridge.config import load_config
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_load_config_parses_cities_and_pricing(tmp_path):
@@ -103,3 +108,15 @@ def test_load_config_parses_profile_section(tmp_path):
     assert cfg.profile_name == "wreaths"
     assert cfg.source == "ritualb2b_site"
     assert cfg.grouping == "per_item"
+
+
+def test_carver_profile_has_safe_publication_defaults():
+    cfg = load_config(PROJECT_ROOT / "profiles" / "carver.yaml")
+    assert cfg.source_options["path"] == ""
+    assert cfg.pricing.default_markup_pct == 7
+    assert cfg.pricing.rounding == "up_to_10"
+    assert cfg.public_feed_path == "/opt/oasis/staticfiles/avito-feed-carver.xml"
+    assert cfg.feed.base_tags["Category"] == "Ремонт и строительство"
+    assert cfg.feed.base_tags["GoodsType"] == "Инструменты"
+    assert cfg.feed.base_tags["GoodsSubType"] == "Генераторы"
+    assert cfg.selected_series == frozenset({"__none__"})

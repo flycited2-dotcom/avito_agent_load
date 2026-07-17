@@ -26,6 +26,7 @@ class AppConfig:
     source: str = "oasis_db"       # адаптер источника товаров (ingest/sources.py)
     grouping: str = "series"       # series (кондиционеры) | per_item (венки: 1 товар = 1 объявление)
     feed_path: str = "feed_out/feed.xml"   # свой файл фида на профиль (второй бизнес не затирает первый)
+    public_feed_path: str = ""      # абсолютный путь публичного XML на VPS
     source_options: dict = None    # настройки адаптера источника (price_xls: path/selected_groups/…)
 
 
@@ -89,4 +90,5 @@ def load_config(path: Path) -> AppConfig:
                      source=prof.get("source", "oasis_db"),
                      grouping=prof.get("grouping", "series"),
                      feed_path=prof.get("feed_path", "feed_out/feed.xml"),
+                     public_feed_path=prof.get("public_feed_path", ""),
                      source_options=prof.get("source_options", {}) or {})
