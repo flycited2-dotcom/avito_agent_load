@@ -19,6 +19,7 @@ def _member_json(m: Offer, cfg: AppConfig) -> dict:
     pr = compute_price(m, cfg.pricing)
     nc = m.supplier_sku.split(":", 1)[-1]
     return {"nc_code": nc, "btu_calc": m.btu_calc, "stock": m.stock,
+            "cost": int(m.cost) if m.cost is not None else None,
             "price": pr.price, "price_ok": pr.ok, "forced": m.forced}
 
 
