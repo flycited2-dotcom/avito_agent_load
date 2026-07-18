@@ -118,5 +118,8 @@ def test_carver_profile_has_safe_publication_defaults():
     assert cfg.public_feed_path == "/opt/oasis/staticfiles/avito-feed-carver.xml"
     assert cfg.feed.base_tags["Category"] == "Ремонт и строительство"
     assert cfg.feed.base_tags["GoodsType"] == "Инструменты"
-    assert cfg.feed.base_tags["GoodsSubType"] == "Генераторы"
+    assert cfg.feed.base_tags["ToolType"] == "Силовая, строительная техника и комплектующие"
+    assert cfg.feed.base_tags["ToolSubType"] == "Устройства электропитания"
+    assert cfg.feed.base_tags["DeviceType"] == "Генераторы"
+    assert "GoodsSubType" not in cfg.feed.base_tags
     assert cfg.selected_series == frozenset({"__none__"})

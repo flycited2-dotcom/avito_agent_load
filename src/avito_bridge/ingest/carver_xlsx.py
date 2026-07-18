@@ -86,6 +86,68 @@ def extract_embedded_photos(path: str | Path) -> dict[str, bytes]:
     return photos
 
 
+def _generator_avito_tags(row: dict) -> dict[str, str]:
+    characteristics = str(row.get("characteristics") or "")
+    lines = characteristics.splitlines()
+
+    def power_value(kind: str) -> str:
+        values: list[str] = []
+        for line in lines:
+            lower = line.lower()
+            if (kind not in lower or "мощност" not in lower or "квт" not in lower
+                    or "двигател" in lower):
+                continue
+            tail = line.split(":", 1)[1] if ":" in line else ""
+            numbers = re.findall(r"[0-9]+(?:[,.][0-9]+)?", tail)
+            if not numbers:
+                continue
+            index = 1 if kind == "макс" and "номин" in lower and len(numbers) > 1 else 0
+            values.append(numbers[index].replace(",", "."))
+        return max(values, key=Decimal) if values else ""
+
+    fuel = ""
+    for line in lines:
+        if "топливо" not in line.lower():
+            continue
+        lower = line.lower()
+        if "бенз" in lower or "аи " in lower or "аи9" in lower:
+            fuel = "Бензин"
+        elif "диз" in lower:
+            fuel = "Дизель"
+        if fuel:
+            break
+
+    voltage = ""
+    for line in lines:
+        lower = line.lower()
+        if "выход" not in lower or "напряжен" not in lower:
+            continue
+        has_230 = bool(re.search(r"(?<!\d)(?:220|230)(?!\d)", line))
+        has_400 = bool(re.search(r"(?<!\d)(?:380|400)(?!\d)", line))
+        if has_230 and has_400:
+            voltage = "220/380 В"
+        elif has_230:
+            voltage = "220 В"
+        break
+    if not voltage:
+        has_230 = bool(re.search(r"(?<!\d)(?:220|230)(?!\d)", characteristics))
+        has_400 = bool(re.search(r"(?<!\d)(?:380|400)(?!\d)", characteristics))
+        if has_230 and has_400:
+            voltage = "220/380 В"
+        elif has_230:
+            voltage = "220 В"
+
+    tags = {
+        "Brand": "CARVER",
+        "Model": str(row.get("model") or "").strip(),
+        "FuelType": fuel,
+        "Voltage": voltage,
+        "RatedPower": power_value("номин"),
+        "MaximumPower": power_value("макс"),
+    }
+    return {tag: value for tag, value in tags.items() if value}
+
+
 def build_offers(rows: list[dict], opts: dict,
                  manual_photos: dict | None = None,
                  manual_price_override: dict | None = None) -> list[Offer]:
@@ -103,6 +165,9 @@ def build_offers(rows: list[dict], opts: dict,
         }
         for tag, value in (tags_by_kind.get(row["kind"]) or {}).items():
             attrs[f"avito_tag:{tag}"] = str(value)
+        if row["kind"] == "generator":
+            for tag, value in _generator_avito_tags(row).items():
+                attrs[f"avito_tag:{tag}"] = value
         offers.append(Offer(
             supplier_sku=f"carver:{article}",
             source="carver_xlsx",

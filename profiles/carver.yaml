@@ -31,13 +31,15 @@ pricing:
 
 feed:
   max_active_ads: 23
-  # Кандидат из указанного пользователем пути; подтверждается отчётом Avito на одном товаре.
+  # Полный путь категории, предписанный модератором Avito для генераторов.
   base_tags:
     AdType: "Товар приобретен на продажу"
     Condition: "Новое"
     Category: "Ремонт и строительство"
     GoodsType: "Инструменты"
-    GoodsSubType: "Генераторы"
+    ToolType: "Силовая, строительная техника и комплектующие"
+    ToolSubType: "Устройства электропитания"
+    DeviceType: "Генераторы"
   product_type_default: ""
   product_type_map: {}
   ac_type_map: {}

@@ -9,7 +9,12 @@ ROWS = [
      "characteristics": "Мощность: 10 кВт", "price": 11679.0, "kind": "ats"},
     {"row": 7, "article": "PPG-1900IS", "model": "PPG-1900IS",
      "name": "Генератор бензиновый CARVER PPG-1900IS",
-     "characteristics": "Мощность: 2 кВт", "price": 22786.0, "kind": "generator"},
+     "characteristics": (
+         "Номининальная мощность генератора, кВт: 1,8\n"
+         "Максимальная мощность генератора, кВт: 2,0\n"
+         "Выходное напряжение, В: ~230\n"
+         "Рекомендуемое топливо: Бензин АИ92"
+     ), "price": 22786.0, "kind": "generator"},
 ]
 
 
@@ -32,7 +37,30 @@ def test_build_offers_preserves_kind_description_photo_and_override():
     assert generator.cost == Decimal("22786.0")
     assert generator.photos == ["https://example.test/ppg.jpg"]
     assert generator.price_override == Decimal("29990")
-    assert "Мощность: 2 кВт" in generator.attrs["desc_long"]
+    assert "Максимальная мощность генератора, кВт: 2,0" in generator.attrs["desc_long"]
+    assert generator.attrs["avito_tag:Brand"] == "CARVER"
+    assert generator.attrs["avito_tag:Model"] == "PPG-1900IS"
+    assert generator.attrs["avito_tag:FuelType"] == "Бензин"
+    assert generator.attrs["avito_tag:Voltage"] == "220 В"
+    assert generator.attrs["avito_tag:RatedPower"] == "1.8"
+    assert generator.attrs["avito_tag:MaximumPower"] == "2.0"
+    assert "avito_tag:Brand" not in ats.attrs
+
+
+def test_generator_tags_handle_dual_voltage_and_combined_power_line():
+    row = {
+        "model": "PPG-13500VR",
+        "characteristics": (
+            "Номин. / макс. мощность альтернатора при 230В, кВт: 8,1 / 9\n"
+            "Номин. / макс. мощность альтернатора при 400В, кВт: 9 / 10\n"
+            "Выходное напряжение / частота, В/Гц: ~230 / 50, ~400 / 50\n"
+            "Рекомендуемое топливо: Бензин АИ92"
+        ),
+    }
+    tags = carver._generator_avito_tags(row)
+    assert tags["Voltage"] == "220/380 В"
+    assert tags["RatedPower"] == "9"
+    assert tags["MaximumPower"] == "10"
 
 
 class Cell:
