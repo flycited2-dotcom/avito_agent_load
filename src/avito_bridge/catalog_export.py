@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from avito_bridge.config import AppConfig, load_config
 from avito_bridge.models import Offer
-from avito_bridge.ingest.sources import get_source
+from avito_bridge.ingest.sources import fetch_profile_offers
 from avito_bridge.catalog.series import group_by_series, group_per_item, SeriesGroup
 from avito_bridge.pricing.pricing import compute_price
 from avito_bridge.content.cards import has_card
@@ -46,7 +46,7 @@ def main() -> None:
                     help="путь к YAML профиля (default: боевой кондиционерный)")
     args = ap.parse_args()
     cfg = load_config(Path(args.config))
-    offers = get_source(cfg.source)(cfg)
+    offers = fetch_profile_offers(cfg)
     print(json.dumps(build_catalog_json(offers, cfg), ensure_ascii=False))
 
 

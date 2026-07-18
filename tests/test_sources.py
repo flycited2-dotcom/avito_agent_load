@@ -1,5 +1,10 @@
 import pytest
-from avito_bridge.ingest.sources import get_source
+from decimal import Decimal
+from types import SimpleNamespace
+
+from avito_bridge.ingest import sources
+from avito_bridge.ingest.sources import fetch_profile_offers, get_source
+from avito_bridge.models import Offer
 
 
 def test_oasis_db_source_registered():
@@ -30,3 +35,40 @@ def test_feed_path_default_and_profile_override(tmp_path):
         "profile: {name: wreaths, feed_path: feed_out/wreaths.xml}\n" + base,
         encoding="utf-8")
     assert load_config(tmp_path / "b.yaml").feed_path == "feed_out/wreaths.xml"
+
+
+@pytest.mark.parametrize("profile_name,spec", [
+    ("conditioners", {
+        "brand": "Ballu", "title": "BSAG-09", "series": "Eco",
+        "category_id": 2, "btu": 9, "price": 30000, "stock": 1,
+        "photos": ["https://i/ac.jpg"],
+    }),
+    ("wreaths", {
+        "brand": "", "title": "Венок Аврора", "group": "wreath",
+        "price": 3500, "stock": 1, "photos": ["https://i/w.jpg"],
+    }),
+    ("appliances", {
+        "brand": "Kitfort", "title": "Миксер KT-100", "group": "Миксеры",
+        "price": 5990, "stock": 1, "photos": ["https://i/m.jpg"],
+    }),
+    ("carver", {
+        "brand": "CARVER", "title": "PPG-1900i", "group": "generator",
+        "price": 43200, "stock": 1, "photos": ["https://i/g.jpg"],
+    }),
+])
+def test_profile_source_appends_manual_offer_exactly_once(monkeypatch, profile_name, spec):
+    supplier = Offer(
+        supplier_sku="fake:supplier", source="fake", brand="B", model="M",
+        cost=Decimal("100"), stock=1, photos=["https://i/s.jpg"],
+    )
+    monkeypatch.setitem(sources.SOURCES, "fake", lambda cfg: [supplier])
+    cfg = SimpleNamespace(
+        source="fake",
+        profile_name=profile_name,
+        source_options={},
+        catalog=SimpleNamespace(manual_products={"manual-x": spec}),
+    )
+
+    offers = fetch_profile_offers(cfg)
+
+    assert [offer.supplier_sku for offer in offers] == ["fake:supplier", "manual:manual-x"]

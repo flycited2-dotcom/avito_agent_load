@@ -2,7 +2,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 from avito_bridge.config import load_config
-from avito_bridge.ingest.sources import get_source
+from avito_bridge.ingest.sources import fetch_profile_offers
 from avito_bridge.orchestrator.pipeline import run_cycle
 
 
@@ -12,7 +12,7 @@ def main():
                     help="путь к конфигу профиля (default: боевой кондиционерный)")
     args = ap.parse_args()
     cfg = load_config(Path(args.config))
-    offers = get_source(cfg.source)(cfg)
+    offers = fetch_profile_offers(cfg)
     result = run_cycle(lambda: offers, cfg, feed_path=Path(cfg.feed_path),
                        state_path=Path("state/state.db"))
     label = cfg.profile_name or "default"
