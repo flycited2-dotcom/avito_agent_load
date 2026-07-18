@@ -53,6 +53,14 @@ def test_build_catalog_json_exposes_member_cost_for_bulk_price_floor():
     assert members[1]["cost"] is None
 
 
+def test_build_catalog_json_rounds_fractional_cost_up_for_price_floor():
+    member = build_catalog_json(
+        [_offer("breeze:НС-1", cost="10000.50")], _cfg()
+    )["series"][0]["members"][0]
+
+    assert member["cost"] == 10001
+
+
 def test_build_catalog_json_per_item_grouping():
     # Профили без серий (grouping: per_item — венки): каждый товар = своя строка каталога,
     # даже если серия/модель совпадают (кондиционерное схлопывание не должно сработать).
