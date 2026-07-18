@@ -23,6 +23,16 @@ def test_sku_for_model_is_stable_and_filename_safe():
     assert carver.sku_for_model("PPG-6500АM") == "PPG-6500AM"
 
 
+def test_source_path_is_portable_between_checkouts(monkeypatch, tmp_path):
+    expected = tmp_path / "data" / "carver" / "arrival.xlsx"
+    expected.parent.mkdir(parents=True)
+    expected.touch()
+    monkeypatch.setattr(carver, "BRIDGE_ROOT", tmp_path)
+
+    assert carver.resolve_source_path("data/carver/arrival.xlsx") == expected.resolve()
+    assert carver.resolve_source_path(expected) == expected.resolve()
+
+
 def test_build_offers_preserves_kind_description_photo_and_override():
     offers = carver.build_offers(
         ROWS, {"description_template": "{name}\n{characteristics}"},

@@ -1,6 +1,5 @@
-# CARVER: 23 позиции из прайса со встроенными фотографиями от 15.07.2026.
-# Безопасный профиль: путь к локальному прайсу задаётся на каждой машине отдельно,
-# а whitelist по умолчанию не публикует ни одного товара.
+# CARVER: 10 генераторов из подтверждённой поставки от 18.07.2026.
+# Прайс хранится в репозитории, поэтому профиль переносим между рабочими машинами.
 profile:
   name: carver
   source: carver_xlsx
@@ -8,7 +7,7 @@ profile:
   feed_path: feed_out/carver.xml
   public_feed_path: "/opt/oasis/staticfiles/avito-feed-carver.xml"
   source_options:
-    path: ""
+    path: "data/carver/carver-stock-arrival-2026-07-18.xlsx"
     description_template: |-
       {name}
 
@@ -22,15 +21,15 @@ cities:
   - {id: "simferopol", name: "Симферополь", avito_location: "Республика Крым, Симферополь"}
 
 pricing:
-  # Подтверждённые пользователем параметры для прайса от 15.07.2026.
+  # Подтверждённая пользователем наценка для поставки от 18.07.2026.
   rounding: up_to_10
   default_markup_pct: 7
   min_margin_abs: 0
   rules: []
-  price_confirmed: false
+  price_confirmed: true
 
 feed:
-  max_active_ads: 23
+  max_active_ads: 10
   # Полный путь категории, предписанный модератором Avito для генераторов.
   base_tags:
     AdType: "Товар приобретен на продажу"
@@ -60,11 +59,30 @@ catalog:
   report_category_ids: []
   exclude_title_patterns: []
   force_include: {}
-  manual_photos: {}
+  manual_photos:
+    PPG-1900IS: "https://splithome.ru/static/manual-photos/PPG-1900IS.jpg"
+    PPG-4000IS: "https://splithome.ru/static/manual-photos/PPG-4000IS.jpg"
+    PPG-5100I: "https://splithome.ru/static/manual-photos/PPG-5100I.jpg"
+    PPG-6600ISR: "https://splithome.ru/static/manual-photos/PPG-6600ISR.jpg"
+    PPG-8100I: "https://splithome.ru/static/manual-photos/PPG-8100I.jpg"
+    PPG-9500IR: "https://splithome.ru/static/manual-photos/PPG-9500IR.jpg"
+    PPG-15000IR: "https://splithome.ru/static/manual-photos/PPG-15000IR.jpg"
+    PPG-15000IVR: "https://splithome.ru/static/manual-photos/PPG-15000IVR.jpg"
+    PPG-2000IS: "https://splithome.ru/static/manual-photos/PPG-2000IS.jpg"
+    PPG-3900: "https://splithome.ru/static/manual-photos/PPG-3900.jpg"
   manual_price_override: {}
   manual_card_brief: {}
-  # Sentinel делает whitelist непустым, но не совпадает ни с одной позицией.
-  selected_series: ["__none__"]
+  selected_series:
+    - "carver_xlsx|item|carver:PPG-1900IS"
+    - "carver_xlsx|item|carver:PPG-4000IS"
+    - "carver_xlsx|item|carver:PPG-5100I"
+    - "carver_xlsx|item|carver:PPG-6600ISR"
+    - "carver_xlsx|item|carver:PPG-8100I"
+    - "carver_xlsx|item|carver:PPG-9500IR"
+    - "carver_xlsx|item|carver:PPG-15000IR"
+    - "carver_xlsx|item|carver:PPG-15000IVR"
+    - "carver_xlsx|item|carver:PPG-2000IS"
+    - "carver_xlsx|item|carver:PPG-3900"
 
 cards:
   enabled: false

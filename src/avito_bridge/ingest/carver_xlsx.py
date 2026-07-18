@@ -18,6 +18,7 @@ from avito_bridge.models import Offer
 
 SHEET_NAME = "Прайс склада"
 FIRST_DATA_ROW = 4
+BRIDGE_ROOT = Path(__file__).resolve().parents[3]
 
 DEFAULT_DESCRIPTION = (
     "{name}\n\n{characteristics}\n\n"
@@ -32,6 +33,14 @@ def sku_for_model(model: str) -> str:
     if not value:
         raise ValueError("carver_xlsx: пустая или недопустимая модель")
     return value
+
+
+def resolve_source_path(path: str | Path) -> Path:
+    """Resolve a profile path from the bridge checkout, not the launch directory."""
+    source = Path(path).expanduser()
+    if not source.is_absolute():
+        source = BRIDGE_ROOT / source
+    return source.resolve()
 
 
 def _sheet(book):
@@ -187,9 +196,10 @@ def build_offers(rows: list[dict], opts: dict,
 
 def fetch_carver_xlsx(cfg: AppConfig) -> list[Offer]:
     opts = cfg.source_options or {}
-    path = opts.get("path", "")
-    if not path or not Path(path).exists():
-        raise ValueError(f"carver_xlsx: файл прайса не найден: '{path}'")
+    configured_path = opts.get("path", "")
+    path = resolve_source_path(configured_path) if configured_path else None
+    if path is None or not path.exists():
+        raise ValueError(f"carver_xlsx: файл прайса не найден: '{configured_path}'")
     return build_offers(
         parse_carver_xlsx(path), opts,
         manual_photos=cfg.catalog.manual_photos,
