@@ -1,4 +1,4 @@
-# CARVER: 10 генераторов из подтверждённой поставки от 18.07.2026.
+# CARVER: 23 уникальные модели генераторов из подтверждённой поставки и прайса 15.07.2026.
 # Прайс хранится в репозитории, поэтому профиль переносим между рабочими машинами.
 profile:
   name: carver
@@ -29,7 +29,7 @@ pricing:
   price_confirmed: true
 
 feed:
-  max_active_ads: 10
+  max_active_ads: 23
   # Полный путь категории, предписанный модератором Avito для генераторов.
   base_tags:
     AdType: "Товар приобретен на продажу"
@@ -70,6 +70,19 @@ catalog:
     PPG-15000IVR: "https://splithome.ru/static/manual-photos/PPG-15000IVR.jpg"
     PPG-2000IS: "https://splithome.ru/static/manual-photos/PPG-2000IS.jpg"
     PPG-3900: "https://splithome.ru/static/manual-photos/PPG-3900.jpg"
+    PPG-3100I: "https://splithome.ru/static/manual-photos/PPG-3100I.jpg"
+    PPG-3600I: "https://splithome.ru/static/manual-photos/PPG-3600I.jpg"
+    PPG-5100ISE: "https://splithome.ru/static/manual-photos/PPG-5100ISE.jpg"
+    PPG-6500: "https://splithome.ru/static/manual-photos/PPG-6500.jpg"
+    PPG-6500AM: "https://splithome.ru/static/manual-photos/PPG-6500AM.jpg"
+    PPG-6500E: "https://splithome.ru/static/manual-photos/PPG-6500E.jpg"
+    PPG-6500R: "https://splithome.ru/static/manual-photos/PPG-6500R.jpg"
+    PPG-9000E: "https://splithome.ru/static/manual-photos/PPG-9000E.jpg"
+    PPG-9000R: "https://splithome.ru/static/manual-photos/PPG-9000R.jpg"
+    PPG-10000E: "https://splithome.ru/static/manual-photos/PPG-10000E.jpg"
+    PPG-10000EM: "https://splithome.ru/static/manual-photos/PPG-10000EM.jpg"
+    PPG-10000R: "https://splithome.ru/static/manual-photos/PPG-10000R.jpg"
+    PPG-13500VR: "https://splithome.ru/static/manual-photos/PPG-13500VR.jpg"
   manual_price_override: {}
   manual_card_brief: {}
   selected_series:
@@ -83,6 +96,19 @@ catalog:
     - "carver_xlsx|item|carver:PPG-15000IVR"
     - "carver_xlsx|item|carver:PPG-2000IS"
     - "carver_xlsx|item|carver:PPG-3900"
+    - "carver_xlsx|item|carver:PPG-3100I"
+    - "carver_xlsx|item|carver:PPG-3600I"
+    - "carver_xlsx|item|carver:PPG-5100ISE"
+    - "carver_xlsx|item|carver:PPG-6500"
+    - "carver_xlsx|item|carver:PPG-6500AM"
+    - "carver_xlsx|item|carver:PPG-6500E"
+    - "carver_xlsx|item|carver:PPG-6500R"
+    - "carver_xlsx|item|carver:PPG-9000E"
+    - "carver_xlsx|item|carver:PPG-9000R"
+    - "carver_xlsx|item|carver:PPG-10000E"
+    - "carver_xlsx|item|carver:PPG-10000EM"
+    - "carver_xlsx|item|carver:PPG-10000R"
+    - "carver_xlsx|item|carver:PPG-13500VR"
 
 cards:
   enabled: false

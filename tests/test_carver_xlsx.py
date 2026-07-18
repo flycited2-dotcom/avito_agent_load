@@ -59,7 +59,7 @@ def test_build_offers_preserves_kind_description_photo_and_override():
 
 def test_generator_tags_handle_dual_voltage_and_combined_power_line():
     row = {
-        "model": "PPG-13500VR",
+        "model": "PPG-TEST",
         "characteristics": (
             "Номин. / макс. мощность альтернатора при 230В, кВт: 8,1 / 9\n"
             "Номин. / макс. мощность альтернатора при 400В, кВт: 9 / 10\n"
@@ -71,6 +71,22 @@ def test_generator_tags_handle_dual_voltage_and_combined_power_line():
     assert tags["Voltage"] == "220/380 В"
     assert tags["RatedPower"] == "9"
     assert tags["MaximumPower"] == "10"
+
+
+def test_generator_tags_use_values_from_avito_catalog_for_new_carver_models():
+    expected = {
+        "PPG-5100ISE": ("PPG-5100iSE", "220 В", "4.0", "4.5"),
+        "PPG-6500AM": ("PPG-6500АM", "220 В", "5.0", "5.5"),
+        "PPG-9000R": ("PPG-9000е", "220 В", "7.0", "7.5"),
+        "PPG-10000R": ("PPG-10000е", "220 В", "8.0", "8.3"),
+        "PPG-13500VR": ("PPG-13500EV", "220 В / 380 В", "8.1", "10.0"),
+        "PPG-15000IVR": ("PPG-15000iEV", "220 В / 380 В", "10.0", "11.0"),
+    }
+    for model, values in expected.items():
+        tags = carver._generator_avito_tags({"model": model, "characteristics": ""})
+        assert (
+            tags["Model"], tags["Voltage"], tags["RatedPower"], tags["MaximumPower"]
+        ) == values
 
 
 class Cell:

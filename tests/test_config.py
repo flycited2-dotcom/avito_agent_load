@@ -115,7 +115,7 @@ def test_carver_profile_publishes_confirmed_stock_only():
     assert cfg.source_options["path"] == "data/carver/carver-stock-arrival-2026-07-18.xlsx"
     assert cfg.pricing.default_markup_pct == 7
     assert cfg.pricing.rounding == "up_to_10"
-    assert cfg.feed.max_active_ads == 10
+    assert cfg.feed.max_active_ads == 23
     assert cfg.public_feed_path == "/opt/oasis/staticfiles/avito-feed-carver.xml"
     assert cfg.feed.base_tags["Category"] == "Ремонт и строительство"
     assert cfg.feed.base_tags["GoodsType"] == "Инструменты"
@@ -123,7 +123,7 @@ def test_carver_profile_publishes_confirmed_stock_only():
     assert cfg.feed.base_tags["ToolSubType"] == "Устройства электропитания"
     assert cfg.feed.base_tags["DeviceType"] == "Генераторы"
     assert "GoodsSubType" not in cfg.feed.base_tags
-    assert len(cfg.catalog.manual_photos) == 10
-    assert len(cfg.selected_series) == 10
+    assert len(cfg.catalog.manual_photos) == 23
+    assert len(cfg.selected_series) == 23
     assert all(key.startswith("carver_xlsx|item|carver:PPG-")
                for key in cfg.selected_series)

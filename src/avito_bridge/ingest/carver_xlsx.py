@@ -96,6 +96,46 @@ def extract_embedded_photos(path: str | Path) -> dict[str, bytes]:
 
 
 def _generator_avito_tags(row: dict) -> dict[str, str]:
+    # Avito validates these select fields against its generator catalog.  Some
+    # CARVER names in that catalog use legacy suffixes, mixed case or Cyrillic
+    # look-alike letters, so the supplier spelling cannot always be sent as-is.
+    catalog_tags = {
+        "PPG-1900IS": ("PPG-1900IS", "220 В", "1.8", "2.0"),
+        "PPG-2000IS": ("PPG-2000IS", "220 В", "1.8", "2.0"),
+        "PPG-3100I": ("PPG-3100I", "220 В", "2.2", "2.5"),
+        "PPG-3600I": ("PPG-3600I", "220 В", "2.8", "3.0"),
+        "PPG-3900": ("PPG-3900", "220 В", "2.9", "3.2"),
+        "PPG-4000IS": ("PPG-4000IS", "220 В", "3.0", "3.5"),
+        "PPG-5100I": ("PPG-5100i", "220 В", "4.2", "4.5"),
+        "PPG-5100ISE": ("PPG-5100iSE", "220 В", "4.0", "4.5"),
+        "PPG-6500": ("PPG-6500", "220 В", "5.0", "5.5"),
+        "PPG-6500AM": ("PPG-6500АM", "220 В", "5.0", "5.5"),
+        "PPG-6500E": ("PPG-6500e", "220 В", "5.0", "5.5"),
+        "PPG-6500R": ("PPG-6500R", "220 В / 380 В", "5.0", "5.5"),
+        "PPG-6600ISR": ("PPG-6600ISE", "220 В", "5.0", "5.5"),
+        "PPG-8100I": ("PPG-8100I", "220 В", "6.0", "6.5"),
+        "PPG-9000E": ("PPG-9000е", "220 В", "7.0", "7.5"),
+        "PPG-9000R": ("PPG-9000е", "220 В", "7.0", "7.5"),
+        "PPG-9500IR": ("PPG-9500IE", "220 В", "7.5", "8.0"),
+        "PPG-10000E": ("PPG-10000е", "220 В", "8.0", "8.3"),
+        "PPG-10000EM": ("PPG-10000ЕM", "220 В", "7.0", "7.5"),
+        "PPG-10000R": ("PPG-10000е", "220 В", "8.0", "8.3"),
+        "PPG-13500VR": ("PPG-13500EV", "220 В / 380 В", "8.1", "10.0"),
+        "PPG-15000IR": ("PPG-15000IE", "220 В", "10.0", "11.0"),
+        "PPG-15000IVR": ("PPG-15000iEV", "220 В / 380 В", "10.0", "11.0"),
+    }
+    model = str(row.get("model") or "").strip()
+    if model in catalog_tags:
+        avito_model, voltage, rated_power, maximum_power = catalog_tags[model]
+        return {
+            "Brand": "CARVER",
+            "Model": avito_model,
+            "FuelType": "Бензин",
+            "Voltage": voltage,
+            "RatedPower": rated_power,
+            "MaximumPower": maximum_power,
+        }
+
     characteristics = str(row.get("characteristics") or "")
     lines = characteristics.splitlines()
 
