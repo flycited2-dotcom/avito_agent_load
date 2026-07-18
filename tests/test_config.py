@@ -125,5 +125,30 @@ def test_carver_profile_publishes_confirmed_stock_only():
     assert "GoodsSubType" not in cfg.feed.base_tags
     assert len(cfg.catalog.manual_photos) == 23
     assert len(cfg.selected_series) == 23
+    assert cfg.catalog.manual_price_override == {
+        "PPG-1900IS": 21945,
+        "PPG-4000IS": 33946,
+        "PPG-5100I": 29546,
+        "PPG-6600ISR": 58069,
+        "PPG-8100I": 45804,
+        "PPG-9500IR": 56683,
+        "PPG-15000IR": 79695,
+        "PPG-15000IVR": 90629,
+        "PPG-2000IS": 25971,
+        "PPG-3900": 18095,
+        "PPG-3100I": 21538,
+        "PPG-3600I": 24453,
+        "PPG-5100ISE": 57167,
+        "PPG-6500": 41294,
+        "PPG-6500AM": 41294,
+        "PPG-6500E": 44385,
+        "PPG-6500R": 46783,
+        "PPG-9000E": 57222,
+        "PPG-9000R": 58993,
+        "PPG-10000E": 62029,
+        "PPG-10000EM": 63943,
+        "PPG-10000R": 63943,
+        "PPG-13500VR": 83974,
+    }
     assert all(key.startswith("carver_xlsx|item|carver:PPG-")
                for key in cfg.selected_series)

@@ -83,7 +83,31 @@ catalog:
     PPG-10000EM: "https://splithome.ru/static/manual-photos/PPG-10000EM.jpg"
     PPG-10000R: "https://splithome.ru/static/manual-photos/PPG-10000R.jpg"
     PPG-13500VR: "https://splithome.ru/static/manual-photos/PPG-13500VR.jpg"
-  manual_price_override: {}
+  # Итоговые цены: опубликованная цена от 18.07.2026 + 10%.
+  manual_price_override:
+    PPG-1900IS: 21945
+    PPG-4000IS: 33946
+    PPG-5100I: 29546
+    PPG-6600ISR: 58069
+    PPG-8100I: 45804
+    PPG-9500IR: 56683
+    PPG-15000IR: 79695
+    PPG-15000IVR: 90629
+    PPG-2000IS: 25971
+    PPG-3900: 18095
+    PPG-3100I: 21538
+    PPG-3600I: 24453
+    PPG-5100ISE: 57167
+    PPG-6500: 41294
+    PPG-6500AM: 41294
+    PPG-6500E: 44385
+    PPG-6500R: 46783
+    PPG-9000E: 57222
+    PPG-9000R: 58993
+    PPG-10000E: 62029
+    PPG-10000EM: 63943
+    PPG-10000R: 63943
+    PPG-13500VR: 83974
   manual_card_brief: {}
   selected_series:
     - "carver_xlsx|item|carver:PPG-1900IS"
