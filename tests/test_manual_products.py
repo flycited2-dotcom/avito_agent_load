@@ -160,3 +160,13 @@ def test_generic_manual_offer_rejects_unsafe_avito_tag():
     }
     with pytest.raises(ValueError, match="avito_tags"):
         build_manual_offers({"manual-generator": spec}, _profile("carver"))
+
+
+@pytest.mark.parametrize("price", [float("nan"), float("inf"), float("-inf")])
+def test_generic_manual_offer_rejects_non_finite_price(price):
+    spec = {
+        "brand": "CARVER", "title": "Generator", "group": "generator",
+        "price": price, "stock": 1, "photos": ["https://i/g.jpg"],
+    }
+    with pytest.raises(ValueError, match="price"):
+        build_manual_offers({"manual-generator": spec}, _profile("carver"))

@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 from decimal import Decimal
+from math import isfinite
 import re
 
 from avito_bridge.config import AppConfig
@@ -21,7 +22,7 @@ def _positive_number(value, field: str, manual_id: str) -> float:
         number = float(value)
     except (TypeError, ValueError):
         raise ValueError(f"manual_products.{manual_id}.{field}: требуется число") from None
-    if number <= 0:
+    if not isfinite(number) or number <= 0:
         raise ValueError(f"manual_products.{manual_id}.{field}: значение должно быть больше нуля")
     return number
 
