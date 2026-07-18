@@ -7,6 +7,7 @@ from avito_bridge.ingest.normalize import CatalogFilter
 from avito_bridge.content.cards import CardConfig
 from avito_bridge.config import AppConfig
 from avito_bridge.orchestrator.pipeline import run_cycle
+from avito_bridge.ingest.manual_products import build_manual_offers
 
 
 def _cfg():
@@ -112,3 +113,40 @@ def test_run_cycle_skips_unpriceable(tmp_path):
     result = run_cycle(offers_provider=lambda: [bad], cfg=_cfg(),
                        feed_path=tmp_path / "feed.xml", state_path=tmp_path / "s.db")
     assert result.ads_built == 0 and result.skipped == 1
+
+
+def test_carver_manual_product_reaches_feed_with_profile_tags_and_description(tmp_path):
+    cfg = _cfg()
+    cfg.profile_name = "carver"
+    cfg.grouping = "per_item"
+    cfg.source_options = {}
+    cfg.content = ContentConfig(
+        title_max=50, description_max=7000, stop_words=[],
+        description_attr="desc_long")
+    cfg.feed = FeedConfig(
+        max_active_ads=50,
+        base_tags={"Category": "Ремонт и строительство", "DeviceType": "Генераторы"})
+    offer = build_manual_offers({
+        "manual-ppg-1900i": {
+            "brand": "CARVER",
+            "title": "Генератор CARVER PPG-1900i",
+            "group": "generator",
+            "price": 43200,
+            "stock": 1,
+            "photos": ["https://i/generator.jpg"],
+            "description": "Компактный инверторный генератор.",
+            "tech": {"Топливо": "Бензин"},
+            "avito_tags": {"FuelType": "Бензин", "RatedPower": "1.7"},
+        }
+    }, cfg)[0]
+    feed = tmp_path / "carver-manual.xml"
+
+    result = run_cycle(lambda: [offer], cfg, feed, tmp_path / "state.db")
+    xml = feed.read_text(encoding="utf-8")
+
+    assert result.ads_built == 1
+    assert "<FuelType>Бензин</FuelType>" in xml
+    assert "<RatedPower>1.7</RatedPower>" in xml
+    assert "Компактный инверторный генератор." in xml
+    assert "Топливо: Бензин" in xml
+    assert "https://i/generator.jpg" in xml
