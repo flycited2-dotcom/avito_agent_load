@@ -1,8 +1,14 @@
 [Unit]
 Description=Avito Bridge feed cycle
+Wants=network-online.target
 After=network-online.target
 
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/avito-bridge
-ExecStart=/opt/avito-bridge/.venv/bin/python -m avito_bridge
+ExecStart=/bin/bash /opt/avito-bridge/run.sh
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/opt/avito-bridge /opt/oasis/staticfiles

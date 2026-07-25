@@ -1,6 +1,6 @@
 [project]
 name = "avito-bridge"
-version = "0.2.0"
+version = "0.3.0"
 requires-python = ">=3.11"
 dependencies = [
   "pydantic>=2.6",
@@ -8,14 +8,29 @@ dependencies = [
   "httpx>=0.27",
   "lxml>=5.0",
   "python-decouple>=3.8",
+  "defusedxml>=0.7",
+  "Pillow>=10.0",
   "PyYAML>=6.0",
   "xlrd>=2.0",
   "openpyxl>=3.1",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = [
+  "coverage[toml]>=7.6",
+  "pytest>=8.0",
+  "pytest-socket>=0.7",
+  "ruff>=0.9",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["avito_bridge"]
+
+[tool.coverage.report]
+fail_under = 86
+show_missing = true

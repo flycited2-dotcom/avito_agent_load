@@ -3,6 +3,9 @@ products.js (2026-07-15, 55 товаров) и products_overrides_public (2026-0
 49 переопределений из админки — актуальные цены/названия живут ТАМ, не в products.js)."""
 from decimal import Decimal
 from pathlib import Path
+
+import pytest
+
 from avito_bridge.ingest.ritualb2b_site import (parse_products_js, offers_from_products,
                                                 parse_overrides, apply_overrides)
 
@@ -98,3 +101,104 @@ def test_photos_override_replaces_photo_url():
     offers = {o.supplier_sku: o for o in offers_from_products(items, base_url="https://ritualb2b.ru")}
     avrora = offers["ritualb2b:venok-avrora"]           # у Авроры photos_override в фикстуре
     assert avrora.photos == ["https://ritualb2b.ru/api/img.php?f=venok_2026-05-02_001.png&w=1100"]
+
+
+def test_fetch_uses_only_trusted_configured_site_base_url(monkeypatch):
+    from types import SimpleNamespace
+    import httpx
+    from avito_bridge.ingest import ritualb2b_site
+
+    calls = []
+
+    class Response:
+        text = ""
+        content = b""
+        headers = {}
+        status_code = 200
+
+        @staticmethod
+        def raise_for_status():
+            return None
+
+    def fake_get(url, **kwargs):
+        calls.append(url)
+        return Response()
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+    monkeypatch.setattr(ritualb2b_site, "parse_products_js", lambda raw: [])
+    monkeypatch.setattr(ritualb2b_site, "parse_overrides", lambda raw: {})
+    cfg = SimpleNamespace(catalog=SimpleNamespace(
+        site_base_url="https://ritualb2b.ru/",
+        manual_photos={},
+        manual_price_override={},
+    ))
+
+    assert ritualb2b_site.fetch_ritualb2b(cfg) == []
+    assert calls == [
+        "https://ritualb2b.ru/products.js",
+        f"https://ritualb2b.ru{ritualb2b_site.OVERRIDES_PATH}",
+    ]
+
+
+def test_fetch_rejects_untrusted_site_origin_before_network(monkeypatch):
+    from types import SimpleNamespace
+    import httpx
+    from avito_bridge.ingest import ritualb2b_site
+
+    monkeypatch.setattr(
+        httpx,
+        "get",
+        lambda *args, **kwargs: pytest.fail("untrusted origin must not be fetched"),
+    )
+    cfg = SimpleNamespace(catalog=SimpleNamespace(
+        site_base_url="http://169.254.169.254/",
+        manual_photos={},
+        manual_price_override={},
+    ))
+
+    with pytest.raises(ValueError, match="https://ritualb2b.ru"):
+        ritualb2b_site.fetch_ritualb2b(cfg)
+
+
+def test_get_text_retries_transient_transport_error(monkeypatch):
+    import httpx
+    from avito_bridge.ingest import ritualb2b_site
+
+    calls = 0
+
+    def fake_get(url, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls < 3:
+            raise httpx.ConnectTimeout("temporary timeout")
+        return httpx.Response(
+            200,
+            text="ready",
+            request=httpx.Request("GET", url),
+        )
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+    monkeypatch.setattr(ritualb2b_site.time, "sleep", lambda seconds: None)
+
+    assert ritualb2b_site._get_text("https://example.test", {}) == "ready"
+    assert calls == 3
+
+
+def test_get_text_does_not_retry_permanent_http_error(monkeypatch):
+    import httpx
+    import pytest
+    from avito_bridge.ingest import ritualb2b_site
+
+    calls = 0
+
+    def fake_get(url, **kwargs):
+        nonlocal calls
+        calls += 1
+        request = httpx.Request("GET", url)
+        return httpx.Response(404, request=request)
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    with pytest.raises(httpx.HTTPStatusError):
+        ritualb2b_site._get_text("https://example.test/missing", {})
+    assert calls == 1

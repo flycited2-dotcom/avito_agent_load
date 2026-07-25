@@ -1,9 +1,14 @@
 from __future__ import annotations
 import json
+import os
+import time
 from decimal import Decimal
 from pathlib import Path
 from avito_bridge.models import Offer, RawProduct
 from avito_bridge.ingest.normalize import content_hash
+
+DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
+DEFAULT_FUTURE_SKEW_SECONDS = 5 * 60
 
 _CAT_TEXT_TO_ID = {
     "Бытовые сплит-системы": 2,
@@ -18,10 +23,34 @@ def _to_decimal(v) -> Decimal | None:
         return None
 
 
-def load_jac_offers(path: Path) -> list[Offer]:
-    if not Path(path).exists():
+def load_jac_offers(
+    path: Path,
+    *,
+    max_age_seconds: int = DEFAULT_MAX_AGE_SECONDS,
+    future_skew_seconds: int = DEFAULT_FUTURE_SKEW_SECONDS,
+    now: float | None = None,
+) -> list[Offer]:
+    """Load a stock snapshot only while its filesystem timestamp is trustworthy."""
+    path = Path(path)
+    if not path.exists():
         return []
-    rows = json.loads(Path(path).read_text(encoding="utf-8"))
+    if max_age_seconds <= 0 or future_skew_seconds < 0:
+        raise ValueError("JAC stock freshness limits must be positive")
+    with path.open("r", encoding="utf-8") as source:
+        modified = os.fstat(source.fileno()).st_mtime
+        current = time.time() if now is None else float(now)
+        age = current - modified
+        if age > max_age_seconds:
+            raise ValueError(
+                "JAC stock snapshot is stale: "
+                f"{age:.0f}s old, maximum is {max_age_seconds}s"
+            )
+        if age < -future_skew_seconds:
+            raise ValueError(
+                "JAC stock snapshot timestamp is too far in the future: "
+                f"{-age:.0f}s, allowed skew is {future_skew_seconds}s"
+            )
+        rows = json.load(source)
     offers: list[Offer] = []
     for r in rows:
         attrs = r.get("attributes", {}) or {}

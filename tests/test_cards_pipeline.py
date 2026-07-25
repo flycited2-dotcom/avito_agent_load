@@ -1,12 +1,25 @@
 import sqlite3
 from decimal import Decimal
+
 import httpx
-from avito_bridge.models import Offer
-from avito_bridge.catalog.series import group_by_series
+import pytest
+from PIL import Image
+
 from avito_bridge.cards_pipeline import (
-    FotogenConfig, submit_card_job, done_results, failed_inputs,
-    CardJobStore, specs_text, run_once, wake_agent,
+    CardJobStore,
+    FotogenConfig,
+    _http_get,
+    _safe_output_path,
+    _validate_public_http_url,
+    done_results,
+    failed_inputs,
+    run_once,
+    specs_text,
+    submit_card_job,
+    wake_agent,
 )
+from avito_bridge.catalog.series import group_by_series
+from avito_bridge.models import Offer
 
 
 def test_wake_agent_sets_start_flag(tmp_path):
@@ -34,6 +47,10 @@ def _cfg(tmp_path, **kw):
                 cards_dir=str(tmp_path / "cards"), per_run=8)
     base.update(kw)
     return FotogenConfig(**base)
+
+
+def _write_image(path, image_format="PNG", size=(8, 8)):
+    Image.new("RGB", size, "white").save(path, format=image_format)
 
 
 def test_submit_card_job_returns_queued_name():
@@ -88,7 +105,7 @@ def test_card_input_photo_prefers_indoor_for_daichi():
 def test_run_once_submits_and_publishes(tmp_path):
     # одна серия без карточки → submit; и одна готовая в очереди → publish
     out = tmp_path / "out"; out.mkdir()
-    (out / "card_ready.png").write_bytes(b"READY")
+    _write_image(out / "card_ready.png")
     db = _make_queue_db(tmp_path, [("done", "ext_ready.jpg", "card_ready.png")])
     cfg = _cfg(tmp_path, queue_db=db, output_dir=str(out))
     store = CardJobStore(tmp_path / "s.db")
@@ -104,8 +121,45 @@ def test_run_once_submits_and_publishes(tmp_path):
     submitted, published = run_once(groups, cfg, store, http=http, fetch_photo=lambda u: b"img")
 
     assert published == 1                                  # готовая скопирована
-    assert (tmp_path / "cards" / f"{card_key('breeze:NC1')}.jpg").read_bytes() == b"READY"
+    published_card = tmp_path / "cards" / f"{card_key('breeze:NC1')}.png"
+    assert published_card.is_file()
+    with Image.open(published_card) as image:
+        image.load()
+        assert image.format == "PNG"
     assert submitted >= 1                                  # новая серия поставлена в очередь
+
+
+@pytest.mark.parametrize(
+    ("filename", "writer", "message"),
+    [
+        ("corrupt.jpg", lambda path: path.write_bytes(b"not-an-image"), "valid JPEG/PNG"),
+        (
+            "disguised.jpg",
+            lambda path: _write_image(path, image_format="GIF"),
+            "JPEG or PNG",
+        ),
+    ],
+)
+def test_run_once_rejects_invalid_agent_output(
+    tmp_path, filename, writer, message
+):
+    out = tmp_path / "out"
+    out.mkdir()
+    source = out / filename
+    writer(source)
+    db = _make_queue_db(tmp_path, [("done", "queued.jpg", filename)])
+    cfg = _cfg(tmp_path, queue_db=db, output_dir=str(out))
+    store = CardJobStore(tmp_path / "state.db")
+    from avito_bridge.content.cards import card_key
+
+    key = card_key("breeze:NC-invalid")
+    store.record(key, "queued.jpg", "pending")
+
+    with pytest.raises(ValueError, match=message):
+        run_once([], cfg, store)
+
+    assert store.get(key)[1] == "pending"
+    assert not list((tmp_path / "cards").glob(f"{key}.*"))
 
 
 def test_run_once_uses_manual_card_brief_override(tmp_path):
@@ -160,8 +214,8 @@ def test_run_once_retries_failed_until_cap(tmp_path):
 
 
 def test_run_once_gives_up_after_max_tries(tmp_path):
-    from avito_bridge.content.cards import card_key
     from avito_bridge.cards_pipeline import MAX_TRIES
+    from avito_bridge.content.cards import card_key
     out = tmp_path / "out"; out.mkdir()
     cfg = _cfg(tmp_path, queue_db=_make_queue_db(tmp_path, []), output_dir=str(out))
     store = CardJobStore(tmp_path / "s.db")
@@ -192,3 +246,169 @@ def test_run_once_prints_reason_when_submit_fails(tmp_path, capsys):
 
     assert submitted == 0
     assert "breeze|ballu|aura" in capsys.readouterr().out   # причина видна, не молчание
+
+
+def test_safe_output_path_rejects_agent_path_traversal(tmp_path):
+    with pytest.raises(ValueError, match="Unsafe"):
+        _safe_output_path(tmp_path, "../outside.png")
+    with pytest.raises(ValueError, match="Unsafe"):
+        _safe_output_path(tmp_path, "/tmp/outside.png")
+
+
+def test_card_download_url_rejects_local_and_private_hosts(monkeypatch):
+    with pytest.raises(ValueError, match="Local"):
+        _validate_public_http_url("http://localhost/image.jpg")
+    monkeypatch.setattr(
+        "avito_bridge.cards_pipeline.socket.getaddrinfo",
+        lambda *args, **kwargs: [(2, 1, 6, "", ("127.0.0.1", 80))],
+    )
+    with pytest.raises(ValueError, match="Non-public"):
+        _validate_public_http_url("https://images.example.test/photo.jpg")
+
+
+class _PeerNetworkStream:
+    def __init__(self, address):
+        self.address = address
+
+    def get_extra_info(self, name):
+        return (self.address, 443) if name == "server_addr" else None
+
+
+def _mock_card_download(monkeypatch, handler, peer="93.184.216.34"):
+    """Use the real httpx client lifecycle while keeping every byte in memory."""
+    real_client = httpx.Client
+    created = []
+
+    def client_factory(**kwargs):
+        assert kwargs["headers"]["User-Agent"] == "AvitoBridge/1.0"
+        assert kwargs["timeout"] == 30
+        assert kwargs["follow_redirects"] is False
+        assert kwargs["trust_env"] is False
+
+        def connected_handler(request):
+            response = handler(request)
+            if peer is not None:
+                response.extensions["network_stream"] = _PeerNetworkStream(peer)
+            return response
+
+        client = real_client(
+            transport=httpx.MockTransport(connected_handler), **kwargs
+        )
+        created.append(client)
+        return client
+
+    monkeypatch.setattr(
+        "avito_bridge.cards_pipeline.socket.getaddrinfo",
+        lambda *args, **kwargs: [(2, 1, 6, "", ("93.184.216.34", 443))],
+    )
+    monkeypatch.setattr("avito_bridge.cards_pipeline.httpx.Client", client_factory)
+    return created
+
+
+def test_http_get_returns_image_and_closes_owned_client(monkeypatch):
+    def handler(request):
+        assert request.url == httpx.URL("https://cdn.example.test/card.jpg")
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/jpeg; charset=binary"},
+            content=b"jpeg-bytes",
+        )
+
+    created = _mock_card_download(monkeypatch, handler)
+
+    assert _http_get("https://cdn.example.test/card.jpg") == b"jpeg-bytes"
+    assert len(created) == 1
+    assert created[0].is_closed
+
+
+def test_http_get_rejects_ssrf_target_before_opening_http_client(monkeypatch):
+    def unexpected_client(**_kwargs):
+        raise AssertionError("HTTP client must not be opened for a forbidden URL")
+
+    monkeypatch.setattr("avito_bridge.cards_pipeline.httpx.Client", unexpected_client)
+
+    with pytest.raises(ValueError, match="Local"):
+        _http_get("http://localhost/private-card.jpg")
+
+
+def test_http_get_rejects_private_peer_after_public_dns_resolution(monkeypatch):
+    created = _mock_card_download(
+        monkeypatch,
+        lambda _request: httpx.Response(
+            200, headers={"content-type": "image/jpeg"}, content=b"private"
+        ),
+        peer="127.0.0.1",
+    )
+
+    with pytest.raises(ValueError, match="Non-public connected"):
+        _http_get("https://cdn.example.test/card.jpg")
+
+    assert len(created) == 1
+    assert created[0].is_closed
+
+
+def test_http_get_fails_closed_when_transport_hides_peer(monkeypatch):
+    _mock_card_download(
+        monkeypatch,
+        lambda _request: httpx.Response(
+            200, headers={"content-type": "image/jpeg"}, content=b"unknown"
+        ),
+        peer=None,
+    )
+
+    with pytest.raises(ValueError, match="Cannot verify"):
+        _http_get("https://cdn.example.test/card.jpg")
+
+
+@pytest.mark.parametrize(
+    ("response", "message"),
+    [
+        (
+            httpx.Response(200, headers={"content-type": "text/html"}, content=b"<html>"),
+            "non-image",
+        ),
+        (
+            httpx.Response(
+                200,
+                headers={
+                    "content-type": "image/jpeg",
+                    "content-length": str(15 * 1024 * 1024 + 1),
+                },
+                content=b"x",
+            ),
+            "15 MiB",
+        ),
+        (
+            httpx.Response(404, headers={"content-type": "image/jpeg"}, content=b"missing"),
+            "404",
+        ),
+    ],
+)
+def test_http_get_rejects_unsafe_response_and_still_closes_client(
+    monkeypatch, response, message
+):
+    created = _mock_card_download(monkeypatch, lambda _request: response)
+
+    with pytest.raises((ValueError, httpx.HTTPStatusError), match=message):
+        _http_get("https://cdn.example.test/card.jpg")
+
+    assert len(created) == 1
+    assert created[0].is_closed
+
+
+def test_http_get_rejects_large_body_without_declared_length(monkeypatch):
+    body = b"x" * (15 * 1024 * 1024 + 1)
+
+    def handler(_request):
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/png"},
+            stream=httpx.ByteStream(body),
+        )
+
+    created = _mock_card_download(monkeypatch, handler)
+
+    with pytest.raises(ValueError, match="15 MiB"):
+        _http_get("https://cdn.example.test/card.png")
+
+    assert created[0].is_closed

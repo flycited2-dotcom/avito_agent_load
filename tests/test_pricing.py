@@ -51,6 +51,17 @@ def test_rounding_none_keeps_site_price_intact():
     assert r.ok and r.price == 2300
 
 
+def test_rounding_none_ceil_preserves_calculated_markup():
+    cfg = PricingConfig(default_markup_pct=5, min_margin_abs=0, rounding="none", rules=[])
+    cost = Decimal("100.01")
+
+    result = compute_price(_offer(cost), cfg)
+
+    calculated = cost * Decimal("1.05")
+    assert result.price == 106
+    assert Decimal(result.price) >= calculated
+
+
 def test_carver_markup_rounds_up_to_10():
     cfg = PricingConfig(default_markup_pct=7, min_margin_abs=0,
                         rounding="up_to_10", rules=[])

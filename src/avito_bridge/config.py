@@ -28,10 +28,13 @@ class AppConfig:
     feed_path: str = "feed_out/feed.xml"   # свой файл фида на профиль (второй бизнес не затирает первый)
     public_feed_path: str = ""      # абсолютный путь публичного XML на VPS
     source_options: dict = None    # настройки адаптера источника (price_xls: path/selected_groups/…)
+    config_path: Path | None = None
+    bridge_root: Path | None = None
 
 
 def load_config(path: Path) -> AppConfig:
-    d = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    path = Path(path).resolve()
+    d = yaml.safe_load(path.read_text(encoding="utf-8"))
     cities = [City(**c) for c in d.get("cities", [])]
     p = d.get("pricing", {})
     pricing = PricingConfig(default_markup_pct=p.get("default_markup_pct", 5),
@@ -42,6 +45,8 @@ def load_config(path: Path) -> AppConfig:
     actmap = {int(k): v for k, v in (f.get("ac_type_map", {}) or {}).items()}
     acsmap = {int(k): v for k, v in (f.get("ac_subtype_map", {}) or {}).items()}
     feed = FeedConfig(max_active_ads=f.get("max_active_ads", 200),
+                      min_active_ads=f.get("min_active_ads", 0),
+                      max_drop_fraction=float(f.get("max_drop_fraction", 1.0)),
                       base_tags=f.get("base_tags", {}),
                       product_type_map=ptmap,
                       product_type_default=f.get("product_type_default", ""),
@@ -49,10 +54,17 @@ def load_config(path: Path) -> AppConfig:
                       vendor_map=f.get("vendor_map", {}) or {},
                       vendor_skip=set(f.get("vendor_skip", []) or []),
                       ad_id_revision={str(k): int(v)
-                                      for k, v in (f.get("ad_id_revision", {}) or {}).items()})
+                                      for k, v in (f.get("ad_id_revision", {}) or {}).items()},
+                      ad_id_anchor={str(k): str(v)
+                                    for k, v in (f.get("ad_id_anchor", {}) or {}).items()})
+    if feed.min_active_ads < 0 or feed.min_active_ads > feed.max_active_ads:
+        raise ValueError("feed.min_active_ads must be between 0 and max_active_ads")
+    if not 0 <= feed.max_drop_fraction <= 1:
+        raise ValueError("feed.max_drop_fraction must be between 0 and 1")
     cc = d.get("content", {})
     manifest = cc.get("descriptions_manifest", "")
-    descriptions = load_descriptions(Path(path).parent.parent / manifest) if manifest else {}
+    bridge_root = path.parent.parent if path.parent.name in {"config", "profiles"} else path.parent
+    descriptions = load_descriptions(bridge_root / manifest) if manifest else {}
     content = ContentConfig(title_max=cc.get("title_max", 50),
                             description_max=cc.get("description_max", 7000),
                             stop_words=cc.get("stop_words", []),
@@ -74,8 +86,16 @@ def load_config(path: Path) -> AppConfig:
                             force_include=force_include, manual_photos=manual_photos,
                             manual_price_override=manual_price_override,
                             manual_card_brief=manual_card_brief,
-                            manual_products=manual_products)
-    selected_series = frozenset(cat.get("selected_series", []) or [])
+                            manual_products=manual_products,
+                            crimea_warehouse=cat.get("crimea_warehouse", "Симферополь"),
+                            site_base_url=cat.get("site_base_url", "") or "")
+    selected_values = list(cat.get("selected_series", []) or [])
+    if "__none__" in selected_values and selected_values != ["__none__"]:
+        raise ValueError(
+            "catalog.selected_series: маркер '__none__' допустим только "
+            "как единственное значение"
+        )
+    selected_series = frozenset(selected_values)
     cd = d.get("cards", {})
     cards = CardConfig(enabled=bool(cd.get("enabled", False)), dir=cd.get("dir", ""),
                        base_url=cd.get("base_url", ""),
@@ -84,11 +104,26 @@ def load_config(path: Path) -> AppConfig:
                        supplier_photo_series=frozenset(cd.get("supplier_photo_series", []) or []),
                        max_images=int(cd.get("max_images", 10)))
     prof = d.get("profile", {}) or {}
+    source = prof.get("source", "oasis_db")
+    grouping = prof.get("grouping", "series")
+    if not isinstance(grouping, str) or grouping not in {"series", "per_item"}:
+        raise ValueError(
+            f"Неизвестный режим группировки: {grouping!r}. "
+            "Доступны: ['per_item', 'series']"
+        )
+    if not isinstance(source, str) or not source:
+        raise ValueError(f"Некорректный источник товаров: {source!r}")
+    # Валидация при загрузке не позволяет опечатке незаметно дожить до
+    # запуска цикла. Локальный импорт избегает цикла config -> sources -> config.
+    from avito_bridge.ingest.sources import get_source
+    get_source(source)
     return AppConfig(cities=cities, pricing=pricing, feed=feed, content=content,
                      catalog=catalog, cards=cards, selected_series=selected_series,
                      profile_name=prof.get("name", ""),
-                     source=prof.get("source", "oasis_db"),
-                     grouping=prof.get("grouping", "series"),
+                     source=source,
+                     grouping=grouping,
                      feed_path=prof.get("feed_path", "feed_out/feed.xml"),
                      public_feed_path=prof.get("public_feed_path", ""),
-                     source_options=prof.get("source_options", {}) or {})
+                     source_options=prof.get("source_options", {}) or {},
+                     config_path=path,
+                     bridge_root=bridge_root)

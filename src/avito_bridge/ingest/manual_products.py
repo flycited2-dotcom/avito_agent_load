@@ -61,7 +61,7 @@ def build_manual_raw_products(specs: dict | None) -> list[RawProduct]:
             image_urls=photos,
             tech=tech,
             price_override=Decimal(str(price)),
-            forced=True,
+            forced=False,
         ))
     return rows
 
@@ -186,6 +186,6 @@ def build_manual_offers(specs: dict | None, cfg: AppConfig) -> list[Offer]:
             photos=photos,
             series=series or group or title,
             price_override=Decimal(str(price)),
-            forced=True,
+            forced=False,
         ))
     return offers

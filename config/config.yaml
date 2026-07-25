@@ -1,5 +1,12 @@
 # ВАЖНО: Avito блокирует один и тот же товар в нескольких городах как «повторное размещение».
 # Поэтому — ОДИН город (одно объявление на товар). Охват по региону — через Avito Доставку.
+profile:
+  name: conditioners
+  source: oasis_db
+  grouping: series
+  feed_path: feed_out/feed.xml
+  public_feed_path: "/opt/oasis/staticfiles/avito-feed.xml"
+
 cities:
   - {id: "simferopol", name: "Симферополь", avito_location: "Республика Крым, Симферополь"}
 pricing:
@@ -9,6 +16,10 @@ pricing:
   rules: []
 feed:
   max_active_ads: 100       # курируемый каталог: 44 отмеченные серии (selected_series ниже)
+  # Защита last-good: сетевой/DB-сбой не имеет права заменить рабочий фид пустым.
+  # Намеренное массовое снятие ниже этого порога требует отдельного изменения конфига.
+  min_active_ads: 40
+  max_drop_fraction: 0.35
   base_tags:
     Category: "Бытовая техника"
     GoodsType: "Климатическое оборудование"

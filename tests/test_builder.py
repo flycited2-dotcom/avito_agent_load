@@ -1,5 +1,6 @@
 from decimal import Decimal
 from lxml import etree
+import pytest
 from avito_bridge.models import Offer, City, AdRecord
 from avito_bridge.feed.builder import build_ads, build_feed_xml, FeedConfig
 
@@ -80,3 +81,92 @@ def test_vendor_map_and_skip():
     assert "b:1" not in by              # NoName в vendor_skip → пропущен
     assert by["a:1"] == "Zilon"         # сопоставлен по vendor_map
     assert by["c:1"] == "Ballu"         # как есть
+
+
+def test_build_ads_rejects_duplicate_generated_ids():
+    offer = _o("r:duplicate")
+    with pytest.raises(ValueError, match="Дублирующийся Id"):
+        build_ads(
+            [offer, offer.model_copy(deep=True)],
+            CITIES[:1],
+            content={offer.supplier_sku: ("T", "D")},
+            prices={offer.supplier_sku: 10090},
+            cfg=CFG,
+        )
+
+
+def test_build_feed_rejects_duplicate_ids_from_direct_callers():
+    ad = build_ads(
+        [_o("r:1")],
+        CITIES[:1],
+        content={"r:1": ("T", "D")},
+        prices={"r:1": 10090},
+        cfg=CFG,
+    )[0]
+    with pytest.raises(ValueError, match="Дублирующийся Id"):
+        build_feed_xml([ad, ad.model_copy(deep=True)], CFG)
+
+
+@pytest.mark.parametrize("tag", ["Bad Tag", "1StartsWithDigit", "tag/slash", ""])
+def test_build_feed_rejects_invalid_base_xml_tag(tag):
+    cfg = FeedConfig(base_tags={tag: "value"})
+    with pytest.raises(ValueError, match="Недопустимое имя XML-тега"):
+        build_feed_xml([], cfg)
+
+
+def test_build_feed_rejects_reserved_and_cross_source_tag_conflicts():
+    with pytest.raises(ValueError, match="Конфликт XML-тега 'Title'"):
+        build_feed_xml([], FeedConfig(base_tags={"Title": "override"}))
+
+    ad = build_ads(
+        [_o("r:1")],
+        CITIES[:1],
+        content={"r:1": ("T", "D")},
+        prices={"r:1": 10090},
+        cfg=CFG,
+    )[0]
+    ad.extra_tags = {"Category": "Другая категория"}
+    with pytest.raises(ValueError, match="Конфликт XML-тега 'Category'"):
+        build_feed_xml([ad], CFG)
+
+
+@pytest.mark.parametrize(
+    "image_url",
+    [
+        "file:///etc/passwd",
+        "data:image/jpeg;base64,AA==",
+        "https://user:secret@example.test/image.jpg",
+        "relative/image.jpg",
+        "https://example.test/image.jpg\nInjected",
+    ],
+)
+def test_build_feed_rejects_unsafe_image_urls(image_url):
+    ad = build_ads(
+        [_o("r:1")],
+        CITIES[:1],
+        content={"r:1": ("T", "D")},
+        prices={"r:1": 10090},
+        cfg=CFG,
+    )[0]
+    ad.images = [image_url]
+
+    with pytest.raises(ValueError, match="URL изображения"):
+        build_feed_xml([ad], CFG)
+
+
+def test_build_feed_rejects_missing_image_and_non_positive_price():
+    ad = build_ads(
+        [_o("r:1")],
+        CITIES[:1],
+        content={"r:1": ("T", "D")},
+        prices={"r:1": 10090},
+        cfg=CFG,
+    )[0]
+    ad.images = []
+    with pytest.raises(ValueError, match="не содержит изображения"):
+        build_feed_xml([ad], CFG)
+
+    ad.images = ["https://example.test/image.jpg"]
+    ad.price = 0
+    with pytest.raises(ValueError, match="недопустимую цену"):
+        build_feed_xml([ad], CFG)

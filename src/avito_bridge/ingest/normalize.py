@@ -16,6 +16,8 @@ class CatalogFilter:
     manual_price_override: dict = None   # {nc_code: цена} — ручная цена для ЛЮБОГО товара (не только forced)
     manual_card_brief: dict = None       # {nc_code: текст} — ручное УТП для карточки, вместо card_brief()
     manual_products: dict = None         # {manual_id: поля} — товары, которых вообще нет в базе поставщика
+    crimea_warehouse: str = "Симферополь"  # склад, остатки которого разрешено экспортировать
+    site_base_url: str = ""              # базовый URL для web-источников профиля
 
 
 def _matches_like(title: str, pattern: str) -> bool:
@@ -36,7 +38,10 @@ def is_conditioner(raw: RawProduct, flt: CatalogFilter) -> bool:
 def content_hash(raw: RawProduct) -> str:
     parts = [raw.source, raw.brand or "", raw.title, str(raw.btu_calc),
              str(sorted(raw.tech.items()))]
-    return hashlib.sha1("|".join(parts).encode("utf-8")).hexdigest()
+    return hashlib.sha1(
+        "|".join(parts).encode("utf-8"),
+        usedforsecurity=False,
+    ).hexdigest()
 
 
 def to_offer(raw: RawProduct, cost: Decimal | None) -> Offer:

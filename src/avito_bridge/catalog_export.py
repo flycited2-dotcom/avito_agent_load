@@ -19,7 +19,11 @@ from avito_bridge.content.cards import has_card
 def _member_json(m: Offer, cfg: AppConfig) -> dict:
     pr = compute_price(m, cfg.pricing)
     nc = m.supplier_sku.split(":", 1)[-1]
-    return {"nc_code": nc, "btu_calc": m.btu_calc, "stock": m.stock,
+    return {"nc_code": nc, "supplier_sku": m.supplier_sku,
+            "product_kind": ("manual" if m.source == "manual"
+                             else "force_include" if m.forced else "supplier"),
+            "ad_id_revision": cfg.feed.ad_id_revision.get(m.supplier_sku, 0),
+            "btu_calc": m.btu_calc, "stock": m.stock,
             "cost": (int(m.cost.to_integral_value(rounding=ROUND_CEILING))
                      if m.cost is not None else None),
             "price": pr.price, "price_ok": pr.ok, "forced": m.forced}
@@ -27,8 +31,11 @@ def _member_json(m: Offer, cfg: AppConfig) -> dict:
 
 def _group_json(g: SeriesGroup, cfg: AppConfig) -> dict:
     representative_nc = g.representative.supplier_sku.split(":", 1)[-1]
+    ad_supplier_sku = cfg.feed.ad_id_anchor.get(g.key, g.representative.supplier_sku)
     return {"key": g.key, "source": g.source, "brand": g.brand, "series": g.series,
             "category_id": g.category_id,
+            "ad_supplier_sku": ad_supplier_sku,
+            "ad_id_revision": cfg.feed.ad_id_revision.get(ad_supplier_sku, 0),
             "stock_total": sum(m.stock for m in g.members),
             "has_card": (has_card(g.representative, cfg.cards)
                          or bool((cfg.catalog.manual_photos or {}).get(representative_nc))),
