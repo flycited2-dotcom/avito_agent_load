@@ -1,6 +1,9 @@
 import json
 import sys
 from decimal import Decimal
+
+from PIL import Image
+
 from avito_bridge.models import Offer, City
 from avito_bridge.pricing.pricing import PricingConfig
 from avito_bridge.feed.builder import FeedConfig
@@ -99,7 +102,7 @@ def test_main_reads_profile_config_and_dispatches_source(tmp_path, monkeypatch, 
 
 
 def test_build_catalog_json_marks_forced_and_has_card(tmp_path):
-    (tmp_path / "НС-3.jpg").write_bytes(b"x")
+    Image.new("RGB", (8, 8), "white").save(tmp_path / "НС-3.jpg", format="JPEG")
     cards = CardConfig(enabled=True, dir=str(tmp_path), exts=[".jpg"])
     o = _offer("rusklimat:НС-3", series="ACE-07", forced=True, cost=None)
     o.price_override = Decimal("18990")

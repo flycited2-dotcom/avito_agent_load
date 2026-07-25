@@ -39,7 +39,13 @@ def _strip_stopwords(text: str, stop_words: list[str]) -> str:
 
 def _seed(offer: Offer) -> int:
     """Стабильное число из артикула — для детерминированной вариативности текста."""
-    return int(hashlib.sha1(offer.supplier_sku.encode("utf-8")).hexdigest(), 16)
+    return int(
+        hashlib.sha1(
+            offer.supplier_sku.encode("utf-8"),
+            usedforsecurity=False,
+        ).hexdigest(),
+        16,
+    )
 
 
 def _pick(options: list[str], seed: int) -> str:
@@ -196,15 +202,27 @@ def _area_str(sizes: list[int]) -> str:
 
 def _fit_title(header: str, name: str, area: str, maxlen: int) -> str:
     """Собрать шапку ≤ maxlen: с площадью если влезает; иначе без площади; иначе подрезать по слову."""
-    if area and len(f"{header} {name} ({area})") <= maxlen:
-        return f"{header} {name} ({area})"
-    base = f"{header} {name}"
-    if len(base) <= maxlen:
+    limit = max(0, int(maxlen))
+    if limit == 0:
+        return ""
+    header = (header or "").strip()
+    name = (name or "").strip()
+    area = (area or "").strip()
+    with_area = " ".join(part for part in (header, name) if part)
+    if area:
+        with_area = f"{with_area} ({area})".strip()
+    if area and len(with_area) <= limit:
+        return with_area
+    base = " ".join(part for part in (header, name) if part)
+    if len(base) <= limit:
         return base
     words = base.split()
-    while len(words) > 2 and len(" ".join(words)) > maxlen:
+    while len(words) > 1 and len(" ".join(words)) > limit:
         words.pop()
-    return " ".join(words)
+    fitted = " ".join(words)
+    if len(fitted) > limit:
+        fitted = fitted[:limit].rstrip()
+    return fitted
 
 
 def _build_title(group, series_disp: str, inv: bool, sizes: list[int], cfg: ContentConfig) -> str:
@@ -222,6 +240,22 @@ def render_series(group, prices: dict, cfg: ContentConfig) -> Content:
     (только в наличии) + продающий текст. `prices` = {supplier_sku члена: цена}.
     `group` — SeriesGroup (duck-typed: brand, series, category_id, members, representative)."""
     rep = group.representative
+    override = (cfg.descriptions or {}).get(getattr(group, "key", None))
+    if override and cfg.description_attr:
+        # Для per-item профилей готовый текст источника остаётся fallback, но
+        # ручное описание из Studio всегда имеет более высокий приоритет.
+        return Content(
+            title=(rep.model or group.series)[: cfg.title_max],
+            description=override.strip()[: cfg.description_max],
+        )
+    if rep.source == "manual" and (rep.attrs or {}).get("desc_long"):
+        # Fully manual products own their description inside manual_products.
+        # Conditioner profiles have no description_attr, but must not silently
+        # discard the owner's text and fall back to conditioner boilerplate.
+        return Content(
+            title=(rep.model or group.series)[: cfg.title_max],
+            description=rep.attrs["desc_long"].strip()[: cfg.description_max],
+        )
     if cfg.description_attr and (rep.attrs or {}).get(cfg.description_attr):
         # Готовый текст из источника (per_item-профили): кондиционерная генерация не нужна.
         return Content(title=(rep.model or group.series)[: cfg.title_max],
@@ -255,7 +289,6 @@ def render_series(group, prices: dict, cfg: ContentConfig) -> Content:
     sizes = sorted(by_size)
     title = _build_title(group, series_disp, inv, sizes, cfg)   # шапка: тип+бренд+модель+площадь
 
-    override = (cfg.descriptions or {}).get(getattr(group, "key", None))
     if override:                          # готовый текст (ручной/Codex) + живая таблица цен
         lines = [override.strip()]
         if rows:

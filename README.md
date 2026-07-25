@@ -1,53 +1,122 @@
 # Avito Bridge
 
-Автоматическая публикация и синхронизация товарных объявлений (кондиционеры) на Avito через
-Автозагрузку (XML-фид) и Avito API.
+`avito-bridge` собирает профильные XML-фиды Avito из внешних каталогов, локальных
+прайсов и ручных карточек. Движок отвечает за нормализацию, группировку, расчёт
+цены, контент, стабильные идентификаторы объявлений, валидацию и безопасную
+публикацию. Windows-интерфейс находится в соседнем репозитории `avito-studio`.
 
-- **ТЗ:** [docs/TZ-Avito-Bridge.md](../docs/TZ-Avito-Bridge.md) (полный контекст, источники, интеграция)
-- **План Фазы 1 (MVP):** [docs/superpowers/plans/2026-06-22-avito-bridge-phase1-mvp.md](../docs/superpowers/plans/2026-06-22-avito-bridge-phase1-mvp.md)
+Текущая линия совместимости — `0.3.x`.
 
-## Что делает (Фаза 1, MVP)
+## Профили
 
-Читает каталог (БД SplitHome «oasis» + JAC JSON) → опт по поставщикам → цена `опт×1.05 → …90` →
-контент-шаблон → Avito Autoload XML с фан-аутом по городам → атомарная запись фида (раздаётся nginx) →
-синхронизация через Avito API (OAuth, профиль, прогон, отчёты).
+| Профиль | Конфигурация | Источник и группировка | Режим |
+| --- | --- | --- | --- |
+| Кондиционеры | `config/config.yaml` | read-only БД Oasis, по сериям | основной серверный профиль |
+| Венки | `profiles/wreaths.yaml` | каталог RitualB2B, по товарам | отдельный серверный профиль и отдельный публичный фид |
+| Генераторы CARVER | `profiles/carver.yaml` | локальный XLSX, по товарам | сборка на Windows и атомарная доставка фида через Studio |
+| Бытовая техника | `profiles/appliances.yaml` | локальный XLS, по товарам | только предпросмотр; публикация заблокирована до подтверждения категорий, цен, фото и объединённого фида |
 
-## Установка (разработка)
+Общая схема профилей описана в
+[`docs/specs/2026-07-04-universal-business-profiles.md`](docs/specs/2026-07-04-universal-business-profiles.md).
 
-```bash
-python -m pip install -e ".[dev]"   # либо: pip install pydantic httpx lxml python-decouple PyYAML pytest
-cp .env.example .env                 # заполнить креды (см. Фаза 0 в плане)
-python -m pytest -q                  # все тесты должны быть зелёными
+## Установка для разработки
+
+Требуется Python 3.11–3.13.
+
+```text
+python -m venv .venv
+python -m pip install -e ".[dev]"
 ```
 
-> `psycopg2-binary` нужен только для боевого пути (чтение БД); ставится на сервере (Python 3.13).
+Скопируйте `.env.example` в `.env` и заполните только те read-only источники и
+учётные данные, которые нужны выбранному профилю. `.env`, runtime-файлы, фиды,
+состояние и исходные XLS/XLSX поставщиков не входят в Git. Тесты используют
+синтетические строки и ответы без реальных цен, ссылок выгрузки и Avito ID.
 
-## Совместимость с Avito Studio
+Полная локальная проверка без разрешения сетевых соединений:
 
-Версия `0.2.x` экспортирует закупочную стоимость каждой модели каталога и совместима с массовым
-редактором Avito Studio `0.2.x`. При разработке оба репозитория должны находиться рядом:
-`Avito/avito-bridge` и `Avito/avito-studio`.
-
-## Запуск (боевой)
-
-```bash
-python -m avito_bridge                # один цикл: собрать фид → feed_out/feed.xml
+```text
+python -m compileall -q src tests scripts
+python -m ruff check src tests scripts --select E9,F
+python -m coverage run -m pytest -q --disable-socket
+python -m coverage report --fail-under=86
 ```
 
-## Деплой (VPS 213.109.202.45)
+CI выполняет этот набор на Linux с Python 3.11, 3.12 и 3.13, а также на Windows
+с Python 3.12. Покрытие считается только по пакету `avito_bridge`, с учётом
+ветвлений.
 
-См. `deploy/`: `avito-bridge.service` + `avito-bridge.timer` (каждые ~3.5 ч), `nginx-feed.conf`
-(раздача фида). Перед публикацией: получить `category fields` целевой категории Avito и заполнить
-теги в `config/config.yaml` (`feed.base_tags`). Правки nginx — с бэкапом и `nginx -t`.
+## Сборка кандидата
 
-## Структура
+Обычный запуск записывает фид профиля, но не включает таймер и не настраивает
+Avito:
 
-`src/avito_bridge/`: `ingest/` (oasis_db, jac_json, opt_resolver, normalize), `catalog/`, `pricing/`,
-`content/` (sizing, render), `feed/` (ad_id, builder, writer), `avito/` (client), `state/`,
-`orchestrator/` (pipeline), `config.py`, `models.py`.
+```text
+python -m avito_bridge
+python -m avito_bridge --config profiles/wreaths.yaml
+```
 
-## Статус
+Для проверки используйте отдельные пути, чтобы не затронуть последний
+собранный фид и его состояние:
 
-Фаза 1 (MVP) — код и юнит-тесты готовы (offline). Осталось (Фаза 0, требует доступов):
-живой дымовой прогон против Avito API + БД, `category fields`, настройка Автозагрузки.
-Фазы 2–3 (Breez-опт API, LLM-контент, Telegram-алерты, быстрый путь цен, фотоагент) — отдельные планы.
+```text
+python -m avito_bridge --config profiles/carver.yaml --feed-path runtime/candidate-carver.xml --state-path runtime/candidate-carver.db
+```
+
+Источники всё равно должны быть доступны: основной профиль читает БД,
+`wreaths` — сайт, а локальные профили — файлы, заданные в YAML.
+
+Локальный snapshot остатков JAC принимается не старше 24 часов; timestamp из
+будущего допускает только пятиминутный дрейф часов. Лимиты настраиваются через
+`JAC_STOCK_MAX_AGE_SECONDS` и `JAC_STOCK_MAX_FUTURE_SKEW_SECONDS`. Нарушение
+свежести останавливает сборку, чтобы старые остатки не попали в новый фид.
+
+## Безопасная публикация
+
+Удалённые профили Studio публикует через `avito_bridge.profile_publish`.
+Публикация:
+
+- принимает только один разрешённый профильный YAML и профильный patch
+  описаний с SHA-256 каждого файла;
+- запрещает выход из корня архива, ссылки, устройства и архивы больше 50 MiB;
+- хранит серверную карту владельцев описаний: профиль не может изменить или
+  удалить ключ другого профиля;
+- сначала собирает отдельный кандидат и проверяет XML, обязательные поля,
+  изображения, уникальность `Id`, минимальное число объявлений и допустимое
+  падение количества;
+- использует общий lock и durable-журнал `prepared → committed/rolled_back`;
+  конфиг, описания, ownership и публичный фид меняются одной транзакцией;
+- при следующем запуске автоматически откатывает незавершённую транзакцию;
+  хранит 20 завершённых backup и никогда не удаляет незавершённый.
+
+CARVER собирается локально в Studio. Перед атомарным `mv` на сервере Studio
+проверяет XML и счётчики, загружает файл под уникальным временным именем и
+получает тот же lock публикации. Для этой операции также создаётся durable
+`transaction.json`: после аварийного завершения прежний фид восстанавливается
+при следующем запуске, включая случай, когда прежнего фида не было.
+
+Ручной вызов серверного издателя предназначен для подготовленного архива:
+
+```text
+python -m avito_bridge.profile_publish --archive /tmp/studio.tgz --config profiles/wreaths.yaml
+```
+
+Скрипт `deploy/run.sh` и systemd-файлы находятся в `deploy/`. Их установка,
+включение таймера и любая живая публикация — отдельные операционные действия;
+запуск тестов или Studio их не выполняет.
+
+## Основные каталоги
+
+- `src/avito_bridge/ingest/` — read-only адаптеры источников и ручные товары;
+- `src/avito_bridge/orchestrator/` — профильный цикл и выбор представителей;
+- `src/avito_bridge/feed/` — стабильные ID, XML, атомарная запись и защитные
+  счётчики;
+- `src/avito_bridge/content/` — описания, шаблоны и карточки;
+- `src/avito_bridge/avito/` — клиент Avito API;
+- `src/avito_bridge/state/` — локальное состояние и хэши;
+- `profiles/` — независимые бизнес-профили;
+- `deploy/` — явно запускаемая серверная обвязка.
+
+Дополнительные инструкции по входящим карточкам находятся в
+[`inbox/README.md`](inbox/README.md), а по библиотеке описаний — в
+[`avito-descriptions/README.md`](avito-descriptions/README.md).

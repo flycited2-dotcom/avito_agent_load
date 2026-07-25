@@ -1,5 +1,5 @@
-# CARVER: 23 уникальные модели генераторов из подтверждённой поставки и прайса 15.07.2026.
-# Прайс хранится в репозитории, поэтому профиль переносим между рабочими машинами.
+# CARVER: прайс выбирается и проверяется в Studio, затем атомарно копируется
+# в локальный runtime. Датированный поставщицкий файл в EXE не встраивается.
 profile:
   name: carver
   source: carver_xlsx
@@ -7,7 +7,7 @@ profile:
   feed_path: feed_out/carver.xml
   public_feed_path: "/opt/oasis/staticfiles/avito-feed-carver.xml"
   source_options:
-    path: "data/carver/carver-stock-arrival-2026-07-18.xlsx"
+    path: "runtime/carver/current.xlsx"
     description_template: |-
       {name}
 
@@ -30,6 +30,8 @@ pricing:
 
 feed:
   max_active_ads: 23
+  min_active_ads: 20
+  max_drop_fraction: 0.25
   # Полный путь категории, предписанный модератором Avito для генераторов.
   base_tags:
     AdType: "Товар приобретен на продажу"
@@ -50,7 +52,7 @@ content:
   title_max: 50
   description_max: 7000
   stop_words: []
-  descriptions_manifest: ""
+  descriptions_manifest: "avito-descriptions/manifest.json"
   description_attr: desc_long
   website_link: ""
   website_link_keys: []

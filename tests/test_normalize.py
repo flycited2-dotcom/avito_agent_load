@@ -1,6 +1,6 @@
 from decimal import Decimal
 from avito_bridge.models import RawProduct
-from avito_bridge.ingest.normalize import to_offer, is_conditioner, content_hash, CatalogFilter
+from avito_bridge.ingest.normalize import to_offer, is_conditioner, CatalogFilter
 
 FLT = CatalogFilter(report_category_ids=[2, 6, 7],
                     exclude_title_patterns=["%мульти%", "%виброопор%"])

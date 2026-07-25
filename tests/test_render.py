@@ -148,3 +148,16 @@ def test_render_uses_description_attr_when_configured():
     c = render_series(g, {"ritualb2b:venok-avrora": 2300}, cfg)
     assert c.title == "Венок «Аврора»"
     assert c.description == "Венок ручной работы, фиолетово-зелёная гамма."
+
+
+def test_fit_title_honors_even_very_small_limits():
+    from avito_bridge.content.render import _fit_title
+
+    for limit in (0, 1, 5, 10, 20, 50):
+        title = _fit_title(
+            "Полупромышленный кондиционер",
+            "Очень длинное название модели",
+            "20–100 м²",
+            limit,
+        )
+        assert len(title) <= limit

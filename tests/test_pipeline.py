@@ -1,4 +1,5 @@
 from decimal import Decimal
+import pytest
 from avito_bridge.models import Offer, City
 from avito_bridge.pricing.pricing import PricingConfig
 from avito_bridge.feed.builder import FeedConfig
@@ -8,6 +9,7 @@ from avito_bridge.content.cards import CardConfig
 from avito_bridge.config import AppConfig
 from avito_bridge.orchestrator.pipeline import run_cycle
 from avito_bridge.ingest.manual_products import build_manual_offers
+from avito_bridge.feed.ad_id import make_ad_id
 
 
 def _cfg():
@@ -54,7 +56,7 @@ def test_run_cycle_requires_card_when_configured(tmp_path):
     assert result.ads_built == 0 and result.skipped == 1   # нет карточки → не публикуем
 
 
-def test_forced_offer_price_override_and_publish(tmp_path):
+def test_forced_offer_price_override_respects_publish_whitelist(tmp_path):
     from avito_bridge.pricing.pricing import compute_price
     o = _offer("rusklimat:НС-1690797")
     o.price_override = Decimal("18990")
@@ -62,10 +64,100 @@ def test_forced_offer_price_override_and_publish(tmp_path):
     o.cost = None                                          # нет опта — не важно, ручная цена
     assert compute_price(o, _cfg().pricing).price == 18990
     cfg = _cfg()
-    cfg.selected_series = frozenset({"что-то-другое"})     # forced публикуется, даже не в whitelist
+    cfg.selected_series = frozenset({"что-то-другое"})
     r = run_cycle(offers_provider=lambda: [o], cfg=cfg,
                   feed_path=tmp_path / "f.xml", state_path=tmp_path / "s.db")
-    assert r.ads_built == 1
+    assert r.ads_built == 0
+
+
+def test_run_cycle_selects_publishable_representative_without_mutating_offers(tmp_path):
+    def member(sku, btu, *, cost="10000", stock=1, photos=None):
+        return Offer(
+            supplier_sku=sku,
+            source="daichi",
+            brand="Ballu",
+            model=f"Eco {btu}",
+            category_id=2,
+            btu_calc=btu,
+            attrs={"Артикул": sku},
+            cost=Decimal(cost) if cost is not None else None,
+            stock=stock,
+            photos=list(photos or []),
+            series="Eco",
+            content_hash=sku,
+        )
+
+    offers = [
+        member("daichi:no-price", 7, cost=None, photos=["https://i/no-price.jpg"]),
+        member("daichi:no-stock", 9, stock=0, photos=["https://i/no-stock.jpg"]),
+        member("daichi:no-photo", 12, photos=[]),
+        member("daichi:eligible", 18, stock=3, photos=["https://i/eligible.jpg"]),
+    ]
+    before = [offer.model_dump(mode="json") for offer in offers]
+    feed = tmp_path / "feed.xml"
+
+    result = run_cycle(lambda: offers, _cfg(), feed, tmp_path / "state.db")
+
+    xml = feed.read_text(encoding="utf-8")
+    assert result.ads_built == 1
+    # Исторический ID младшего SKU сохраняется, хотя фото/контент берутся
+    # у первой реально пригодной модели.
+    assert f"<Id>{make_ad_id('daichi:no-price', 'simferopol')}</Id>" in xml
+    assert "https://i/eligible.jpg" in xml
+    assert [offer.model_dump(mode="json") for offer in offers] == before
+
+
+def test_run_cycle_explicit_ad_id_anchor_survives_missing_legacy_member(tmp_path):
+    offer = _offer("daichi:new-smallest")
+    cfg = _cfg()
+    from avito_bridge.catalog.series import series_key
+
+    cfg.feed.ad_id_anchor[series_key(offer)] = "daichi:historical-07"
+    feed = tmp_path / "feed.xml"
+
+    run_cycle(lambda: [offer], cfg, feed, tmp_path / "state.db")
+
+    assert (
+        f"<Id>{make_ad_id('daichi:historical-07', 'simferopol')}</Id>"
+        in feed.read_text(encoding="utf-8")
+    )
+
+
+def test_run_cycle_does_not_replace_feed_after_large_drop(tmp_path):
+    cfg = _cfg()
+    cfg.feed.max_drop_fraction = 0.25
+    feed = tmp_path / "feed.xml"
+    existing = "<Ads>" + "".join("<Ad/>" for _ in range(4)) + "</Ads>"
+    feed.write_text(existing, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="было 4, стало 1"):
+        run_cycle(lambda: [_offer("daichi:only")], cfg, feed, tmp_path / "state.db")
+
+    assert feed.read_text(encoding="utf-8") == existing
+
+
+def test_run_cycle_uses_existing_public_feed_as_count_drop_baseline(tmp_path):
+    cfg = _cfg()
+    cfg.feed.max_drop_fraction = 0.25
+    public_feed = tmp_path / "public.xml"
+    public_feed.write_text(
+        "<Ads>" + "".join("<Ad/>" for _ in range(4)) + "</Ads>",
+        encoding="utf-8",
+    )
+    cfg.public_feed_path = str(public_feed)
+    candidate = tmp_path / "candidate.xml"
+    candidate_before = "<Ads><Ad/></Ads>"
+    candidate.write_text(candidate_before, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="было 4, стало 1"):
+        run_cycle(
+            lambda: [_offer("daichi:only")],
+            cfg,
+            candidate,
+            tmp_path / "state.db",
+        )
+
+    assert candidate.read_text(encoding="utf-8") == candidate_before
 
 
 def test_run_cycle_supplier_photo_series_bypasses_card(tmp_path):
@@ -150,3 +242,32 @@ def test_carver_manual_product_reaches_feed_with_profile_tags_and_description(tm
     assert "Компактный инверторный генератор." in xml
     assert "Топливо: Бензин" in xml
     assert "https://i/generator.jpg" in xml
+
+
+def test_manual_conditioner_uses_owner_description(tmp_path):
+    cfg = _cfg()
+    cfg.profile_name = "conditioners"
+    offer = build_manual_offers(
+        {
+            "manual-owner-text": {
+                "brand": "ROYAL CLIMA",
+                "title": "RCI-GR28HN",
+                "series": "GRIDA",
+                "category_id": 2,
+                "btu": 9,
+                "price": 26550,
+                "stock": 1,
+                "photos": ["https://i/manual.jpg"],
+                "description": "Точный текст владельца.",
+                "tech": {},
+            }
+        },
+        cfg,
+    )[0]
+    feed = tmp_path / "manual.xml"
+
+    run_cycle(lambda: [offer], cfg, feed, tmp_path / "state.db")
+
+    xml = feed.read_text(encoding="utf-8")
+    assert "Точный текст владельца." in xml
+    assert "Сезон в Крыму" not in xml

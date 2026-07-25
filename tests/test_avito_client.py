@@ -1,7 +1,10 @@
 import json
-import httpx
 from pathlib import Path
-from avito_bridge.avito.client import AvitoClient, parse_report
+
+import httpx
+import pytest
+
+from avito_bridge.avito.client import AvitoClient, ep_last_report, parse_report
 
 
 def _client(handler):
@@ -55,7 +58,7 @@ def test_list_uploads_returns_uploads_list():
 
     uploads = _client(handler).list_uploads()
     assert len(uploads) == 2
-    assert uploads[0]["upload_id"] == 559743947
+    assert uploads[0]["upload_id"] == 1001
     assert uploads[0]["stats"]["count"] == 57
 
 
@@ -71,7 +74,7 @@ def test_last_successful_items_returns_items_list():
 
     items = _client(handler).last_successful_items()
     assert len(items) == 2
-    assert items[0]["ad_id"] == "0538c8c6f2190ea229023c7d"
+    assert items[0]["ad_id"] == "synthetic-ad-id-1"
     assert items[0]["avito_status"] == "active"
 
 
@@ -106,3 +109,101 @@ def test_status_by_ad_id_indexes_items():
     assert idx["a1"]["avito_status"] == "active"
     assert idx["a2"]["avito_status"] == "blocked"
     assert "missing" not in idx
+
+
+def test_retries_transient_api_failure(monkeypatch):
+    calls = {"uploads": 0}
+
+    def handler(req):
+        if req.url.path == "/token":
+            return httpx.Response(200, json={"access_token": "T", "expires_in": 999})
+        if req.url.path == "/autoload/v4/uploads":
+            calls["uploads"] += 1
+            if calls["uploads"] == 1:
+                return httpx.Response(503, text="temporary")
+            return httpx.Response(200, json={"uploads": [{"upload_id": 1}]})
+        return httpx.Response(404)
+
+    monkeypatch.setattr("avito_bridge.avito.client.time.sleep", lambda _delay: None)
+    client = _client(handler)
+    assert client.list_uploads() == [{"upload_id": 1}]
+    assert calls["uploads"] == 2
+
+
+def test_last_report_endpoint_and_response():
+    seen = {}
+
+    def handler(request):
+        if request.url.path == "/token":
+            return httpx.Response(200, json={"access_token": "REPORT-TOKEN", "expires_in": 999})
+        seen["path"] = request.url.path
+        seen["authorization"] = request.headers.get("authorization")
+        return httpx.Response(200, json={"items": [{"ad_id": "ad-1", "status": "published"}]})
+
+    client = _client(handler)
+    try:
+        assert ep_last_report(123456789) == (
+            "/autoload/v1/accounts/123456789/reports/last_report/"
+        )
+        assert client.get_last_report(123456789) == {
+            "items": [{"ad_id": "ad-1", "status": "published"}]
+        }
+        assert seen == {
+            "path": "/autoload/v1/accounts/123456789/reports/last_report/",
+            "authorization": "Bearer REPORT-TOKEN",
+        }
+    finally:
+        client.http.close()
+
+
+def test_get_last_report_propagates_http_error():
+    def handler(request):
+        if request.url.path == "/token":
+            return httpx.Response(200, json={"access_token": "T", "expires_in": 999})
+        return httpx.Response(403, json={"error": "forbidden"})
+
+    client = _client(handler)
+    try:
+        with pytest.raises(httpx.HTTPStatusError, match="403"):
+            client.get_last_report(42)
+    finally:
+        client.http.close()
+
+
+def test_close_only_closes_owned_http_client():
+    owned = AvitoClient("id", "secret")
+    owned_http = owned.http
+    owned.close()
+    assert owned_http.is_closed
+
+    injected_http = httpx.Client(
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200))
+    )
+    borrowed = AvitoClient("id", "secret", http=injected_http)
+    borrowed.close()
+    assert not injected_http.is_closed
+    injected_http.close()
+
+
+def test_context_manager_returns_client_and_closes_owned_http_even_on_error():
+    client = AvitoClient("id", "secret")
+    owned_http = client.http
+
+    with pytest.raises(RuntimeError, match="inside context"):
+        with client as entered:
+            assert entered is client
+            raise RuntimeError("inside context")
+
+    assert owned_http.is_closed
+
+
+def test_context_manager_does_not_close_borrowed_http():
+    injected_http = httpx.Client(
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200))
+    )
+
+    with AvitoClient("id", "secret", http=injected_http) as entered:
+        assert entered.http is injected_http
+
+    assert not injected_http.is_closed
+    injected_http.close()

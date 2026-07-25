@@ -1,7 +1,7 @@
 """Источник «price_xls»: опт-прайс поставщика БытТехОпт (.xls, ежедневно
 скачивается конвейером excel-automation в input/priceopt_YYYYMMDD.xls).
 
-Схема листа зафиксирована живым файлом 2026-07-16 (tests/fixtures/priceopt_sample.xls):
+Схема листа подтверждена прайсом поставщика от 2026-07-16:
 две строки шапки, затем колонки A=артикул, B=группа, C=бренд, D=наименование
 (с префиксом-артикулом «003544 …»), E=цена (опт), F/G=наличие («Под заказ» —
 в файле 2026-07-16 ВСЕ 1626 строк), H=заказ. Группы «Кондиционеры …» в фид
@@ -25,6 +25,8 @@ from avito_bridge.config import AppConfig
 from avito_bridge.models import Offer
 
 _ARTICLE_PREFIX_RE = re.compile(r"^\s*\d{4,}\s+")
+MAX_WORKBOOK_BYTES = 50 * 1024 * 1024
+MAX_WORKBOOK_ROWS = 50_000
 
 DEFAULT_DESCRIPTION = ("{model}\n\nНовый, в заводской упаковке, гарантия производителя. "
                        "Товар под заказ: срок поставки 1–3 дня. Симферополь, возможна доставка.")
@@ -40,24 +42,41 @@ def _clean_model(name: str) -> str:
 def parse_price_xls(path: str | Path) -> list[dict]:
     """Все товарные строки прайса (без фильтра групп): служебные строки шапки
     отсеиваются по нечисловой цене — как в transform.py excel-automation."""
-    book = xlrd.open_workbook(str(path))
-    sheet = book.sheet_by_index(0)
-    rows = []
-    for i in range(sheet.nrows):
-        vals = sheet.row_values(i)
-        name = str(vals[3]).strip() if len(vals) > 3 else ""
-        price_raw = vals[4] if len(vals) > 4 else None
-        if not name or not isinstance(price_raw, (int, float)) or price_raw <= 0:
-            continue                                   # шапка/заголовок/пустая строка
-        rows.append({
-            "article": str(vals[0]).strip(),
-            "group": str(vals[1]).strip(),
-            "brand": str(vals[2]).strip() if vals[2] else "",
-            "name": name,
-            "price": float(price_raw),
-            "stock_label": str(vals[5]).strip() if len(vals) > 5 and vals[5] else "",
-        })
-    return rows
+    source = Path(path)
+    if not source.is_file():
+        raise FileNotFoundError(source)
+    if source.stat().st_size > MAX_WORKBOOK_BYTES:
+        raise ValueError("price_xls: файл превышает безопасный предел 50 МБ")
+    book = xlrd.open_workbook(str(source))
+    try:
+        sheet = book.sheet_by_index(0)
+        if sheet.nrows > MAX_WORKBOOK_ROWS:
+            raise ValueError(
+                "price_xls: слишком много строк "
+                f"({sheet.nrows}, предел {MAX_WORKBOOK_ROWS})"
+            )
+        rows = []
+        for i in range(sheet.nrows):
+            vals = sheet.row_values(i)
+            name = str(vals[3]).strip() if len(vals) > 3 else ""
+            price_raw = vals[4] if len(vals) > 4 else None
+            if not name or not isinstance(price_raw, (int, float)) or price_raw <= 0:
+                continue                               # шапка/заголовок/пустая строка
+            rows.append({
+                "article": str(vals[0]).strip(),
+                "group": str(vals[1]).strip(),
+                "brand": str(vals[2]).strip() if vals[2] else "",
+                "name": name,
+                "price": float(price_raw),
+                "stock_label": (
+                    str(vals[5]).strip()
+                    if len(vals) > 5 and vals[5]
+                    else ""
+                ),
+            })
+        return rows
+    finally:
+        book.release_resources()
 
 
 def build_offers(rows: list[dict], opts: dict,
@@ -97,9 +116,12 @@ def build_offers(rows: list[dict], opts: dict,
 
 def fetch_price_xls(cfg: AppConfig) -> list[Offer]:
     opts = cfg.source_options or {}
-    path = opts.get("path", "")
-    if not path or not Path(path).exists():
-        raise ValueError(f"price_xls: файл прайса не найден: '{path}' — "
+    configured_path = opts.get("path", "")
+    path = Path(configured_path).expanduser() if configured_path else None
+    if path is not None and not path.is_absolute() and cfg.bridge_root:
+        path = Path(cfg.bridge_root) / path
+    if path is None or not path.exists():
+        raise ValueError(f"price_xls: файл прайса не найден: '{configured_path}' — "
                          "укажи profile.source_options.path в профиле")
     return build_offers(
         parse_price_xls(path), opts,

@@ -39,3 +39,12 @@ class StateStore:
             (ad_id, content_hash),
         )
         self._conn.commit()
+
+    def close(self) -> None:
+        self._conn.close()
+
+    def __enter__(self) -> "StateStore":
+        return self
+
+    def __exit__(self, _exc_type, _exc, _traceback) -> None:
+        self.close()

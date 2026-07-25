@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from avito_bridge.config import load_config
 
 
@@ -13,13 +15,16 @@ def test_load_config_parses_cities_and_pricing(tmp_path):
         "pricing: {rounding: up_to_90, default_markup_pct: 5, min_margin_abs: 0, rules: []}\n"
         "feed: {max_active_ads: 200}\n"
         "content: {title_max: 50, description_max: 7000, stop_words: []}\n"
-        "catalog: {report_category_ids: [2,6,7], exclude_title_patterns: ['%мульти%'], crimea_warehouse: Симферополь}\n",
+        "catalog: {report_category_ids: [2,6,7], exclude_title_patterns: ['%мульти%'], "
+        "crimea_warehouse: Севастополь, site_base_url: 'https://catalog.example'}\n",
         encoding="utf-8")
     cfg = load_config(tmp_path / "config.yaml")
     assert cfg.cities[0].avito_location == "Симферополь"
     assert cfg.pricing.default_markup_pct == 5
     assert cfg.feed.max_active_ads == 200
     assert cfg.catalog.report_category_ids == [2, 6, 7]
+    assert cfg.catalog.crimea_warehouse == "Севастополь"
+    assert cfg.catalog.site_base_url == "https://catalog.example"
 
 
 def test_load_config_parses_manual_price_override(tmp_path):
@@ -110,9 +115,58 @@ def test_load_config_parses_profile_section(tmp_path):
     assert cfg.grouping == "per_item"
 
 
+@pytest.mark.parametrize("grouping", ["items", "", 123])
+def test_load_config_rejects_unknown_grouping(tmp_path, grouping):
+    profile = tmp_path / "config.yaml"
+    profile.write_text(
+        "profile:\n"
+        "  source: oasis_db\n"
+        f"  grouping: {grouping!r}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="Неизвестный режим группировки"):
+        load_config(profile)
+
+
+def test_load_config_rejects_unknown_source(tmp_path):
+    profile = tmp_path / "config.yaml"
+    profile.write_text(
+        "profile: {source: oasis_typo, grouping: series}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="Неизвестный источник товаров"):
+        load_config(profile)
+
+
+def test_load_config_rejects_none_sentinel_mixed_with_explicit_keys(tmp_path):
+    profile = tmp_path / "config.yaml"
+    profile.write_text(
+        "catalog:\n"
+        "  selected_series: ['__none__', 'price_xls|item|pricexls:one']\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="'__none__' допустим только как единственное значение",
+    ):
+        load_config(profile)
+
+
+def test_load_config_accepts_none_sentinel_as_only_selection(tmp_path):
+    profile = tmp_path / "config.yaml"
+    profile.write_text(
+        "catalog:\n"
+        "  selected_series: ['__none__']\n",
+        encoding="utf-8",
+    )
+
+    assert load_config(profile).selected_series == frozenset({"__none__"})
+
+
 def test_carver_profile_publishes_confirmed_stock_only():
     cfg = load_config(PROJECT_ROOT / "profiles" / "carver.yaml")
-    assert cfg.source_options["path"] == "data/carver/carver-stock-arrival-2026-07-18.xlsx"
+    assert cfg.source_options["path"] == "runtime/carver/current.xlsx"
     assert cfg.pricing.default_markup_pct == 7
     assert cfg.pricing.rounding == "up_to_10"
     assert cfg.feed.max_active_ads == 23
@@ -152,3 +206,14 @@ def test_carver_profile_publishes_confirmed_stock_only():
     }
     assert all(key.startswith("carver_xlsx|item|carver:PPG-")
                for key in cfg.selected_series)
+
+
+def test_appliances_profile_has_only_its_128_explicit_selections():
+    cfg = load_config(PROJECT_ROOT / "profiles" / "appliances.yaml")
+
+    assert len(cfg.selected_series) == 128
+    assert "__none__" not in cfg.selected_series
+    assert all(
+        key.startswith("price_xls|item|pricexls:")
+        for key in cfg.selected_series
+    )
