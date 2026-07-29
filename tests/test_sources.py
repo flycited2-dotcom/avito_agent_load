@@ -16,6 +16,10 @@ def test_carver_xlsx_source_registered():
     assert callable(get_source("carver_xlsx"))
 
 
+def test_manual_only_source_registered_and_empty():
+    assert get_source("manual_only")(object()) == []
+
+
 def test_unknown_source_raises_with_available_list():
     with pytest.raises(ValueError, match="oasis_db"):
         get_source("no_such_source")

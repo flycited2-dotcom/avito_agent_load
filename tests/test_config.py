@@ -166,10 +166,13 @@ def test_load_config_accepts_none_sentinel_as_only_selection(tmp_path):
 
 def test_carver_profile_publishes_confirmed_stock_only():
     cfg = load_config(PROJECT_ROOT / "profiles" / "carver.yaml")
-    assert cfg.source_options["path"] == "runtime/carver/current.xlsx"
+    assert cfg.source == "manual_only"
+    assert cfg.source_options == {}
     assert cfg.pricing.default_markup_pct == 7
     assert cfg.pricing.rounding == "up_to_10"
-    assert cfg.feed.max_active_ads == 23
+    assert cfg.feed.max_active_ads == 24
+    assert cfg.feed.min_active_ads == 24
+    assert cfg.feed.max_drop_fraction == 0.0
     assert cfg.public_feed_path == "/opt/oasis/staticfiles/avito-feed-carver.xml"
     assert cfg.feed.base_tags["Category"] == "Ремонт и строительство"
     assert cfg.feed.base_tags["GoodsType"] == "Инструменты"
@@ -177,35 +180,81 @@ def test_carver_profile_publishes_confirmed_stock_only():
     assert cfg.feed.base_tags["ToolSubType"] == "Устройства электропитания"
     assert cfg.feed.base_tags["DeviceType"] == "Генераторы"
     assert "GoodsSubType" not in cfg.feed.base_tags
-    assert len(cfg.catalog.manual_photos) == 23
-    assert len(cfg.selected_series) == 23
-    assert cfg.catalog.manual_price_override == {
-        "PPG-1900IS": 21945,
-        "PPG-4000IS": 33946,
-        "PPG-5100I": 29546,
-        "PPG-6600ISR": 58069,
-        "PPG-8100I": 45804,
-        "PPG-9500IR": 56683,
-        "PPG-15000IR": 79695,
-        "PPG-15000IVR": 90629,
-        "PPG-2000IS": 25971,
-        "PPG-3900": 18095,
-        "PPG-3100I": 21538,
-        "PPG-3600I": 24453,
-        "PPG-5100ISE": 57167,
-        "PPG-6500": 41294,
-        "PPG-6500AM": 41294,
-        "PPG-6500E": 44385,
-        "PPG-6500R": 46783,
-        "PPG-9000E": 57222,
-        "PPG-9000R": 58993,
-        "PPG-10000E": 62029,
-        "PPG-10000EM": 63943,
-        "PPG-10000R": 63943,
-        "PPG-13500VR": 83974,
+    assert cfg.catalog.manual_photos == {}
+    assert cfg.catalog.manual_price_override == {}
+
+    expected_prices = {
+        "PPG-2100IS-DUOMATIC": 33599,
+        "PPG-2500IS": 29113,
+        "PPG-3500IS-DUOMATIC": 38320,
+        "PPG-3500IS": 33406,
+        "PPG-3600I-PROMO": 19164,
+        "PPG-3600I": 21560,
+        "PPG-3900I": 23432,
+        "PPG-4100IS": 42449,
+        "PPG-4500I": 25201,
+        "PPG-4500IS-DUOMATIC": 53727,
+        "PPG-4500IS": 48372,
+        "PPG-5100ISE": 50419,
+        "PPG-5500I-DUOMATIC": 34475,
+        "PPG-5500I": 30997,
+        "PPG-9500IR": 61117,
+        "PPG-10000IR": 78318,
+        "PPG-15000IVR": 97724,
+        "PPG-3600": 16597,
+        "PPG-8000": 41738,
+        "PPG-8000EM": 46199,
+        "PPG-9000R": 52037,
+        "PPG-9000E": 50467,
+        "PPG-10000R": 56403,
+        "PPG-10000EM": 56403,
     }
-    assert all(key.startswith("carver_xlsx|item|carver:PPG-")
-               for key in cfg.selected_series)
+    assert {
+        key: int(product["price"])
+        for key, product in cfg.catalog.manual_products.items()
+    } == expected_prices
+    assert all(
+        int(product["stock"]) > 0
+        for product in cfg.catalog.manual_products.values()
+    )
+    assert all(
+        product["photos"]
+        for product in cfg.catalog.manual_products.values()
+    )
+    assert sum(
+        len(product["photos"])
+        for product in cfg.catalog.manual_products.values()
+    ) == 74
+    assert all(
+        product["avito_tags"]["Model"] == product["series"]
+        for product in cfg.catalog.manual_products.values()
+    )
+    assert all(
+        "  " not in product["description"]
+        for product in cfg.catalog.manual_products.values()
+    )
+    assert cfg.feed.vendor_map == {"CARVER": ""}
+    assert "4,5/5,0 кВт" in (
+        cfg.catalog.manual_products["PPG-5500I"]["description"]
+    )
+    assert (
+        cfg.catalog.manual_products["PPG-5500I"]["avito_tags"]["RatedPower"]
+        == "4.5"
+    )
+    assert (
+        cfg.catalog.manual_products["PPG-5500I"]["avito_tags"]["MaximumPower"]
+        == "5.0"
+    )
+    assert "220/400 В" in (
+        cfg.catalog.manual_products["PPG-15000IVR"]["description"]
+    )
+    assert (
+        cfg.catalog.manual_products["PPG-15000IVR"]["avito_tags"]["Voltage"]
+        == "220 В / 380 В"
+    )
+    assert cfg.selected_series == frozenset(
+        f"manual|item|manual:{key}" for key in expected_prices
+    )
 
 
 def test_appliances_profile_has_only_its_128_explicit_selections():

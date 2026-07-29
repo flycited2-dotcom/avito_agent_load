@@ -1,146 +1,1053 @@
-# CARVER: прайс выбирается и проверяется в Studio, затем атомарно копируется
-# в локальный runtime. Датированный поставщицкий файл в EXE не встраивается.
 profile:
   name: carver
-  source: carver_xlsx
+  source: manual_only
   grouping: per_item
   feed_path: feed_out/carver.xml
-  public_feed_path: "/opt/oasis/staticfiles/avito-feed-carver.xml"
-  source_options:
-    path: "runtime/carver/current.xlsx"
-    description_template: |-
-      {name}
-
-      {characteristics}
-
-      Новый товар CARVER, в заводской комплектации.
-      Симферополь: самовывоз или доставка по городу и Крыму.
-      Перед заказом уточните наличие и срок поставки.
-
+  public_feed_path: /opt/oasis/staticfiles/avito-feed-carver.xml
+  source_options: {}
 cities:
-  - {id: "simferopol", name: "Симферополь", avito_location: "Республика Крым, Симферополь"}
-
+- id: simferopol
+  name: Симферополь
+  avito_location: Республика Крым, Симферополь
 pricing:
-  # Подтверждённая пользователем наценка для поставки от 18.07.2026.
   rounding: up_to_10
   default_markup_pct: 7
   min_margin_abs: 0
   rules: []
   price_confirmed: true
-
 feed:
-  max_active_ads: 23
-  min_active_ads: 20
-  max_drop_fraction: 0.25
-  # Полный путь категории, предписанный модератором Avito для генераторов.
+  max_active_ads: 24
+  min_active_ads: 24
+  max_drop_fraction: 0.0
   base_tags:
-    AdType: "Товар приобретен на продажу"
-    Condition: "Новое"
-    Category: "Ремонт и строительство"
-    GoodsType: "Инструменты"
-    ToolType: "Силовая, строительная техника и комплектующие"
-    ToolSubType: "Устройства электропитания"
-    DeviceType: "Генераторы"
-  product_type_default: ""
+    AdType: Товар приобретен на продажу
+    Condition: Новое
+    Category: Ремонт и строительство
+    GoodsType: Инструменты
+    ToolType: Силовая, строительная техника и комплектующие
+    ToolSubType: Устройства электропитания
+    DeviceType: Генераторы
+  product_type_default: ''
   product_type_map: {}
   ac_type_map: {}
   ac_subtype_map: {}
-  vendor_map: {}
+  vendor_map:
+    CARVER: ''
   vendor_skip: []
-
+  ad_id_anchor:
+    manual|item|manual:PPG-2100IS-DUOMATIC: carver:PPG-2100IS-DUOMATIC
+    manual|item|manual:PPG-2500IS: carver:PPG-2500IS
+    manual|item|manual:PPG-3500IS-DUOMATIC: carver:PPG-3500IS-DUOMATIC
+    manual|item|manual:PPG-3500IS: carver:PPG-3500IS
+    manual|item|manual:PPG-3600I-PROMO: carver:PPG-3600I-PROMO
+    manual|item|manual:PPG-3600I: carver:PPG-3600I
+    manual|item|manual:PPG-3900I: carver:PPG-3900I
+    manual|item|manual:PPG-4100IS: carver:PPG-4100IS
+    manual|item|manual:PPG-4500I: carver:PPG-4500I
+    manual|item|manual:PPG-4500IS-DUOMATIC: carver:PPG-4500IS-DUOMATIC
+    manual|item|manual:PPG-4500IS: carver:PPG-4500IS
+    manual|item|manual:PPG-5100ISE: carver:PPG-5100ISE
+    manual|item|manual:PPG-5500I-DUOMATIC: carver:PPG-5500I-DUOMATIC
+    manual|item|manual:PPG-5500I: carver:PPG-5500I
+    manual|item|manual:PPG-9500IR: carver:PPG-9500IR
+    manual|item|manual:PPG-10000IR: carver:PPG-10000IR
+    manual|item|manual:PPG-15000IVR: carver:PPG-15000IVR
+    manual|item|manual:PPG-3600: carver:PPG-3600
+    manual|item|manual:PPG-8000: carver:PPG-8000
+    manual|item|manual:PPG-8000EM: carver:PPG-8000EM
+    manual|item|manual:PPG-9000R: carver:PPG-9000R
+    manual|item|manual:PPG-9000E: carver:PPG-9000E
+    manual|item|manual:PPG-10000R: carver:PPG-10000R
+    manual|item|manual:PPG-10000EM: carver:PPG-10000EM
 content:
   title_max: 50
   description_max: 7000
   stop_words: []
-  descriptions_manifest: "avito-descriptions/manifest.json"
+  descriptions_manifest: ''
   description_attr: desc_long
-  website_link: ""
+  website_link: ''
   website_link_keys: []
-
 catalog:
   report_category_ids: []
   exclude_title_patterns: []
   force_include: {}
-  manual_photos:
-    PPG-1900IS: "https://splithome.ru/static/manual-photos/PPG-1900IS.jpg"
-    PPG-4000IS: "https://splithome.ru/static/manual-photos/PPG-4000IS.jpg"
-    PPG-5100I: "https://splithome.ru/static/manual-photos/PPG-5100I.jpg"
-    PPG-6600ISR: "https://splithome.ru/static/manual-photos/PPG-6600ISR.jpg"
-    PPG-8100I: "https://splithome.ru/static/manual-photos/PPG-8100I.jpg"
-    PPG-9500IR: "https://splithome.ru/static/manual-photos/PPG-9500IR.jpg"
-    PPG-15000IR: "https://splithome.ru/static/manual-photos/PPG-15000IR.jpg"
-    PPG-15000IVR: "https://splithome.ru/static/manual-photos/PPG-15000IVR.jpg"
-    PPG-2000IS: "https://splithome.ru/static/manual-photos/PPG-2000IS.jpg"
-    PPG-3900: "https://splithome.ru/static/manual-photos/PPG-3900.jpg"
-    PPG-3100I: "https://splithome.ru/static/manual-photos/PPG-3100I.jpg"
-    PPG-3600I: "https://splithome.ru/static/manual-photos/PPG-3600I.jpg"
-    PPG-5100ISE: "https://splithome.ru/static/manual-photos/PPG-5100ISE.jpg"
-    PPG-6500: "https://splithome.ru/static/manual-photos/PPG-6500.jpg"
-    PPG-6500AM: "https://splithome.ru/static/manual-photos/PPG-6500AM.jpg"
-    PPG-6500E: "https://splithome.ru/static/manual-photos/PPG-6500E.jpg"
-    PPG-6500R: "https://splithome.ru/static/manual-photos/PPG-6500R.jpg"
-    PPG-9000E: "https://splithome.ru/static/manual-photos/PPG-9000E.jpg"
-    PPG-9000R: "https://splithome.ru/static/manual-photos/PPG-9000R.jpg"
-    PPG-10000E: "https://splithome.ru/static/manual-photos/PPG-10000E.jpg"
-    PPG-10000EM: "https://splithome.ru/static/manual-photos/PPG-10000EM.jpg"
-    PPG-10000R: "https://splithome.ru/static/manual-photos/PPG-10000R.jpg"
-    PPG-13500VR: "https://splithome.ru/static/manual-photos/PPG-13500VR.jpg"
-  # Итоговые цены: опубликованная цена от 18.07.2026 + 10%.
-  manual_price_override:
-    PPG-1900IS: 21945
-    PPG-4000IS: 33946
-    PPG-5100I: 29546
-    PPG-6600ISR: 58069
-    PPG-8100I: 45804
-    PPG-9500IR: 56683
-    PPG-15000IR: 79695
-    PPG-15000IVR: 90629
-    PPG-2000IS: 25971
-    PPG-3900: 18095
-    PPG-3100I: 21538
-    PPG-3600I: 24453
-    PPG-5100ISE: 57167
-    PPG-6500: 41294
-    PPG-6500AM: 41294
-    PPG-6500E: 44385
-    PPG-6500R: 46783
-    PPG-9000E: 57222
-    PPG-9000R: 58993
-    PPG-10000E: 62029
-    PPG-10000EM: 63943
-    PPG-10000R: 63943
-    PPG-13500VR: 83974
+  manual_photos: {}
+  manual_price_override: {}
   manual_card_brief: {}
-  selected_series:
-    - "carver_xlsx|item|carver:PPG-1900IS"
-    - "carver_xlsx|item|carver:PPG-4000IS"
-    - "carver_xlsx|item|carver:PPG-5100I"
-    - "carver_xlsx|item|carver:PPG-6600ISR"
-    - "carver_xlsx|item|carver:PPG-8100I"
-    - "carver_xlsx|item|carver:PPG-9500IR"
-    - "carver_xlsx|item|carver:PPG-15000IR"
-    - "carver_xlsx|item|carver:PPG-15000IVR"
-    - "carver_xlsx|item|carver:PPG-2000IS"
-    - "carver_xlsx|item|carver:PPG-3900"
-    - "carver_xlsx|item|carver:PPG-3100I"
-    - "carver_xlsx|item|carver:PPG-3600I"
-    - "carver_xlsx|item|carver:PPG-5100ISE"
-    - "carver_xlsx|item|carver:PPG-6500"
-    - "carver_xlsx|item|carver:PPG-6500AM"
-    - "carver_xlsx|item|carver:PPG-6500E"
-    - "carver_xlsx|item|carver:PPG-6500R"
-    - "carver_xlsx|item|carver:PPG-9000E"
-    - "carver_xlsx|item|carver:PPG-9000R"
-    - "carver_xlsx|item|carver:PPG-10000E"
-    - "carver_xlsx|item|carver:PPG-10000EM"
-    - "carver_xlsx|item|carver:PPG-10000R"
-    - "carver_xlsx|item|carver:PPG-13500VR"
+  manual_products:
+    PPG-2100IS-DUOMATIC:
+      brand: CARVER
+      title: Генератор CARVER PPG-2100IS DUOMATIC
+      series: PPG-2100IS DUOMATIC
+      group: generator
+      description: 'Инверторный двухтопливный генератор: бензин/баллонный газ, максимальная мощность 2 кВт, выходы 220/12
+        В, две розетки 220 В, дисплей.
 
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 33 599 ₽.'
+      price: 33599
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-2100IS-DUOMATIC-1-99ba4abd6793.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-2100IS-DUOMATIC-2-c42c6a9f5aca.jpg
+      tech:
+        Модель двигателя: H80i
+        Тип двигателя: 4-тактный, 1-цилиндровый, с воздушным охлаждением
+        Номинальная мощность генератора, бензин / газ, кВт: 1,8 / 1,6
+        Максимальная мощность генератора, кВт: '2'
+        Выходное напряжение, В: ~230 / 12
+        Тип розеток: 1/12В + 2/230В
+        Тип топлива: Бензин АИ92 / Газ пропан-бутан (баллонный)
+        Тип запуска: Ручной стартер
+        Емкость топливного бака, л: '6'
+        Время непрерывной работы при номинальной мощности, бензин / газ, ч: 4 / в зависимости от объема газового баллона
+        Многофункциональный цифровой дисплей: Есть
+        Вес нетто / брутто, кг: 20,7 / 22,7
+        Артикул: 01.020.00066
+        Штрихкод: '4610119608194'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-2100IS DUOMATIC
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '1.8'
+        MaximumPower: '2.0'
+      source_url: https://uralopt.ru/products/dual-fuel-inverter-generators/carver-PPG-2100IS-duo-invertor-generator/
+    PPG-2500IS:
+      brand: CARVER
+      title: Генератор CARVER PPG-2500IS
+      series: PPG-2500IS
+      group: generator
+      description: 'Инверторный генератор 2,2/2,3 кВт, выходы 220/12 В, две розетки 220 В, дисплей.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 29 113 ₽.'
+      price: 29113
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-2500IS-1-0c27baa0336d.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-2500IS-2-d0dab3b2bf4a.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-2500IS-3-58eb86f4a87a.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-2500IS-5-7da15d08d32e.jpg
+      tech:
+        Модель двигателя: H100i
+        Тип двигателя: Четырехтактный, одноцилиндровый, с воздушным охлаждением
+        Номинальная мощность генератора, кВт: 2,2
+        Максимальная мощность генератора, кВт: 2,3
+        Выходное напряжение, В: ~230 / 12
+        Тип розеток: 1/12В + 2 / 230В
+        Тип запуска: Ручной стартер
+        Емкость топливного бака, л: '6'
+        Время непрерывной работы при номинальной мощности, ч: '3'
+        Многофункциональный цифровой дисплей: Есть
+        Артикул: 01.020.00033
+        Штрихкод: '4610119607937'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-2500IS
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '2.2'
+        MaximumPower: '2.3'
+      source_url: https://uralopt.ru/products/inverter-generators/carver-PPG-2500IS-invertor-generator/
+    PPG-3500IS-DUOMATIC:
+      brand: CARVER
+      title: Генератор CARVER PPG-3500IS DUOMATIC
+      series: PPG-3500IS DUOMATIC
+      group: generator
+      description: 'Инверторный двухтопливный генератор: бензин/баллонный газ, максимальная мощность 2,8 кВт, выходы 220/12
+        В, две розетки 220 В, дисплей.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 38 320 ₽.'
+      price: 38320
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3500IS-DUOMATIC-1-3277dfa6e43a.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3500IS-DUOMATIC-2-c42c6a9f5aca.jpg
+      tech:
+        Модель двигателя: H120i
+        Тип двигателя: 4-тактный, 1-цилиндровый, с воздушным охлаждением
+        Номинальная мощность генератора, бензин / газ, кВт: 2,5 / 2,2
+        Максимальная мощность генератора, кВт: 2,8
+        Выходное напряжение, В: ~230 / 12
+        Тип розеток: 1/12В + 2/230В
+        Тип топлива: Бензин АИ92 / Газ пропан-бутан (баллонный)
+        Тип запуска: Ручной стартер
+        Емкость топливного бака, л: '6'
+        Время непрерывной работы при номинальной мощности, бензин / газ, ч: 4 / в зависимости от объема газового баллона
+        Многофункциональный цифровой дисплей: Есть
+        Вес нетто / брутто, кг: 21,2 / 23,2
+        Артикул: 01.020.00067
+        Штрихкод: '4610119608200'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-3500IS DUOMATIC
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '2.5'
+        MaximumPower: '2.8'
+      source_url: https://uralopt.ru/products/dual-fuel-inverter-generators/carver-PPG-3500IS-duo-invertor-generator/
+    PPG-3500IS:
+      brand: CARVER
+      title: Генератор CARVER PPG-3500IS
+      series: PPG-3500IS
+      group: generator
+      description: 'Инверторный генератор 2,5/2,8 кВт, выходы 220/12 В, две розетки 220 В, дисплей.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 33 406 ₽.'
+      price: 33406
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3500IS-1-384ed5ab5af2.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3500IS-2-8b0dc3b0ef6f.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3500IS-3-f2b200850690.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3500IS-4-fb368848bedc.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3500IS-5-8c20ac3f7285.jpg
+      tech:
+        Модель двигателя: H120i
+        Тип двигателя: Четырехтактный, одноцилиндровый, с воздушным охлаждением
+        Номинальная мощность генератора, кВт: 2,5
+        Максимальная мощность генератора, кВт: 2,8
+        Выходное напряжение, В: ~230 / 12
+        Тип розеток: 1/12В + 2 / 230В
+        Тип запуска: Ручной стартер
+        Емкость топливного бака, л: '6'
+        Многофункциональный цифровой дисплей: Есть
+        Артикул: 01.020.00034
+        Штрихкод: '4610119607944'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-3500IS
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '2.5'
+        MaximumPower: '2.8'
+      source_url: https://uralopt.ru/products/inverter-generators/carver-PPG-3500IS-invertor-generator3499/
+    PPG-3600I-PROMO:
+      brand: CARVER
+      title: Генератор CARVER PPG-3600I PROMO
+      series: PPG-3600I PROMO
+      group: generator
+      description: 'Инверторный генератор 2,8/3 кВт, 220 В, одна розетка 220 В.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 19 164 ₽.'
+      price: 19164
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3600I-PROMO-1-81a85891be12.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3600I-PROMO-2-bea71f9839e8.jpg
+      tech:
+        Модель двигателя: H210i-1
+        Тип двигателя: 4-тактный, 1-цилиндровый, с воздушным охлаждением
+        Максимальная мощность генератора, кВт: '3'
+        Выходное напряжение, В: ~230
+        Тип розеток: 1/ 230В
+        Тип запуска: Ручной стартер
+        Емкость топливного бака, л: '5'
+        Время непрерывной работы при номинальной мощности, ч: 2,8
+        Вес нетто / брутто, кг: 23 / 25
+        Штрихкод: '4610119608385'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-3600I PROMO
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '2.8'
+        MaximumPower: '3.0'
+      source_url: https://uralopt.ru/products/inverter-generators/carver-PPG-3600I-promo-invertor-generator4970/
+    PPG-3600I:
+      brand: CARVER
+      title: Генератор CARVER PPG-3600I
+      series: PPG-3600I
+      group: generator
+      description: 'Инверторный генератор 2,8/3 кВт, 220 В, две розетки 220 В и USB-порты.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 21 560 ₽.'
+      price: 21560
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3600I-1-d2d775cd9560.jpg
+      tech:
+        Модель двигателя: LT170Fi
+        Тип двигателя: 4-тактный, 1-цилиндровый, с воздушным охлаждением
+        Номинальная мощность генератора, кВт: 2,8
+        Максимальная мощность генератора, кВт: '3'
+        Выходное напряжение / частота, В/Гц: ~230 / 50
+        Тип розеток: 2x16A/230В
+        Тип запуска: Ручной стартер
+        Емкость топливного бака, л: '8'
+        Время непрерывной работы при номинальной мощности, ч: 8,5 (при 50% нагрузке), 5 (при 100% нагрузке)
+        Вес нетто / брутто, кг: 24 / 25
+        Артикул: 01.020.00053
+        Штрихкод: '4610119608262'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-3600I
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '2.8'
+        MaximumPower: '3.0'
+      source_url: https://uralopt.ru/products/inverter-generators/carver-PPG-3600I-invertor-generator8921/
+    PPG-3900I:
+      brand: CARVER
+      title: Генератор CARVER PPG-3900I
+      series: PPG-3900I
+      group: generator
+      description: 'Инверторный генератор 3/3,3 кВт, выходы 220/12 В, две розетки 220 В, дисплей.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 23 432 ₽.'
+      price: 23432
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3900I-1-41dd9633affd.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3900I-2-4afdd1d4b66b.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3900I-3-45bf15503587.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3900I-4-53946c68f5b0.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3900I-5-37fe162059f2.jpg
+      tech:
+        Модель двигателя: H210i-2
+        Тип двигателя: Четырехтактный, одноцилиндровый, с воздушным охлаждением
+        Номинальная мощность генератора, кВт: '3'
+        Максимальная мощность генератора, кВт: 3,3
+        Выходное напряжение, В: ~230 / 12
+        Тип розеток: 1/12В + 2 / 230В
+        Тип запуска: Ручной стартер
+        Емкость топливного бака, л: 7,5
+        Время непрерывной работы при номинальной мощности, ч: 3,5
+        Многофункциональный цифровой дисплей: Есть
+        Артикул: 01.020.00035
+        Штрихкод: '4610119607975'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-3900I
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '3.0'
+        MaximumPower: '3.3'
+      source_url: https://uralopt.ru/products/inverter-generators/carver-PPG-3900I-invertor-generator/
+    PPG-4100IS:
+      brand: CARVER
+      title: Генератор CARVER PPG-4100IS
+      series: PPG-4100IS
+      group: generator
+      description: 'Инверторный генератор 3,2/3,5 кВт, выходы 220/12 В, две розетки 220 В, дисплей.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 42 449 ₽.'
+      price: 42449
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4100IS-1-133f715dc68b.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4100IS-2-73e5168cb8db.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4100IS-3-29cfbbd9ee9a.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4100IS-4-32e8744dae5a.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4100IS-5-b51fad3cfc97.jpg
+      tech:
+        Модель двигателя: H175i
+        Тип двигателя: 4-тактный, 1-цилиндриновый, с воздушным охлаждением
+        Номинальная мощность генератора, кВт: 3,2
+        Максимальная мощность генератора, кВт: 3,5
+        Выходное напряжение, В: ~230 / 12
+        Тип розеток: 1/12В + 2 / 230В
+        Тип запуска: Ручной стартер
+        Емкость топливного бака, л: '8'
+        Время непрерывной работы при номинальной мощности, ч: '4'
+        Многофункциональный цифровой дисплей: Есть
+        Артикул: 01.020.00038
+        Штрихкод: '4610119607951'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-4100IS
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '3.2'
+        MaximumPower: '3.5'
+      source_url: https://uralopt.ru/products/inverter-generators/carver-PPG-4100IS-invertor-generator3779/
+    PPG-4500I:
+      brand: CARVER
+      title: Генератор CARVER PPG-4500I
+      series: PPG-4500I
+      group: generator
+      description: 'Инверторный генератор 3,5/3,8 кВт, выходы 220/12 В, две розетки 220 В, дисплей.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 25 201 ₽.'
+      price: 25201
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4500I-1-1cb9a56f1e6b.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4500I-2-b5c4602d4d4f.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4500I-3-635e5457c10a.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4500I-4-66018fb55232.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4500I-5-64471755b9e6.jpg
+      tech:
+        Модель двигателя: H225i-2
+        Тип двигателя: Четырехтактный, одноцилиндровый, с воздушным охлаждением
+        Номинальная мощность генератора, кВт: 3,5
+        Максимальная мощность генератора, кВт: 3,8
+        Выходное напряжение, В: ~230 / 12
+        Тип розеток: 1/12В + 2 / 230В
+        Тип запуска: Ручной стартер
+        Емкость топливного бака, л: 7,5
+        Время непрерывной работы при номинальной мощности, ч: '3'
+        Многофункциональный цифровой дисплей: Есть
+        Артикул: 01.020.00036
+        Штрихкод: '4610119607982'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-4500I
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '3.5'
+        MaximumPower: '3.8'
+      source_url: https://uralopt.ru/products/inverter-generators/carver-PPG-4500I-invertor-generator/
+    PPG-4500IS-DUOMATIC:
+      brand: CARVER
+      title: Генератор CARVER PPG-4500IS DUOMATIC
+      series: PPG-4500IS DUOMATIC
+      group: generator
+      description: 'Инверторный двухтопливный генератор: бензин/баллонный газ, максимальная мощность 4 кВт, выходы 220/12
+        В, две розетки, USB и дисплей.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 53 727 ₽.'
+      price: 53727
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4500IS-DUOMATIC-1-cec17a7e4201.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4500IS-DUOMATIC-2-c42c6a9f5aca.jpg
+      tech:
+        Модель двигателя: H225i
+        Тип двигателя: 4-тактный, 1-цилиндровый, с воздушным охлаждением
+        Номинальная мощность генератора, бензин / газ, кВт: 3,5 / 3,2
+        Максимальная мощность генератора, кВт: '4'
+        Выходное напряжение, В: ~230 / 12
+        Тип розеток: 1/12В + 2/230В
+        Тип топлива: Бензин АИ92 / Газ пропан-бутан (баллонный)
+        Тип запуска: Ручной стартер
+        Емкость топливного бака, л: '12'
+        Время непрерывной работы при номинальной мощности, бензин / газ, ч: 4,8 / в зависимости от объема газового баллона
+        Многофункциональный цифровой дисплей: Есть
+        Вес нетто / брутто, кг: 41 / 43
+        Артикул: 01.020.00069
+        Штрихкод: '4610119608217'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-4500IS DUOMATIC
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '3.5'
+        MaximumPower: '4.0'
+      source_url: https://uralopt.ru/products/dual-fuel-inverter-generators/carver-PPG-4500IS-duo-invertor-generator9305/
+    PPG-4500IS:
+      brand: CARVER
+      title: Генератор CARVER PPG-4500IS
+      series: PPG-4500IS
+      group: generator
+      description: 'Инверторный генератор 3,5/4 кВт, выходы 220/12 В, две розетки, USB, дисплей и колёса.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 48 372 ₽.'
+      price: 48372
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4500IS-1-9399437bc0fc.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4500IS-2-829385aeb83c.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4500IS-3-14d0ab266094.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4500IS-4-1c1ca567a1ee.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-4500IS-5-0b14a8ecf073.jpg
+      tech:
+        Модель двигателя: H225i
+        Тип двигателя: Четырехтактный, одноцилиндровый, с воздушным охлаждением
+        Номинальная мощность генератора, кВт: 3,5
+        Максимальная мощность генератора, кВт: '4'
+        Выходное напряжение, В: ~230 / 12
+        Тип розеток: 1/12В + 2 / 230В
+        Тип запуска: Ручной стартер
+        Емкость топливного бака, л: '12'
+        Время непрерывной работы при номинальной мощности, ч: 4,8
+        Многофункциональный цифровой дисплей: Есть
+        Артикул: 01.020.00037
+        Штрихкод: '4610119607968'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-4500IS
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '3.5'
+        MaximumPower: '4.0'
+      source_url: https://uralopt.ru/products/inverter-generators/carver-PPG-4500IS-invertor-generator/
+    PPG-5100ISE:
+      brand: CARVER
+      title: Генератор CARVER PPG-5100ISE
+      series: PPG-5100ISE
+      group: generator
+      description: 'Инверторный генератор 4/4,5 кВт, 220 В, две розетки, USB, дисплей, колёса и электростартер.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 50 419 ₽.'
+      price: 50419
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-5100ISE-1-02b8c690ea94.jpg
+      tech:
+        Модель двигателя: LT172FiSE
+        Тип двигателя: 4-тактный, 1-цилиндровый, с воздушным охлаждением
+        Номинальная мощность генератора, кВт: '4'
+        Максимальная мощность генератора, кВт: 4,5
+        Выходное напряжение / частота, В/Гц: ~230 / 50
+        Тип розеток: 2x16A/230В
+        Тип запуска: Электростартер
+        Емкость топливного бака, л: '11'
+        Время непрерывной работы при 100% нагрузке, ч: 3,8
+        Многофункциональный цифровой дисплей: Есть
+        Вес нетто / брутто, кг: 42 / 45
+        Штрихкод: '4610119608354'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-5100ISE
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '4.0'
+        MaximumPower: '4.5'
+      source_url: https://uralopt.ru/products/inverter-generators/carver-PPG-5100ISE-invertor-generator4607/
+    PPG-5500I-DUOMATIC:
+      brand: CARVER
+      title: Генератор CARVER PPG-5500I DUOMATIC
+      series: PPG-5500I DUOMATIC
+      group: generator
+      description: 'Инверторный двухтопливный генератор: бензин/баллонный газ, максимальная мощность 4,5 кВт, выходы 220/12
+        В, две розетки и дисплей.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 34 475 ₽.'
+      price: 34475
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-5500I-DUOMATIC-1-74ec24090803.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-5500I-DUOMATIC-2-c42c6a9f5aca.jpg
+      tech:
+        Модель двигателя: H225i-4
+        Тип двигателя: 4-тактный, 1-цилиндровый, с воздушным охлаждением
+        Номинальная мощность генератора, бензин / газ, кВт: 4,2 / 3,8
+        Максимальная мощность генератора, кВт: 4,5
+        Выходное напряжение, В: ~230 / 12
+        Тип розеток: 1/12В + 2/230В
+        Тип топлива: Бензин АИ92 / Газ пропан-бутан (баллонный)
+        Тип запуска: Ручной стартер
+        Емкость топливного бака, л: '13'
+        Время непрерывной работы при номинальной мощности, бензин / газ, ч: 5 / в зависимости от объема газового баллона
+        Многофункциональный цифровой дисплей: Есть
+        Вес нетто / брутто, кг: 30,5 / 32,5
+        Артикул: 01.020.00070
+        Штрихкод: '4610119608224'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-5500I DUOMATIC
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '4.2'
+        MaximumPower: '4.5'
+      source_url: https://uralopt.ru/products/dual-fuel-inverter-generators/carver-PPG-5500I-duo-invertor-generator/
+    PPG-5500I:
+      brand: CARVER
+      title: Генератор CARVER PPG-5500I
+      series: PPG-5500I
+      group: generator
+      description: 'Инверторный генератор 4,5/5,0 кВт, выходы 220/12 В, две розетки, USB и дисплей.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 30 997 ₽.'
+      price: 30997
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-5500I-1-82f1e3f70231.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-5500I-2-8e1398f522d9.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-5500I-3-cef1335f181d.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-5500I-4-03ffc682e442.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-5500I-5-f84d9ac250aa.jpg
+      tech:
+        Модель двигателя: H225i-4
+        Тип двигателя: Четырехтактный, одноцилиндровый, с воздушным охлаждением
+        Номинальная мощность генератора, кВт: 4,2
+        Максимальная мощность генератора, кВт: 4,5
+        Выходное напряжение, В: ~230 / 12
+        Тип розеток: 1/12В + 2 / 230В
+        Тип запуска: Ручной стартер
+        Емкость топливного бака, л: '13'
+        Время непрерывной работы при номинальной мощности, ч: '5'
+        Многофункциональный цифровой дисплей: Есть
+        Артикул: 01.020.00045
+        Штрихкод: '4610119606817'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-5500I
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '4.5'
+        MaximumPower: '5.0'
+      source_url: https://uralopt.ru/products/inverter-generators/carver-PPG-5500I-invertor-generator/
+    PPG-9500IR:
+      brand: CARVER
+      title: Генератор CARVER PPG-9500IR
+      series: PPG-9500IR
+      group: generator
+      description: 'Инверторный генератор 7,5/8 кВт, 220 В, розетки 16/32 А, USB, порт ATS, дисплей, колёса и электростартер.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 61 117 ₽.'
+      price: 61117
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-9500IR-1-7d260671cee8.jpg
+      tech:
+        Модель двигателя: LT190Fi-V
+        Тип двигателя: 4-тактный, 1-цилиндровый, с воздушным охлаждением
+        Номинальная мощность генератора, кВт: 7,5
+        Максимальная мощность генератора, кВт: '8'
+        Выходное напряжение / частота, В/Гц: ~230 / 50
+        Тип розеток: 1x16A + 1x32A/230В
+        Тип запуска: Ручной стартер / Электростартер
+        Емкость топливного бака, л: '25'
+        Время непрерывной работы при 100% нагрузке, ч: 5,5
+        Многофункциональный цифровой дисплей: Есть
+        Вес нетто / брутто, кг: 64,3 / 67,6
+        Штрихкод: '4610119630805'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-9500IR
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '7.5'
+        MaximumPower: '8.0'
+      source_url: https://uralopt.ru/products/inverter-generators/carver-PPG-9500IR-invertor-generator/
+    PPG-10000IR:
+      brand: CARVER
+      title: Генератор CARVER PPG-10000IR
+      series: PPG-10000IR
+      group: generator
+      description: 'Инверторный генератор 8/8,5 кВт, выходы 220/12 В, три розетки, порт ATS, дисплей и колёса.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 78 318 ₽.'
+      price: 78318
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-10000IR-1-da1e9a6ba147.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-10000IR-2-4716b5ee1d92.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-10000IR-3-34a47d6c42a4.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-10000IR-4-8560895442f6.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-10000IR-5-df08f560e042.jpg
+      tech:
+        Модель двигателя: H460iD
+        Тип двигателя: 4-тактный, 1-цилиндриновый, с воздушным охлаждением
+        Номинальная мощность генератора, кВт: '8'
+        Максимальная мощность генератора, кВт: 8,5
+        Выходное напряжение, В: ~230 / 12
+        Тип розеток: 1/12B + 2x16A/230B + 1x32A/230B
+        Тип запуска: Электростартер
+        Емкость топливного бака, л: '20'
+        Время непрерывной работы при номинальной мощности, ч: 3,7
+        Многофункциональный цифровой дисплей: Есть
+        Вес нетто / брутто, кг: 68 / 71
+        Артикул: 01.020.00088
+        Штрихкод: '4610119634209'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-10000IR
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '8.0'
+        MaximumPower: '8.5'
+      source_url: https://uralopt.ru/products/inverter-generators/carver-PPG-10000IR-invertor-generator/
+    PPG-15000IVR:
+      brand: CARVER
+      title: Генератор CARVER PPG-15000IVR
+      series: PPG-15000IVR
+      group: generator
+      description: 'Инверторный генератор 10/11 кВт, 220/400 В, USB, порт ATS, дисплей, колёса и электростартер.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 97 724 ₽.'
+      price: 97724
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-15000IVR-1-5c1c49753689.jpg
+      tech:
+        Модель двигателя: LT196Fi-V
+        Тип двигателя: 4-тактный, 1-цилиндровый, с воздушным охлаждением
+        Номинальная мощность генератора, кВт: 10 (при 230В и 400В)
+        Максимальная мощность генератора, кВт: 11 (при 230В и 400В)
+        Тип розеток: 1x16A + 1x40A/230В, 1x16A/400В
+        Тип запуска: Ручной стартер / Электростартер
+        Емкость топливного бака, л: '40'
+        Время непрерывной работы при 100% нагрузке, ч: 6,5
+        Многофункциональный цифровой дисплей: Есть
+        Вес нетто / брутто, кг: 86,2 / 89,8
+        Штрихкод: '4610119630782'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-15000IVR
+        FuelType: Бензин
+        Voltage: 220 В / 380 В
+        RatedPower: '10.0'
+        MaximumPower: '11.0'
+      source_url: https://uralopt.ru/products/inverter-generators/carver-PPG-15000IVR-invertor-generator/
+    PPG-3600:
+      brand: CARVER
+      title: Генератор CARVER PPG-3600
+      series: PPG-3600
+      group: generator
+      description: 'Бензиновый генератор с двигателем LT-168F-1: 2,5/2,8 кВт, 220 В, бак 15 л, медная обмотка.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 16 597 ₽.'
+      price: 16597
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3600-1-692cbd7d2965.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-3600-2-79eec3e31b72.jpg
+      tech:
+        Модель двигателя: LT-168F-1
+        Выходное напряжение, В: ~230/12
+        Тип розеток: 2x16А / 230В
+        Емкость топливного бака, л: '15'
+        Время непрерывной работы, ч: '12'
+        Артикул: 01.020.00003
+        Штрихкод: '4630086693313'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-3600
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '2.5'
+        MaximumPower: '2.8'
+      source_url: https://uralopt.ru/products/gasoline-generators/Carve-PPG-3600-generator/
+    PPG-8000:
+      brand: CARVER
+      title: Генератор CARVER PPG-8000
+      series: PPG-8000
+      group: generator
+      description: 'Бензиновый генератор с двигателем LT-190F: 6/6,5 кВт, 220 В, бак 25 л, медная обмотка.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 41 738 ₽.'
+      price: 41738
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-8000-1-2093d0d7b499.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-8000-2-3b8ed4ed513c.jpg
+      tech:
+        Модель двигателя: LT-190F
+        Выходное напряжение, В: ~230/12
+        Тип розеток: 2x16А + 1х32А / 230В
+        Емкость топливного бака, л: '25'
+        Время непрерывной работы, ч: '8'
+        Артикул: 01.020.00020
+        Штрихкод: '4630086693382'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-8000
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '6.0'
+        MaximumPower: '6.5'
+      source_url: https://uralopt.ru/products/gasoline-generators/carver-PPG-8000-petrol-power-generator1107-2020/
+    PPG-8000EM:
+      brand: CARVER
+      title: Генератор CARVER PPG-8000EM
+      series: PPG-8000EM
+      group: generator
+      description: 'Бензиновый генератор с двигателем LT-190F: 6/6,5 кВт, 220 В, бак 33 л, электростартер, колёса, медная
+        обмотка.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 46 199 ₽.'
+      price: 46199
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-8000EM-1-4187b5d2b4eb.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-8000EM-2-eb2c445b266d.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-8000EM-3-1b570d9ec57a.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-8000EM-4-adde431cd426.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-8000EM-5-3ccabbd6710e.jpg
+      tech:
+        Модель двигателя: LT-190F
+        Выходное напряжение, В: ~230/12
+        Тип розеток: 2x16А / 230В + 1x32А / 230В
+        Емкость топливного бака, л: '33'
+        Время непрерывной работы, ч: '11'
+        Артикул: 01.020.00030
+        Штрихкод: '4610119607890'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-8000EM
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '6.0'
+        MaximumPower: '6.5'
+      source_url: https://uralopt.ru/products/gasoline-generators/carver-PPG-8000EM/
+    PPG-9000R:
+      brand: CARVER
+      title: Генератор CARVER PPG-9000R
+      series: PPG-9000R
+      group: generator
+      description: 'Бензиновый генератор с двигателем LT-192FA: 7/7,5 кВт, 220 В, бак 25 л, электростартер, порт ATS, колёса
+        и ручки, медная обмотка.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 52 037 ₽.'
+      price: 52037
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-9000R-1-7fa203ac036d.jpg
+      tech:
+        Модель двигателя: LT-192FA
+        Выходное напряжение, В: ~220/12
+        Тип розеток: 2 / 230В + 1 / 230В
+        Емкость топливного бака, л: '25'
+        Время непрерывной работы, ч: '7'
+        Штрихкод: '4610119630751'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-9000R
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '7.0'
+        MaximumPower: '7.5'
+      source_url: https://uralopt.ru/products/gasoline-generators/carver-PPG-9000R-generator/
+    PPG-9000E:
+      brand: CARVER
+      title: Генератор CARVER PPG-9000E
+      series: PPG-9000E
+      group: generator
+      description: 'Бензиновый генератор с двигателем LT-192FA: 7/7,5 кВт, 220 В, бак 25 л, электростартер, колёса и ручки,
+        медная обмотка.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 50 467 ₽.'
+      price: 50467
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-9000E-1-f4a8dd37948d.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-9000E-2-0059318cf823.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-9000E-3-a5208214061c.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-9000E-4-a4092deb027b.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-9000E-5-edb505a69381.jpg
+      tech:
+        Модель двигателя: LT-192FA
+        Выходное напряжение, В: ~220/12
+        Тип розеток: 2x16А + 1х32А / 220В
+        Емкость топливного бака, л: '25'
+        Время непрерывной работы, ч: '7'
+        Артикул: 01.020.00040
+        Штрихкод: '4610119608071'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-9000E
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '7.0'
+        MaximumPower: '7.5'
+      source_url: https://uralopt.ru/products/gasoline-generators/carver-PPG-9000E-generator/
+    PPG-10000R:
+      brand: CARVER
+      title: Генератор CARVER PPG-10000R
+      series: PPG-10000R
+      group: generator
+      description: 'Бензиновый генератор с двигателем LT-192FB: 8/8,3 кВт, 220 В, бак 25 л, электростартер, порт ATS, колёса
+        и ручки, медная обмотка.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 56 403 ₽.'
+      price: 56403
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-10000R-1-45cf69703d1a.jpg
+      tech:
+        Модель двигателя: LT-192FB
+        Выходное напряжение, В: ~230/12
+        Тип розеток: 2 / 230В + 1 / 230В
+        Емкость топливного бака, л: '25'
+        Время непрерывной работы, ч: '6'
+        Штрихкод: '4610119630768'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-10000R
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '8.0'
+        MaximumPower: '8.3'
+      source_url: https://uralopt.ru/products/gasoline-generators/carver-PPG-10000R-generator/
+    PPG-10000EM:
+      brand: CARVER
+      title: Генератор CARVER PPG-10000EM
+      series: PPG-10000EM
+      group: generator
+      description: 'Бензиновый генератор с двигателем LT-192FA: 7/7,5 кВт, 220 В, бак 33 л, электростартер, колёса, медная
+        обмотка.
+
+
+        Новый товар CARVER в заводской комплектации. Позиция включена в актуальный остаток продавца.
+
+        Симферополь: самовывоз или доставка по городу и Крыму.
+
+        Цена за один генератор: 56 403 ₽.'
+      price: 56403
+      stock: 1
+      photos:
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-10000EM-1-9e30004231e1.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-10000EM-2-8e8bb9cd0fbf.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-10000EM-3-0c2e2169082d.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-10000EM-4-cf3fb44767e0.jpg
+      - https://splithome.ru/static/manual-photos/carver-2026-07-29/PPG-10000EM-5-78a85cbc2d91.jpg
+      tech:
+        Модель двигателя: LT-192FA
+        Выходное напряжение, В: ~230/12
+        Тип розеток: 2x16А / 230В + 1x32А / 220В
+        Емкость топливного бака, л: '33'
+        Время непрерывной работы, ч: '10'
+        Артикул: 01.020.00031
+        Штрихкод: '4610119607906'
+      avito_tags:
+        Brand: CARVER
+        Model: PPG-10000EM
+        FuelType: Бензин
+        Voltage: 220 В
+        RatedPower: '7.0'
+        MaximumPower: '7.5'
+      source_url: https://uralopt.ru/products/gasoline-generators/carver-PPG-10000EM/
+  selected_series:
+  - manual|item|manual:PPG-2100IS-DUOMATIC
+  - manual|item|manual:PPG-2500IS
+  - manual|item|manual:PPG-3500IS-DUOMATIC
+  - manual|item|manual:PPG-3500IS
+  - manual|item|manual:PPG-3600I-PROMO
+  - manual|item|manual:PPG-3600I
+  - manual|item|manual:PPG-3900I
+  - manual|item|manual:PPG-4100IS
+  - manual|item|manual:PPG-4500I
+  - manual|item|manual:PPG-4500IS-DUOMATIC
+  - manual|item|manual:PPG-4500IS
+  - manual|item|manual:PPG-5100ISE
+  - manual|item|manual:PPG-5500I-DUOMATIC
+  - manual|item|manual:PPG-5500I
+  - manual|item|manual:PPG-9500IR
+  - manual|item|manual:PPG-10000IR
+  - manual|item|manual:PPG-15000IVR
+  - manual|item|manual:PPG-3600
+  - manual|item|manual:PPG-8000
+  - manual|item|manual:PPG-8000EM
+  - manual|item|manual:PPG-9000R
+  - manual|item|manual:PPG-9000E
+  - manual|item|manual:PPG-10000R
+  - manual|item|manual:PPG-10000EM
 cards:
   enabled: false
-  dir: ""
-  base_url: ""
-  exts: [".jpg", ".jpeg", ".png"]
+  dir: ''
+  base_url: ''
+  exts:
+  - .jpg
+  - .jpeg
+  - .png
+  - .webp
   require_for_publish: false
   max_images: 10
   supplier_photo_series: []

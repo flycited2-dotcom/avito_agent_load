@@ -118,3 +118,12 @@ def test_build_catalog_json_marks_manual_photo_as_card():
     cfg.catalog.manual_photos = {"НС-1": "https://splithome.ru/static/manual-photos/НС-1.jpg"}
     data = build_catalog_json([_offer("breeze:НС-1")], cfg)
     assert data["series"][0]["has_card"] is True
+
+
+def test_build_catalog_json_marks_manual_product_photos_as_card():
+    offer = _offer("manual:PPG-2100IS-DUOMATIC")
+    offer.source = "manual"
+
+    data = build_catalog_json([offer], _cfg())
+
+    assert data["series"][0]["has_card"] is True

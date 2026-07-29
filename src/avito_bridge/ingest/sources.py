@@ -59,11 +59,17 @@ def fetch_carver_xlsx(cfg: AppConfig) -> list[Offer]:
     return _fetch(cfg)
 
 
+def fetch_manual_only(cfg: AppConfig) -> list[Offer]:
+    """Profiles whose complete inventory lives in catalog.manual_products."""
+    return []
+
+
 SOURCES: dict[str, Callable[[AppConfig], list[Offer]]] = {
     "oasis_db": fetch_oasis,
     "ritualb2b_site": fetch_ritualb2b,
     "price_xls": fetch_price_xls,
     "carver_xlsx": fetch_carver_xlsx,
+    "manual_only": fetch_manual_only,
 }
 
 

@@ -38,6 +38,10 @@ def _group_json(g: SeriesGroup, cfg: AppConfig) -> dict:
             "ad_id_revision": cfg.feed.ad_id_revision.get(ad_supplier_sku, 0),
             "stock_total": sum(m.stock for m in g.members),
             "has_card": (has_card(g.representative, cfg.cards)
+                         or (
+                             g.representative.source == "manual"
+                             and bool(g.representative.photos)
+                         )
                          or bool((cfg.catalog.manual_photos or {}).get(representative_nc))),
             "forced": any(m.forced for m in g.members),
             "members": [_member_json(m, cfg) for m in g.members]}
