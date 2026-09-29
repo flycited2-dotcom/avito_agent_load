@@ -259,12 +259,17 @@ def _valid_content(path: Path, item: dict) -> tuple[dict | None, str | None]:
             with Image.open(image) as opened:
                 if min(opened.size) < 400:
                     return None, "insufficient_content_image_resolution"
-                if filename == content.get("card") and opened.size != (2048, 1536):
-                    return None, "avito_card_must_be_2048x1536"
                 opened.verify()
         except (OSError, ValueError, UnidentifiedImageError):
             return None, "missing_or_invalid_content_image"
     return content, None
+
+
+def _card_size_reason(path: Path, content: dict) -> str | None:
+    with Image.open(path / content["card"]) as card:
+        if card.size != (2048, 1536):
+            return "avito_card_must_be_2048x1536"
+    return None
 
 
 def _visual_approval_reason(path: Path, content: dict, approvals: dict) -> str | None:
@@ -553,6 +558,10 @@ def publish_ready_content(database: Path, feed: Path, manual_stops: Path, bridge
             held[article] = "category_requires_review"
             continue
         tags, reason = schema_tags(schemas[slug], content)
+        if reason:
+            held[article] = reason
+            continue
+        reason = _card_size_reason(directory, content)
         if reason:
             held[article] = reason
             continue

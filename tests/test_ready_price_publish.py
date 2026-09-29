@@ -6,7 +6,7 @@ from PIL import Image
 from avito_bridge.ready_price.identity import identity_db
 from avito_bridge.ready_price.publish import (
     _publication_tables, _refresh_rejected_batches, _rejected_batches, _technical_value,
-    _unresolved_batch_ids, _valid_content, _visual_approval_reason, category_slug, schema_tags,
+    _unresolved_batch_ids, _valid_content, _card_size_reason, _visual_approval_reason, category_slug, schema_tags,
     publish_ready_content, update_batch_receipt,
 )
 
@@ -100,8 +100,10 @@ def test_content_without_passed_text_audit_is_held(tmp_path):
     assert _valid_content(tmp_path, item)[1] is None
 
     Image.new("RGB", (1536, 1536), "white").save(tmp_path / "card.png")
-    assert _valid_content(tmp_path, item)[1] == "avito_card_must_be_2048x1536"
+    assert _valid_content(tmp_path, item)[1] is None
+    assert _card_size_reason(tmp_path, content) == "avito_card_must_be_2048x1536"
     Image.new("RGB", (2048, 1536), "white").save(tmp_path / "card.png")
+    assert _card_size_reason(tmp_path, content) is None
 
     Image.effect_noise((64, 64), 100).convert("RGB").save(tmp_path / "original.png")
     assert _valid_content(tmp_path, item)[1] == "insufficient_content_image_resolution"
