@@ -27,6 +27,7 @@ class AppConfig:
     grouping: str = "series"       # series (кондиционеры) | per_item (венки: 1 товар = 1 объявление)
     feed_path: str = "feed_out/feed.xml"   # свой файл фида на профиль (второй бизнес не затирает первый)
     public_feed_path: str = ""      # абсолютный путь публичного XML на VPS
+    manual_stop_path: str = ""       # общий стоп-лист ручных снятий в Avito
     source_options: dict = None    # настройки адаптера источника (price_xls: path/selected_groups/…)
     config_path: Path | None = None
     bridge_root: Path | None = None
@@ -48,6 +49,8 @@ def load_config(path: Path) -> AppConfig:
                       min_active_ads=f.get("min_active_ads", 0),
                       max_drop_fraction=float(f.get("max_drop_fraction", 1.0)),
                       base_tags=f.get("base_tags", {}),
+                      overridable_tags=f.get("overridable_tags", []) or [],
+                      tag_order=f.get("tag_order"),
                       product_type_map=ptmap,
                       product_type_default=f.get("product_type_default", ""),
                       ac_type_map=actmap, ac_subtype_map=acsmap,
@@ -71,7 +74,8 @@ def load_config(path: Path) -> AppConfig:
                             website_link=cc.get("website_link", "") or "",
                             website_link_keys=frozenset(cc.get("website_link_keys", []) or []),
                             descriptions=descriptions,
-                            description_attr=cc.get("description_attr", "") or "")
+                            description_attr=cc.get("description_attr", "") or "",
+                            condition_notice=cc.get("condition_notice", "") or "")
     cat = d.get("catalog", {})
     force_include = {}                           # {nc: {price, series}} — series разводит товары по разным объявлениям
     for k, v in (cat.get("force_include", {}) or {}).items():
@@ -83,12 +87,38 @@ def load_config(path: Path) -> AppConfig:
     manual_products = {str(k): v for k, v in (cat.get("manual_products", {}) or {}).items()}
     catalog = CatalogFilter(report_category_ids=cat.get("report_category_ids", [2, 6, 7]),
                             exclude_title_patterns=cat.get("exclude_title_patterns", []),
+                            excluded_sources={
+                                str(value).strip().casefold()
+                                for value in (cat.get("excluded_sources", []) or [])
+                                if str(value).strip()
+                            },
                             force_include=force_include, manual_photos=manual_photos,
                             manual_price_override=manual_price_override,
                             manual_card_brief=manual_card_brief,
                             manual_products=manual_products,
                             crimea_warehouse=cat.get("crimea_warehouse", "Симферополь"),
-                            site_base_url=cat.get("site_base_url", "") or "")
+                            site_base_url=cat.get("site_base_url", "") or "",
+                            inverter_only_category_ids={
+                                int(value) for value in (
+                                    cat.get("inverter_only_category_ids", []) or []
+                                )
+                            },
+                            heat_pump_threshold=int(cat.get("heat_pump_threshold", -20)),
+                            category_tags={
+                                int(key): dict(value or {})
+                                for key, value in (cat.get("category_tags", {}) or {}).items()
+                            },
+                            heat_pump_tags=dict(cat.get("heat_pump_tags", {}) or {}),
+                            category_labels={
+                                int(key): str(value)
+                                for key, value in (cat.get("category_labels", {}) or {}).items()
+                            },
+                            supplier_photo_category_ids={
+                                int(value) for value in (
+                                    cat.get("supplier_photo_category_ids", []) or []
+                                )
+                            },
+                            include_jac_snapshot=bool(cat.get("include_jac_snapshot", True)))
     selected_values = list(cat.get("selected_series", []) or [])
     if "__none__" in selected_values and selected_values != ["__none__"]:
         raise ValueError(
@@ -102,7 +132,9 @@ def load_config(path: Path) -> AppConfig:
                        exts=cd.get("exts", [".jpg", ".jpeg", ".png"]),
                        require_for_publish=bool(cd.get("require_for_publish", False)),
                        supplier_photo_series=frozenset(cd.get("supplier_photo_series", []) or []),
-                       max_images=int(cd.get("max_images", 10)))
+                       max_images=int(cd.get("max_images", 10)),
+                       mode=str(cd.get("mode", "") or ""),
+                       input_dir=str(cd.get("input_dir", "") or ""))
     prof = d.get("profile", {}) or {}
     source = prof.get("source", "oasis_db")
     grouping = prof.get("grouping", "series")
@@ -124,6 +156,7 @@ def load_config(path: Path) -> AppConfig:
                      grouping=grouping,
                      feed_path=prof.get("feed_path", "feed_out/feed.xml"),
                      public_feed_path=prof.get("public_feed_path", ""),
+                     manual_stop_path=prof.get("manual_stop_path", ""),
                      source_options=prof.get("source_options", {}) or {},
                      config_path=path,
                      bridge_root=bridge_root)

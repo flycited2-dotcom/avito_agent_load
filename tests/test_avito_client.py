@@ -102,6 +102,54 @@ def test_last_successful_items_walks_all_pages():
     assert items[-1]["ad_id"] == "p3-4"
 
 
+def test_list_items_includes_removed_and_walks_pages():
+    seen_status = []
+
+    def handler(req):
+        if req.url.path == "/token":
+            return httpx.Response(200, json={"access_token": "T", "expires_in": 999})
+        if req.url.path == "/core/v1/items":
+            status = req.url.params.get("status")
+            seen_status.append(status)
+            page = int(req.url.params.get("page", "1"))
+            return httpx.Response(200, json={
+                "resources": [{"id": len(seen_status), "status": status}],
+                "meta": {"page": page, "pages": 2, "per_page": 100},
+            })
+        return httpx.Response(404)
+
+    items = _client(handler).list_items(("active", "removed"))
+    assert [item["status"] for item in items] == [
+        "active", "active", "removed", "removed"
+    ]
+    assert seen_status == [
+        "active", "active", "removed", "removed",
+    ]
+
+
+def test_filtered_autoload_queries_explicit_ids_in_single_pages():
+    calls = []
+    def handler(req):
+        if req.url.path == '/token':
+            return httpx.Response(200, json={'access_token': 'T', 'expires_in': 999})
+        ids = req.url.params['query'].split(',')
+        assert req.url.params['perPage'] == '100'
+        calls.append(ids)
+        return httpx.Response(200, json={'items': [{'ad_id': i} for i in ids], 'meta': {'total': len(ids), 'pages': 1}})
+    result = _client(handler).last_successful_items(ad_ids=[str(i) for i in range(115)])
+    assert len(result) == 115
+    assert [len(c) for c in calls] == [50, 50, 15]
+
+
+def test_filtered_autoload_rejects_unrelated_rows():
+    def handler(req):
+        if req.url.path == '/token':
+            return httpx.Response(200, json={'access_token': 'T', 'expires_in': 999})
+        return httpx.Response(200, json={'items': [{'ad_id': 'wrong'}]})
+    with pytest.raises(ValueError, match='unrelated'):
+        _client(handler).last_successful_items(ad_ids=['right'])
+
+
 def test_status_by_ad_id_indexes_items():
     from avito_bridge.avito.client import status_by_ad_id
     items = [{"ad_id": "a1", "avito_status": "active"}, {"ad_id": "a2", "avito_status": "blocked"}]

@@ -21,6 +21,23 @@ def test_group_tech_rows():
     assert out["N2"] == {"Тип": "инвертор"}
 
 
+def test_group_tech_rows_keeps_catalog_fields_after_general_limit():
+    rows = [
+        {"nc_code": "R1", "title": f"Поле {i}", "value": str(i)}
+        for i in range(12)
+    ] + [
+        {"nc_code": "R1", "title": "Тип радиатора", "value": "Стальной панельный"},
+        {"nc_code": "R1", "title": "Материал", "value": "Сталь"},
+        {"nc_code": "R1", "title": "Количество секций", "value": "6"},
+    ]
+
+    out = group_tech_rows(rows)
+
+    assert out["R1"]["Тип радиатора"] == "Стальной панельный"
+    assert out["R1"]["Материал"] == "Сталь"
+    assert out["R1"]["Количество секций"] == "6"
+
+
 def test_row_to_raw_maps_columns():
     row = {"source": "rusklimat", "nc_code": "NC7", "brand": "Ballu",
            "title": "Ballu Olympio 07", "series": None, "category_id": 2,

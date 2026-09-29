@@ -12,7 +12,7 @@ from pathlib import Path
 from decouple import config
 from avito_bridge.config import load_config
 from avito_bridge.ingest.sources import fetch_profile_offers
-from avito_bridge.catalog.series import group_by_series, SeriesGroup
+from avito_bridge.catalog.series import group_by_series, group_per_item, SeriesGroup
 from avito_bridge.cards_pipeline import FotogenConfig, CardJobStore, run_once
 
 
@@ -31,16 +31,20 @@ def select_groups(groups: list[SeriesGroup], key: str | None, selected_series: f
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate unique cards for selected series")
     parser.add_argument("key", nargs="?", help="one explicit series key")
+    parser.add_argument(
+        "--all", action="store_true",
+        help="generate cards for all source items; does not change the publication whitelist",
+    )
     parser.add_argument("--config", default="config/config.yaml")
     parser.add_argument("--state-path", default="state/card_jobs.db")
     args = parser.parse_args(argv)
     cfg = load_config(Path(args.config))
-    if cfg.grouping != "series":
-        raise ValueError("Card generation is supported only for series profiles")
     offers = fetch_profile_offers(cfg)
-    groups = group_by_series(offers)
+    groups = group_per_item(offers) if cfg.grouping == "per_item" else group_by_series(offers)
     groups = select_groups(
-        groups, args.key, cfg.selected_series, cfg.cards.supplier_photo_series
+        groups, args.key,
+        frozenset() if args.all else cfg.selected_series,
+        cfg.cards.supplier_photo_series,
     )
     bridge_root = cfg.bridge_root or Path.cwd()
     modes_path = Path(config("FOTOGEN_MODES_JSON", "config/card_modes.json"))
@@ -51,7 +55,10 @@ def main(argv: list[str] | None = None) -> int:
         api_url=config("FOTOGEN_API_URL"), token=config("FOTOGEN_API_TOKEN"),
         chat_id=int(config("FOTOGEN_CHAT_ID", "1264067528")),
         queue_db=config("FOTOGEN_QUEUE_DB"), output_dir=config("FOTOGEN_OUTPUT_DIR"),
-        cards_dir=cfg.cards.dir, mode=config("FOTOGEN_MODE", "conditioner"), modes=modes,
+        cards_dir=cfg.cards.dir,
+        mode=getattr(cfg.cards, "mode", "") or config("FOTOGEN_MODE", "conditioner"),
+        modes=modes,
+        input_dir=getattr(cfg.cards, "input_dir", ""),
         per_run=int(config("FOTOGEN_PER_RUN", "8")),
         max_pending=int(config("FOTOGEN_MAX_PENDING", "15")),
         max_total=int(config("FOTOGEN_MAX_TOTAL", "100000")))

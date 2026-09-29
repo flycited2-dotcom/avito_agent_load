@@ -124,6 +124,37 @@ def test_parse_rejects_oversized_xls_before_xlrd(monkeypatch, tmp_path):
         parse_price_xls(source)
 
 
+def test_parse_btopt_stock_xlsx_uses_section_bounds_and_actual_stock(tmp_path):
+    from openpyxl import Workbook
+
+    source = tmp_path / "btopt.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Артикул", "", "", "", "Номенклатура", "", "", "", "", "", "", "", "", "Закуп", "от 100 т.руб/мес", "Склад основной ООО", "Склад управленки"])
+    sheet.append(["S-0", "", "", "", "0. До выбранного раздела", "", "", "", "", "", "", "", "", "", "", "", ""])
+    sheet.append(["S-1", "", "", "", "1. Бытовая техника", "", "", "", "", "", "", "", "", "", "", "", ""])
+    sheet.append(["S-2", "", "", "", "1.1 Чайники", "", "", "", "", "", "", "", "", "", "", "", ""])
+    sheet.append(["K-1", "", "", "", "Чайник TEST K1", "", "", "", "", "", "", "", "", 1000, 900, 2, 1])
+    sheet.append(["S-3", "", "", "", "2.1 Стабилизаторы напряжения", "", "", "", "", "", "", "", "", "", "", "", ""])
+    sheet.append(["R-1", "", "", "", "Стабилизатор TEST R1", "", "", "", "", "", "", "", "", 5000, 4500, 0, 4])
+    sheet.append(["S-4", "", "", "", "3. Генераторы", "", "", "", "", "", "", "", "", "", "", "", ""])
+    sheet.append(["G-1", "", "", "", "Генератор TEST G1", "", "", "", "", "", "", "", "", 9000, 8000, 3, 0])
+    workbook.save(source)
+
+    rows = parse_price_xls(source, {
+        "layout": "btopt_stock",
+        "section_start": "1. Бытовая техника",
+        "section_end": "2.1 Стабилизаторы напряжения",
+        "price_column": "purchase",
+    })
+
+    assert [(row["article"], row["group"], row["price"], row["stock"]) for row in rows] == [
+        ("K-1", "Чайники", 1000.0, 3),
+        ("R-1", "Стабилизаторы напряжения", 5000.0, 4),
+    ]
+    assert rows[0]["discount_100k_price"] == 900.0
+
+
 def test_clean_model_strips_leading_article_and_trailing_junk():
     assert _clean_model("003544 Крышка CAPPELLO стекло/силикон с ручкой, 24см,") == \
         "Крышка CAPPELLO стекло/силикон с ручкой, 24см"
@@ -145,6 +176,66 @@ def test_build_offers_only_selected_groups_with_tags_and_description():
     assert "Группа: " in o.attrs["desc_long"]
 
 
+def test_build_offers_applies_article_tags_after_group_tags():
+    opts = {
+        **OPTS,
+        "article_tags": {
+            "K-001": {
+                "GoodsSubType": "Электрочайники",
+                "GoodsSubCategory": "Для приготовления напитков",
+            },
+        },
+        "required_tags_by_group": {
+            "Электрочайники": [
+                "GoodsType", "GoodsSubCategory", "GoodsSubType",
+            ],
+        },
+    }
+
+    offers = build_offers(SAMPLE_ROWS[:1], opts)
+    first = next(o for o in offers if o.supplier_sku == "pricexls:K-001")
+
+    assert first.attrs["avito_tag:GoodsType"] == "Для кухни"
+    assert first.attrs["avito_tag:GoodsSubCategory"] == \
+        "Для приготовления напитков"
+    assert first.attrs["avito_tag:GoodsSubType"] == "Электрочайники"
+
+
+def test_build_offers_rejects_missing_required_article_tag():
+    opts = {
+        **OPTS,
+        "required_tags_by_group": {
+            "Электрочайники": ["ProductType"],
+        },
+    }
+
+    with pytest.raises(
+        ValueError,
+        match=r"K-001.*Электрочайники.*ProductType",
+    ):
+        build_offers(SAMPLE_ROWS, opts)
+
+
+def test_build_offers_skips_explicitly_excluded_articles_before_tag_checks():
+    opts = {
+        **OPTS,
+        "excluded_articles": ["K-001"],
+        "required_tags_by_group": {
+            "Электрочайники": ["PerArticleRequired"],
+        },
+        "article_tags": {
+            "K-002": {"PerArticleRequired": "ready"},
+        },
+    }
+
+    offers = build_offers(SAMPLE_ROWS, opts)
+
+    assert {offer.supplier_sku for offer in offers} == {
+        "pricexls:K-002",
+        "pricexls:F-001",
+    }
+
+
 def test_build_offers_series_carries_group_for_pricing_rules():
     # наценка по группам идёт через pricing.rules match {series: <группа>} — series обязан быть группой
     offers = build_offers(SAMPLE_ROWS, OPTS)
@@ -164,6 +255,29 @@ def test_build_offers_applies_manual_photo_and_final_price_by_article():
     offer = next(o for o in offers if o.supplier_sku == f"pricexls:{article}")
     assert offer.photos == ["https://splithome.ru/static/cf-cards/card.jpg"]
     assert offer.price_override == Decimal("4990")
+
+
+def test_build_offers_uses_supplier_photo_only_when_manual_one_is_absent():
+    rows = SAMPLE_ROWS[:2]
+    offers = build_offers(
+        rows, OPTS,
+        manual_photos={"K-001": "https://example.test/manual.jpg"},
+        supplier_photos={
+            "K-001": "https://example.test/supplier-k1.jpg",
+            "K-002": "https://example.test/supplier-k2.jpg",
+        },
+    )
+    assert offers[0].photos == ["https://example.test/manual.jpg"]
+    assert offers[1].photos == ["https://example.test/supplier-k2.jpg"]
+
+
+def test_build_offers_keeps_local_card_input_name_out_of_public_photos():
+    offer = build_offers(
+        SAMPLE_ROWS[:1], OPTS,
+        supplier_card_inputs={"K-001": "btopt-00000001.jpg"},
+    )[0]
+    assert offer.photos == []
+    assert offer.attrs["card_input_name"] == "btopt-00000001.jpg"
 
 
 def test_extra_tags_reach_feed_xml():
@@ -189,18 +303,22 @@ def test_fetch_price_xls_resolves_profile_path_and_applies_manual_values(
     captured = {}
     parsed_rows = [{"article": "A-1"}]
 
-    def fake_parse(path):
+    def fake_parse(path, options):
         captured["parsed_path"] = path
+        captured["parse_options"] = options
         return parsed_rows
 
     monkeypatch.setattr(price_xls, "parse_price_xls", fake_parse)
 
-    def fake_build(rows, options, *, manual_photos, manual_price_override):
+    def fake_build(rows, options, *, manual_photos, manual_price_override,
+                   supplier_photos, supplier_card_inputs):
         captured.update(
             rows=rows,
             options=options,
             manual_photos=manual_photos,
             manual_price_override=manual_price_override,
+            supplier_photos=supplier_photos,
+            supplier_card_inputs=supplier_card_inputs,
         )
         return ["built-offer"]
 
@@ -217,10 +335,13 @@ def test_fetch_price_xls_resolves_profile_path_and_applies_manual_values(
 
     assert price_xls.fetch_price_xls(cfg) == ["built-offer"]
     assert captured["parsed_path"] == source
+    assert captured["parse_options"] is options
     assert captured["rows"] == parsed_rows
     assert captured["options"] is options
     assert captured["manual_photos"] == {"A-1": "https://example.test/photo.jpg"}
     assert captured["manual_price_override"] == {"A-1": 4990}
+    assert captured["supplier_photos"] == {}
+    assert captured["supplier_card_inputs"] == {}
 
 
 @pytest.mark.parametrize("configured_path", ["", "missing.xls"])

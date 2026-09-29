@@ -61,6 +61,110 @@ def test_oasis_source_uses_configured_crimea_warehouse(monkeypatch):
     assert captured["crimea"] == "Севастополь"
 
 
+def test_radiator_taxonomy_uses_real_structured_attributes():
+    offer = Offer(
+        supplier_sku="rusklimat:r1",
+        source="rusklimat",
+        brand="Royal Thermo",
+        model="Biliner 500 — 8 секций",
+        category_id=118,
+        cost=Decimal("10000"),
+        stock=2,
+        photos=["https://example.test/r.jpg"],
+        series="Biliner",
+        attrs={
+            "Тип радиатора": "Секционный",
+            "Материал": "Биметалл",
+            "Количество секций": "8",
+        },
+    )
+    cfg = SimpleNamespace(catalog=SimpleNamespace(
+        category_tags={118: {
+            "Category": "Ремонт и строительство",
+            "GoodsType": "Камины и обогреватели",
+        }},
+        heat_pump_tags={},
+        heat_pump_threshold=-20,
+        supplier_photo_category_ids={118},
+        category_labels={118: "Радиатор отопления"},
+    ))
+
+    assert sources._apply_oasis_taxonomy(offer, cfg) is True
+    assert offer.attrs["avito_tag:Brand"] == "Royal Thermo"
+    assert offer.attrs["avito_tag:Material"] == "Биметалл"
+    assert offer.attrs["avito_tag:SectionQuantity"] == "8"
+
+
+def test_panel_radiator_taxonomy_maps_source_value_and_defaults_one_section():
+    offer = Offer(
+        supplier_sku="rusklimat:p1", source="rusklimat",
+        brand="Royal Thermo", model="Compact", category_id=118,
+        cost=Decimal("10000"), stock=1,
+        photos=["https://example.test/p.jpg"], series="Compact",
+        attrs={"Тип радиатора": "Стальной панельный", "Материал": "Сталь"},
+    )
+    cfg = SimpleNamespace(catalog=SimpleNamespace(
+        category_tags={118: {}}, heat_pump_tags={}, heat_pump_threshold=-20,
+        supplier_photo_category_ids={118},
+        category_labels={118: "Радиатор отопления"},
+    ))
+
+    assert sources._apply_oasis_taxonomy(offer, cfg) is True
+    assert offer.attrs["avito_tag:RadiatorType"] == "Панельный"
+    assert offer.attrs["avito_tag:SectionQuantity"] == "1"
+    assert offer.attrs["meta:skip_product_type"] == "1"
+
+
+def test_storage_water_heater_uses_home_appliance_taxonomy():
+    offer = Offer(
+        supplier_sku="rusklimat:w1", source="rusklimat",
+        brand="Ballu", model="Shell 80", category_id=30,
+        cost=Decimal("10000"), stock=1,
+        photos=["https://example.test/w.jpg"], series="Shell", attrs={},
+    )
+    cfg = SimpleNamespace(catalog=SimpleNamespace(
+        category_tags={30: {"GoodsType": "Для дома", "GoodsSubType": "Водонагреватели"}},
+        heat_pump_tags={}, heat_pump_threshold=-20,
+        supplier_photo_category_ids=set(),
+        category_labels={30: "Накопительный водонагреватель"},
+    ))
+
+    assert sources._apply_oasis_taxonomy(offer, cfg) is True
+    assert offer.attrs["avito_tag:GoodsType"] == "Для дома"
+    assert offer.attrs["avito_tag:GoodsSubType"] == "Водонагреватели"
+    assert offer.attrs["meta:skip_product_type"] == "1"
+
+
+def test_heat_pump_gets_heater_taxonomy_and_no_ac_fields():
+    offer = Offer(
+        supplier_sku="breeze:hp",
+        source="breeze",
+        brand="Hisense",
+        model="Vision Pro",
+        category_id=2,
+        cost=Decimal("10000"),
+        stock=1,
+        photos=["https://example.test/hp.jpg"],
+        series="Vision Pro",
+        attrs={"meta:heating_min_temp": "-25"},
+    )
+    cfg = SimpleNamespace(catalog=SimpleNamespace(
+        category_tags={2: {"ProductType": "Кондиционеры и запчасти"}},
+        heat_pump_tags={
+            "ProductType": "Обогреватели",
+            "GoodsSubType": "Тепловые насосы",
+        },
+        heat_pump_threshold=-20,
+        supplier_photo_category_ids=set(),
+        category_labels={2: "Инверторная сплит-система"},
+    ))
+
+    assert sources._apply_oasis_taxonomy(offer, cfg) is True
+    assert offer.attrs["avito_tag:ProductType"] == "Обогреватели"
+    assert offer.attrs["avito_tag:GoodsSubType"] == "Тепловые насосы"
+    assert offer.attrs["meta:skip_ac_tags"] == "1"
+
+
 def test_feed_path_default_and_profile_override(tmp_path):
     from avito_bridge.config import load_config
     base = ("cities:\n"

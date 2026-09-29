@@ -44,6 +44,52 @@ def test_load_config_parses_manual_price_override(tmp_path):
     assert cfg.catalog.manual_price_override == {"НС-1": 24990}
 
 
+def test_load_config_parses_excluded_sources_case_insensitively(tmp_path):
+    (tmp_path / "config.yaml").write_text(
+        "catalog:\n"
+        "  report_category_ids: [2]\n"
+        "  exclude_title_patterns: []\n"
+        "  excluded_sources: [RusKlimat, ' daichi ']\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(tmp_path / "config.yaml")
+
+    assert cfg.catalog.excluded_sources == {"rusklimat", "daichi"}
+
+
+def test_load_config_parses_feed_override_policy_and_tag_order(tmp_path):
+    (tmp_path / "config.yaml").write_text(
+        "feed:\n"
+        "  base_tags: {Category: Бытовая техника}\n"
+        "  overridable_tags: [Category, ProductType]\n"
+        "  tag_order: [Category, GoodsType, GoodsSubType, ProductType, Vendor]\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(tmp_path / "config.yaml")
+
+    assert cfg.feed.overridable_tags == {"Category", "ProductType"}
+    assert cfg.feed.tag_order == [
+        "Category",
+        "GoodsType",
+        "GoodsSubType",
+        "ProductType",
+        "Vendor",
+    ]
+
+
+def test_load_config_rejects_duplicate_feed_override_tags(tmp_path):
+    (tmp_path / "config.yaml").write_text(
+        "feed:\n"
+        "  overridable_tags: [Vendor, Vendor]\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="повторяющиеся XML-теги"):
+        load_config(tmp_path / "config.yaml")
+
+
 def test_load_config_parses_manual_card_brief(tmp_path):
     (tmp_path / "config.yaml").write_text(
         "cities:\n"
@@ -164,10 +210,13 @@ def test_load_config_accepts_none_sentinel_as_only_selection(tmp_path):
     assert load_config(profile).selected_series == frozenset({"__none__"})
 
 
-def test_carver_profile_publishes_confirmed_stock_only():
+def test_carver_profile_retains_stock_but_excludes_generators():
     cfg = load_config(PROJECT_ROOT / "profiles" / "carver.yaml")
     assert cfg.source == "manual_only"
-    assert cfg.source_options == {}
+    assert cfg.source_options["excluded_device_types"] == ["Генераторы"]
+    assert cfg.source_options["excluded_product_patterns"] == [r"(?i)\bгенератор\b"]
+    from avito_bridge.ingest.sources import fetch_profile_offers
+    assert fetch_profile_offers(cfg) == []
     assert cfg.pricing.default_markup_pct == 7
     assert cfg.pricing.rounding == "up_to_10"
     assert cfg.feed.max_active_ads == 24

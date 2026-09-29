@@ -1,4 +1,5 @@
 import os
+import json
 import shutil
 from pathlib import Path
 from decimal import Decimal
@@ -35,6 +36,40 @@ def test_jac_cost_is_price(tmp_path):
     )
     assert o.cost == Decimal("42000")
     assert o.stock == 5 and o.source == "jac"
+
+
+def test_jac_uses_scraper_series_and_optional_photo_map(tmp_path):
+    now = 2_000_000_000
+    stock = tmp_path / "jac_stock_latest.json"
+    stock.write_text(json.dumps([{
+        "article": "T-1", "name": "T-1", "brand": "THAICON",
+        "series": "BALANCE INVERTER", "stock_qty": 2, "price": 10000,
+        "attributes": {"категория": "Бытовые сплит-системы"},
+    }]), encoding="utf-8")
+    (tmp_path / "jac_photos_latest.json").write_text(json.dumps({
+        "THAICON": {"BALANCE INVERTER": "balance.png"},
+    }), encoding="utf-8")
+    os.utime(stock, (now, now))
+
+    offer = load_jac_offers(stock, now=now, photo_base_url="https://site/images") [0]
+
+    assert offer.series == "BALANCE INVERTER"
+    assert offer.photos == ["https://site/images/balance.png"]
+
+
+def test_jac_accepts_updated_top_level_category(tmp_path):
+    now = 2_000_000_000
+    stock = tmp_path / "jac_stock_latest.json"
+    stock.write_text(json.dumps([{
+        "article": "M-1", "name": "M-1 / O-1", "brand": "MDV",
+        "series": "INFINI INVERTER", "stock_qty": 3, "price": 20000,
+        "category": "Бытовые сплит-системы", "attributes": {},
+    }]), encoding="utf-8")
+    os.utime(stock, (now, now))
+
+    offers = load_jac_offers(stock, now=now)
+
+    assert [offer.supplier_sku for offer in offers] == ["jac:M-1"]
 
 
 def test_missing_file_returns_empty():

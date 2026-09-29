@@ -40,6 +40,7 @@ class FotogenConfig:
     cards_dir: str
     mode: str = "conditioner"  # режим по умолчанию
     modes: dict = None         # {series_key: режим} — переопределяет mode для конкретной серии
+    input_dir: str = ""        # локальные референсы товаров; не являются публичными фото фида
     per_run: int = 8           # максимум новых задач за один запуск
     max_pending: int = 15      # потолок «в работе» (чтобы не гнать сотни подряд — риск ToS)
     max_total: int = 100000    # ВСЕГО карточек к генерации (для теста ставим ~20; потом снимем)
@@ -93,12 +94,20 @@ def _query_jobs(queue_db: str, input_filenames: list[str], status: str) -> dict[
 
 
 def wake_agent(queue_db: str) -> None:
-    """Сигнал WatchDog на локальном ПК: запустить агента (он обработает очередь).
-    Тот же механизм, что кнопка «🚀 Запустить агента»: flags.agent_command='start'."""
+    """Автопробуждение всех машин фотоагента при постановке задач.
+
+    ``wake`` поднимает только дорожки с желаемым состоянием ``running`` и не
+    отменяет ручной ``stop``. ``INSERT OR IGNORE`` также не затирает команду
+    владельца, которую watchdog ещё не успел прочитать.
+    """
     con = sqlite3.connect(queue_db, timeout=10)
     try:
         con.execute("CREATE TABLE IF NOT EXISTS flags (key TEXT PRIMARY KEY, value TEXT)")
-        con.execute("INSERT OR REPLACE INTO flags (key, value) VALUES ('agent_command', 'start')")
+        for key in ("agent_command", "agent_command_laptop", "agent_command_desktop"):
+            con.execute(
+                "INSERT OR IGNORE INTO flags (key, value) VALUES (?, 'wake')",
+                (key,),
+            )
         con.commit()
     finally:
         con.close()
@@ -252,6 +261,28 @@ def _safe_output_path(output_dir: Path, filename: str) -> Path:
     return candidate
 
 
+def _local_card_input(offer, input_dir: str) -> bytes | None:
+    """Read a configured local supplier reference without trusting product data."""
+    name = str((getattr(offer, "attrs", {}) or {}).get("card_input_name", ""))
+    if not input_dir or not name:
+        return None
+    relative = Path(name)
+    if relative.is_absolute() or len(relative.parts) != 1 or relative.name != name:
+        raise ValueError(f"Unsafe local card input filename: {name!r}")
+    root = Path(input_dir).resolve()
+    candidate = (root / relative).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"Local card input escapes input_dir: {name!r}") from exc
+    if candidate.is_symlink() or not candidate.is_file():
+        return None
+    if candidate.stat().st_size > 15 * 1024 * 1024:
+        raise ValueError("Local card input exceeds the 15 MiB safety limit")
+    card_image_extension(candidate)
+    return candidate.read_bytes()
+
+
 def _copy_atomic(source: Path, destination_dir: Path, key: str) -> Path:
     """Validate, stage, revalidate and atomically publish photo-agent output."""
     expected_extension = card_image_extension(source, require_matching_suffix=False)
@@ -323,20 +354,28 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
         next_tries = 1
         if st:
             status, tries = st[1], st[2]
-            if status in ("pending", "done"):
+            if status == "pending":
                 continue
+            # The state database can outlive a manual cleanup or a replaced
+            # cards volume. A ``done`` row without its validated image must
+            # be recoverable; otherwise the series would be skipped forever.
+            if status == "done":
+                next_tries = tries
             if status == "failed" and tries >= MAX_TRIES:
                 continue                       # исчерпали попытки — сдаёмся (не долбим агента)
-            next_tries = tries + 1             # failed с запасом попыток → переотправляем
+            if status == "failed":
+                next_tries = tries + 1         # failed с запасом попыток → переотправляем
         rep = g.representative
+        local_photo = _local_card_input(rep, cfg.input_dir)
         photo_url = card_input_photo(rep)          # кадр внутреннего блока (герой карточки)
-        if not photo_url:
+        if local_photo is None and not photo_url:
             continue
         mode = (cfg.modes or {}).get(getattr(g, "key", None)) or cfg.mode
         rep_nc = rep.supplier_sku.split(":", 1)[-1]
         brief = (manual_brief or {}).get(rep_nc) or card_brief(g)   # ручное УТП переопределяет авто
         try:
-            in_fn = submit_card_job(cfg, fetch_photo(photo_url), g.brand,
+            photo_bytes = local_photo if local_photo is not None else fetch_photo(photo_url)
+            in_fn = submit_card_job(cfg, photo_bytes, g.brand,
                                     f"{g.brand} {g.series}".strip(), brief,
                                     http=http, mode=mode)
         except Exception as e:

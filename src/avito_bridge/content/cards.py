@@ -33,6 +33,8 @@ class CardConfig:
     require_for_publish: bool = False   # публиковать серию ТОЛЬКО при наличии уникальной карточки
     supplier_photo_series: frozenset = frozenset()   # серии на фото поставщика (мульти, без генер-карточки)
     max_images: int = 10        # максимум картинок в объявлении (лимит Avito)
+    mode: str = ""              # режим фотоагента для этого профиля (например, kbt)
+    input_dir: str = ""         # локальные референсы фотоагента; не попадают в публичный фид
 
 
 def card_image_extension(
@@ -152,17 +154,23 @@ def existing_card_path(
     return None
 
 
+def resolve_card_photos(supplier_sku: str, cfg: CardConfig) -> list[str]:
+    """Return the public generated-card URL for one series/model key, if present."""
+    if not (cfg.enabled and cfg.dir):
+        return []
+    card = existing_card_path(supplier_sku, Path(cfg.dir), cfg.exts)
+    if card is None:
+        return []
+    # Nanoseconds avoid stale URLs when two replacements happen in one second.
+    version = card.stat().st_mtime_ns
+    return [f"{cfg.base_url.rstrip('/')}/{quote(card.name)}?v={version}"]
+
+
 def resolve_photos(offer: Offer, cfg: CardConfig) -> list[str]:
     """URL фото для объявления: сгенерированная карточка (если есть) — иначе фото поставщика.
     Если карточка найдена — возвращаем ТОЛЬКО её (чтобы не тащить общее фото-дубль серии).
     URL процент-кодируется (имя файла может быть кириллическим)."""
-    if cfg.enabled and cfg.dir:
-        card = existing_card_path(offer.supplier_sku, Path(cfg.dir), cfg.exts)
-        if card is not None:
-            # Nanoseconds avoid stale URLs when two replacements happen in one second.
-            version = card.stat().st_mtime_ns
-            url = (
-                f"{cfg.base_url.rstrip('/')}/{quote(card.name)}?v={version}"
-            )
-            return [url]
+    generated = resolve_card_photos(offer.supplier_sku, cfg)
+    if generated:
+        return generated
     return list(offer.photos)[: cfg.max_images]      # фото поставщика (несколько), кап по лимиту Avito

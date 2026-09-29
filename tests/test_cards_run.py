@@ -82,3 +82,90 @@ def test_cards_main_uses_profile_source_and_bridge_relative_state(
     assert main(["--config", "profiles/test.yaml"]) == 0
     assert captured["state_path"] == tmp_path / "state" / "card_jobs.db"
     assert "series=0" in capsys.readouterr().out
+
+
+def test_cards_main_supports_per_item_profiles(monkeypatch, tmp_path, capsys):
+    cfg = SimpleNamespace(
+        grouping="per_item",
+        bridge_root=tmp_path,
+        selected_series=frozenset(),
+        cards=SimpleNamespace(
+            supplier_photo_series=frozenset(),
+            dir=str(tmp_path / "cards"),
+        ),
+        catalog=SimpleNamespace(manual_card_brief={}),
+    )
+    groups = [_group("price_xls|item|pricexls:A-1")]
+    monkeypatch.setattr("avito_bridge.cards_run.load_config", lambda path: cfg)
+    monkeypatch.setattr(
+        "avito_bridge.cards_run.fetch_profile_offers", lambda loaded: ["offer"]
+    )
+    monkeypatch.setattr("avito_bridge.cards_run.group_per_item", lambda offers: groups)
+    monkeypatch.setattr(
+        "avito_bridge.cards_run.group_by_series",
+        lambda offers: (_ for _ in ()).throw(AssertionError("series grouping must not run")),
+    )
+    monkeypatch.setattr(
+        "avito_bridge.cards_run.config",
+        lambda name, *args, **kwargs: (
+            args[0]
+            if args
+            else {
+                "FOTOGEN_API_URL": "https://agent.test",
+                "FOTOGEN_API_TOKEN": "token",
+                "FOTOGEN_QUEUE_DB": str(tmp_path / "queue.db"),
+                "FOTOGEN_OUTPUT_DIR": str(tmp_path / "out"),
+            }[name]
+        ),
+    )
+    monkeypatch.setattr("avito_bridge.cards_run.CardJobStore", lambda path: object())
+    monkeypatch.setattr(
+        "avito_bridge.cards_run.run_once", lambda *args, **kwargs: (0, 0)
+    )
+
+    assert main(["--config", "profiles/per-item.yaml"]) == 0
+    assert "series=1" in capsys.readouterr().out
+
+
+def test_cards_main_all_bypasses_only_generation_whitelist(monkeypatch, tmp_path, capsys):
+    cfg = SimpleNamespace(
+        grouping="per_item",
+        bridge_root=tmp_path,
+        selected_series=frozenset({"selected-only"}),
+        cards=SimpleNamespace(
+            supplier_photo_series=frozenset(),
+            dir=str(tmp_path / "cards"),
+        ),
+        catalog=SimpleNamespace(manual_card_brief={}),
+    )
+    groups = [_group("a"), _group("b")]
+    captured = {}
+    monkeypatch.setattr("avito_bridge.cards_run.load_config", lambda path: cfg)
+    monkeypatch.setattr(
+        "avito_bridge.cards_run.fetch_profile_offers", lambda loaded: ["offer"]
+    )
+    monkeypatch.setattr("avito_bridge.cards_run.group_per_item", lambda offers: groups)
+    monkeypatch.setattr(
+        "avito_bridge.cards_run.config",
+        lambda name, *args, **kwargs: (
+            args[0]
+            if args
+            else {
+                "FOTOGEN_API_URL": "https://agent.test",
+                "FOTOGEN_API_TOKEN": "token",
+                "FOTOGEN_QUEUE_DB": str(tmp_path / "queue.db"),
+                "FOTOGEN_OUTPUT_DIR": str(tmp_path / "out"),
+            }[name]
+        ),
+    )
+    monkeypatch.setattr("avito_bridge.cards_run.CardJobStore", lambda path: object())
+
+    def fake_run(passed_groups, *args, **kwargs):
+        captured["groups"] = passed_groups
+        return 0, 0
+
+    monkeypatch.setattr("avito_bridge.cards_run.run_once", fake_run)
+
+    assert main(["--config", "profiles/per-item.yaml", "--all"]) == 0
+    assert captured["groups"] == groups
+    assert "series=2" in capsys.readouterr().out

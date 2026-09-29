@@ -48,12 +48,60 @@ def test_run_cycle_filters_selected_series(tmp_path):
     assert result.ads_built == 1
 
 
+def test_run_cycle_filters_excluded_supplier_before_grouping(tmp_path):
+    allowed = _offer("daichi:1")
+    blocked = _offer("rusklimat:1")
+    blocked.source = "RusKlimat"
+    cfg = _cfg()
+    cfg.catalog.excluded_sources = {"rusklimat"}
+
+    result = run_cycle(
+        offers_provider=lambda: [allowed, blocked],
+        cfg=cfg,
+        feed_path=tmp_path / "f.xml",
+        state_path=tmp_path / "s.db",
+    )
+
+    assert result.offers_in == 1
+    assert result.ads_built == 1
+
+
 def test_run_cycle_requires_card_when_configured(tmp_path):
     cfg = _cfg()
     cfg.cards = CardConfig(enabled=True, dir=str(tmp_path / "nocards"), require_for_publish=True)
     result = run_cycle(offers_provider=lambda: [_offer("daichi:1")], cfg=cfg,
                        feed_path=tmp_path / "f.xml", state_path=tmp_path / "s.db")
     assert result.ads_built == 0 and result.skipped == 1   # нет карточки → не публикуем
+
+
+def test_run_cycle_uses_series_card_when_in_stock_model_changed(tmp_path):
+    from PIL import Image
+
+    anchor = _offer("daichi:anchor")
+    anchor.series = "Eco"
+    anchor.stock = 0
+    available = _offer("daichi:available")
+    available.series = "Eco"
+    cards = tmp_path / "cards"
+    cards.mkdir()
+    Image.new("RGB", (8, 8), "white").save(
+        cards / "daichi__anchor.jpg", format="JPEG"
+    )
+    cfg = _cfg()
+    cfg.cards = CardConfig(
+        enabled=True,
+        dir=str(cards),
+        base_url="https://example.test/cards",
+        require_for_publish=True,
+    )
+
+    feed = tmp_path / "feed.xml"
+    result = run_cycle(
+        lambda: [anchor, available], cfg, feed, tmp_path / "state.db"
+    )
+
+    assert result.ads_built == 1
+    assert "daichi__anchor.jpg" in feed.read_text(encoding="utf-8")
 
 
 def test_forced_offer_price_override_respects_publish_whitelist(tmp_path):

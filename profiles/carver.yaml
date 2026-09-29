@@ -4,7 +4,10 @@ profile:
   grouping: per_item
   feed_path: feed_out/carver.xml
   public_feed_path: /opt/oasis/staticfiles/avito-feed-carver.xml
-  source_options: {}
+  source_options:
+    # По указанию владельца 04.09.2026 генераторы сняты с продажи.
+    excluded_product_patterns: ['(?i)\bгенератор\b']
+    excluded_device_types: [Генераторы]
 cities:
 - id: simferopol
   name: Симферополь

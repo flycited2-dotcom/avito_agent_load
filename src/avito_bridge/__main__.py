@@ -32,9 +32,10 @@ def main(argv: list[str] | None = None) -> int:
         state_path=state_path,
     )
     label = cfg.profile_name or "default"
+    suppressed = getattr(result, "suppressed", 0)
     print(f"profile={label} offers_in={result.offers_in} "
           f"ads_built={result.ads_built} skipped={result.skipped} "
-          f"changed={result.changed} feed={feed_path}")
+          f"suppressed={suppressed} changed={result.changed} feed={feed_path}")
     return 0
 
 

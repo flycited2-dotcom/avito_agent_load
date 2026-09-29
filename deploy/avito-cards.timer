@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Avito card worker every 15 minutes
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+Unit=avito-cards.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=Remember manual Avito removals in the main feed stop list
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/avito-bridge
+EnvironmentFile=/opt/avito-bridge/.env
+ExecStart=/usr/bin/flock -n -E 75 /opt/avito-bridge/state/profile-publish.lock /opt/avito-bridge/.venv/bin/python -m avito_bridge.avito.manual_stop --feed /opt/oasis/staticfiles/avito-feed.xml --stop /opt/avito-bridge/state/manual-stop-main.json --observations /opt/avito-bridge/state/avito-status-main.json --apply-feed --hold-archive
+SuccessExitStatus=75
+Environment=AVITO_EXPECTED_ACCOUNT_ID=78179175
+TimeoutStartSec=12min
+Environment=PYTHONPATH=/opt/avito-bridge/src
+User=root
+Group=root

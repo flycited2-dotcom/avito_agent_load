@@ -6,6 +6,7 @@ After=network-online.target
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/avito-bridge
+EnvironmentFile=-/opt/avito-bridge/.env
 ExecStart=/bin/bash /opt/avito-bridge/run.sh
 UMask=0027
 NoNewPrivileges=true

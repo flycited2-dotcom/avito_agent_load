@@ -22,11 +22,28 @@ def collect_offers(raw_db: list[RawProduct], jac_path: Path, flt: CatalogFilter,
             continue
         breez_base = breez_base_lookup(raw.nc_code) if raw.source == "breeze" else None
         offers.append(to_offer(raw, cost=resolve_cost(raw, breez_base)))
-    offers.extend(
-        load_jac_offers(
+    if flt.include_jac_snapshot:
+        # Свежий снимок — источник истины для цены/остатка JAC. Карточка сайта
+        # при совпадении SKU обогащает его названием, ТТХ и фотографиями.
+        site_jac = {o.supplier_sku: o for o in offers if o.source == "jac"}
+        snapshot = load_jac_offers(
             jac_path,
             max_age_seconds=jac_max_age_seconds,
             future_skew_seconds=jac_future_skew_seconds,
         )
-    )
+        snapshot = [
+            offer for offer in snapshot
+            if offer.category_id in flt.report_category_ids
+        ]
+        enriched: list[Offer] = []
+        for current in snapshot:
+            site = site_jac.get(current.supplier_sku)
+            if site is not None:
+                current.model = site.model or current.model
+                current.series = current.series or site.series
+                current.btu_calc = site.btu_calc or current.btu_calc
+                current.photos = current.photos or list(site.photos)
+                current.attrs = {**(site.attrs or {}), **(current.attrs or {})}
+            enriched.append(current)
+        offers = [o for o in offers if o.source != "jac"] + enriched
     return offers

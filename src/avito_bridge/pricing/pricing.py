@@ -49,17 +49,33 @@ class PricingConfig:
     rules: list[dict] = field(default_factory=list)
 
 
-def _markup_for(offer: Offer, cfg: PricingConfig) -> float:
+def _rule_for(offer: Offer, cfg: PricingConfig) -> dict:
     for rule in cfg.rules:
         m = rule.get("match", {})
-        if all(getattr(offer, k, None) == v for k, v in m.items()):
-            return float(rule["markup_pct"])
-    return float(cfg.default_markup_pct)
+        if (all(getattr(offer, k, None) == v for k, v in m.items())
+                and offer.category_id not in rule.get("exclude_category_ids", [])):
+            return rule
+    return {}
+
+
+def _markup_for(offer: Offer, cfg: PricingConfig) -> float:
+    return float(_rule_for(offer, cfg).get("markup_pct", cfg.default_markup_pct))
+
+
+def _post_markup(price: int, pct: Decimal, mode: str) -> int:
+    """Apply an explicit surcharge once, after the usual price rounding."""
+    if not pct.is_finite() or pct < 0:
+        raise ValueError("post_markup_pct must be a finite non-negative number")
+    return _rounded_price(Decimal(price) * (1 + pct / 100), mode) if pct else price
 
 
 def compute_price(offer: Offer, cfg: PricingConfig) -> PriceResult:
+    rule = _rule_for(offer, cfg)
+    post_pct = _decimal(rule.get("post_markup_pct", 0))
     if offer.price_override is not None and offer.price_override > 0:   # ручная цена (force_include)
-        return PriceResult(ok=True, price=int(offer.price_override), markup_pct=0)
+        return PriceResult(ok=True,
+                           price=_post_markup(int(offer.price_override), post_pct, cfg.rounding),
+                           markup_pct=float(post_pct))
     if offer.cost is None or offer.cost <= 0:
         return PriceResult(ok=False, reason="cost<=0 or missing")
     pct = _markup_for(offer, cfg)
@@ -71,4 +87,7 @@ def compute_price(offer: Offer, cfg: PricingConfig) -> PriceResult:
         raw = cost + min_margin
         min_applied = True
     price = _rounded_price(raw, cfg.rounding)
-    return PriceResult(ok=True, price=price, markup_pct=pct, min_margin_applied=min_applied)
+    price = _post_markup(price, post_pct, cfg.rounding)
+    effective_pct = (1 + _decimal(pct) / 100) * (1 + post_pct / 100) * 100 - 100
+    return PriceResult(ok=True, price=price, markup_pct=float(effective_pct),
+                       min_margin_applied=min_applied)

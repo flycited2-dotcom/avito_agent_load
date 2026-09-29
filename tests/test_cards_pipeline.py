@@ -9,6 +9,7 @@ from avito_bridge.cards_pipeline import (
     CardJobStore,
     FotogenConfig,
     _http_get,
+    _local_card_input,
     _safe_output_path,
     _validate_public_http_url,
     done_results,
@@ -22,13 +23,35 @@ from avito_bridge.catalog.series import group_by_series
 from avito_bridge.models import Offer
 
 
-def test_wake_agent_sets_start_flag(tmp_path):
+def test_wake_agent_sets_wake_flag_for_all_machines(tmp_path):
     db = str(tmp_path / "q.db")
     sqlite3.connect(db).close()
     wake_agent(db)
     con = sqlite3.connect(db)
-    assert con.execute("SELECT value FROM flags WHERE key='agent_command'").fetchone()[0] == "start"
+    flags = dict(con.execute("SELECT key, value FROM flags").fetchall())
     con.close()
+    assert flags == {
+        "agent_command": "wake",
+        "agent_command_laptop": "wake",
+        "agent_command_desktop": "wake",
+    }
+
+
+def test_wake_agent_does_not_clobber_pending_owner_command(tmp_path):
+    db = str(tmp_path / "q.db")
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE flags (key TEXT PRIMARY KEY, value TEXT)")
+    con.execute("INSERT INTO flags VALUES ('agent_command_desktop', 'stop')")
+    con.commit()
+    con.close()
+
+    wake_agent(db)
+
+    con = sqlite3.connect(db)
+    flags = dict(con.execute("SELECT key, value FROM flags").fetchall())
+    con.close()
+    assert flags["agent_command_desktop"] == "stop"
+    assert flags["agent_command_laptop"] == "wake"
 
 
 def _make_queue_db(tmp_path, rows):
@@ -100,6 +123,18 @@ def test_card_input_photo_prefers_indoor_for_daichi():
     breeze = _o("breeze:1", 7, "indoor.jpg")
     breeze.photos = ["indoor.jpg", "x.jpg"]
     assert card_input_photo(breeze) == "indoor.jpg"        # breeze: [0] уже норм
+
+
+def test_local_card_input_requires_a_simple_existing_image_name(tmp_path):
+    image_dir = tmp_path / "refs"
+    image_dir.mkdir()
+    _write_image(image_dir / "btopt-0001.jpg", image_format="JPEG")
+    offer = _o("price_xls:1", 0, None)
+    offer.attrs["card_input_name"] = "btopt-0001.jpg"
+    assert _local_card_input(offer, str(image_dir)).startswith(b"\xff\xd8")
+    offer.attrs["card_input_name"] = "../outside.jpg"
+    with pytest.raises(ValueError, match="Unsafe local card input"):
+        _local_card_input(offer, str(image_dir))
 
 
 def test_run_once_submits_and_publishes(tmp_path):
@@ -211,6 +246,28 @@ def test_run_once_retries_failed_until_cap(tmp_path):
     submitted, _ = run_once(groups, cfg, store, http=http, fetch_photo=lambda u: b"img")
     assert submitted == 1                                  # failed с запасом попыток → переотправлен
     assert store.get(k)[2] == 2                            # счётчик попыток вырос
+
+
+def test_run_once_requeues_done_job_when_card_file_is_missing(tmp_path):
+    from avito_bridge.content.cards import card_key
+
+    out = tmp_path / "out"; out.mkdir()
+    cfg = _cfg(tmp_path, queue_db=_make_queue_db(tmp_path, []), output_dir=str(out))
+    store = CardJobStore(tmp_path / "s.db")
+    key = card_key("breeze:NC-requeue")
+    store.record(key, "old.jpg", "done")
+    groups = group_by_series([
+        _o("breeze:NC-requeue", 9, "http://p/requeue.jpg", series="Gloria")
+    ])
+
+    def handler(req):
+        return httpx.Response(200, json={"queued": "new.jpg"})
+
+    http = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://x")
+    submitted, _ = run_once(groups, cfg, store, http=http, fetch_photo=lambda u: b"img")
+
+    assert submitted == 1
+    assert store.get(key) == ("new.jpg", "pending", 0)
 
 
 def test_run_once_gives_up_after_max_tries(tmp_path):
