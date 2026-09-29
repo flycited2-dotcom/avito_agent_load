@@ -535,6 +535,9 @@ def publish_ready_content(database: Path, feed: Path, manual_stops: Path, bridge
         if not item["present"]:
             held[article] = "absent_from_latest_snapshot"
             continue
+        if item.get("availability") != "supplier_price_present":
+            held[article] = "not_in_fresh_supplier_price"
+            continue
         if duplicates[(clean(item["brand"]).casefold(), clean(item["name"]).casefold())] > 1:
             held[article] = "duplicate_source_identity"
             continue

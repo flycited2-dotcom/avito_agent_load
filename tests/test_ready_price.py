@@ -180,3 +180,29 @@ def test_transaction_failure_rolls_back_catalog_and_release(tmp_path, policy):
     assert export_catalog(db) == before
     with sqlite3.connect(db) as connection:
         assert connection.execute("SELECT COUNT(*) FROM releases").fetchone()[0] == 1
+
+
+def test_supplier_workbook_is_stock_authority(tmp_path, policy):
+    path = release(tmp_path / "one")
+    raw = Workbook()
+    sheet = raw.active
+    for _ in range(3):
+        sheet.append([None] * 8)
+    for i in range(500):
+        sheet.append([f"00-{i:05}", "group", "Comfee", f"Item {i}", 100, "Под заказ"])
+    # Финальная книга содержит артикул, которого нет в исходном полном прайсе.
+    sheet["A4"] = "different-article"
+    raw_path = path.parent / "supplier.xlsx"
+    raw.save(raw_path)
+    manifest = json.loads(path.read_text())
+    manifest["schema_version"] = 2
+    manifest["supplier_file"] = "supplier.xlsx"
+    manifest["provenance"]["supplier"]["sha256"] = hashlib.sha256(raw_path.read_bytes()).hexdigest()
+    path.write_text(json.dumps(manifest))
+    result = ingest(path, tmp_path / "catalog.db", policy)
+    assert result["status"] == "accepted", result
+    items = {x["article"]: x for x in export_catalog(tmp_path / "catalog.db")}
+    assert items["00-00000"]["availability"] == "unverified_origin"
+    assert items["00-00001"]["availability"] == "supplier_price_present"
+    raw_path.write_bytes(b"corrupt")
+    assert ingest(path, tmp_path / "other.db", policy)["reason"] == "supplier_checksum_mismatch"

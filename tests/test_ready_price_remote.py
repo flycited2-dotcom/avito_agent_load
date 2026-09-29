@@ -7,7 +7,7 @@ from defusedxml import ElementTree as ET
 import xml.etree.ElementTree as XML
 
 from avito_bridge.ready_price.identity import seed_published_manifest
-from avito_bridge.ready_price.remote import apply_updates
+from avito_bridge.ready_price.remote import apply_updates, stock_report
 from tests.test_ready_price import ingest, policy, release
 from tests.test_ready_price_identity import manifest_for
 
@@ -61,3 +61,35 @@ def test_manual_stop_removes_only_bound_ad(tmp_path, policy):
     result = apply_updates(database, live, stops, tmp_path / "bridge", tmp_path / "public")
     assert result["removed"] == ["keep-historical-id"]
     assert [a.findtext("Id") for a in ET.parse(live).getroot().findall("Ad")] == ["unrelated"]
+
+
+def test_supplier_absence_removes_and_return_restores_bound_ad(tmp_path, policy):
+    database, live, stops = prepared(tmp_path, policy)
+    with sqlite3.connect(database) as db:
+        sha, article, data = db.execute("SELECT sha256,article,data FROM snapshot_items ORDER BY article LIMIT 1").fetchone()
+        manifest = json.loads(db.execute("SELECT manifest FROM releases WHERE sha256=?", (sha,)).fetchone()[0])
+        manifest["schema_version"] = 2
+        db.execute("UPDATE releases SET manifest=? WHERE sha256=?", (json.dumps(manifest), sha))
+        item = json.loads(data)
+        item["availability"] = "unverified_origin"
+        db.execute("UPDATE snapshot_items SET data=? WHERE sha256=? AND article=?", (json.dumps(item), sha, article))
+    result = apply_updates(database, live, stops, tmp_path / "bridge", tmp_path / "public")
+    assert result["removed"] == ["keep-historical-id"]
+    assert (tmp_path / "bridge/state/ready-price/stock-removed.json").is_file()
+    with sqlite3.connect(database) as db:
+        item["availability"] = "supplier_price_present"
+        db.execute("UPDATE snapshot_items SET data=? WHERE sha256=? AND article=?", (json.dumps(item), sha, article))
+    result = apply_updates(database, live, stops, tmp_path / "bridge", tmp_path / "public")
+    assert result["restored"] == ["keep-historical-id"]
+    assert "keep-historical-id" in {a.findtext("Id") for a in ET.parse(live).getroot().findall("Ad")}
+
+
+def test_stock_report_identifies_missing_old_card(tmp_path, policy):
+    database, live, stops = prepared(tmp_path, policy)
+    root = XML.parse(live).getroot()
+    root.remove(root.find("Ad"))
+    live.write_bytes(XML.tostring(root, encoding="utf-8", xml_declaration=True))
+    result = stock_report(database, live, stops, tmp_path / "bridge")
+    row = next(x for x in result["rows"] if x["ad_id"] == "keep-historical-id")
+    assert row["state"] == "missing_from_feed"
+    assert row["action"] == "review_cancel"  # старый выпуск не доказывает наличие

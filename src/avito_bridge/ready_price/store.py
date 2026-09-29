@@ -1,12 +1,14 @@
 """Транзакционный каталог; публикация и снятие объявлений здесь не выполняются."""
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import date, datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path
 import sqlite3
+import xlrd
+import openpyxl
 
 from .catalog import InvalidSnapshot, load_categories, parse, summary
 
@@ -53,7 +55,7 @@ def connect(path: Path):
 
 
 def validate_release(manifest: dict, file: Path, current: datetime, max_age_days: int):
-    if manifest.get("schema_version") != 1 or manifest.get("source") != SOURCE:
+    if manifest.get("schema_version") not in {1, 2} or manifest.get("source") != SOURCE:
         raise InvalidSnapshot("unexpected_source_or_schema")
     if manifest.get("file") != "price.xlsx":
         raise InvalidSnapshot("unexpected_snapshot_path")
@@ -81,6 +83,52 @@ def validate_release(manifest: dict, file: Path, current: datetime, max_age_days
     return digest, generated
 
 
+def supplier_articles(manifest: dict, directory: Path) -> set[str] | None:
+    """Артикул в свежем прайсе означает наличие; «Под заказ» у этого поставщика допустимо."""
+    if manifest.get("schema_version") == 1:
+        return None  # старый выпуск не содержит проверяемого исходного прайса
+    name = manifest.get("supplier_file")
+    if name not in {"supplier.xls", "supplier.xlsx"}:
+        raise InvalidSnapshot("missing_supplier_workbook")
+    path = directory / name
+    try:
+        data = path.read_bytes()
+    except OSError as exc:
+        raise InvalidSnapshot("missing_supplier_workbook") from exc
+    if hashlib.sha256(data).hexdigest() != manifest["provenance"]["supplier"]["sha256"]:
+        raise InvalidSnapshot("supplier_checksum_mismatch")
+    try:
+        if name.endswith(".xls"):
+            book = xlrd.open_workbook(file_contents=data)
+            if book.nsheets != 1:
+                raise InvalidSnapshot("unexpected_supplier_sheets")
+            sheet = book.sheet_by_index(0)
+            rows = (sheet.row_values(i) for i in range(3, sheet.nrows))
+        else:
+            book = openpyxl.load_workbook(path, read_only=True, data_only=True)
+            if len(book.sheetnames) != 1:
+                raise InvalidSnapshot("unexpected_supplier_sheets")
+            rows = book.active.iter_rows(min_row=4, values_only=True)
+        articles = set()
+        for row in rows:
+            if len(row) < 5 or not row[0] or not row[3] or not isinstance(row[4], (int, float)) or row[4] <= 0:
+                continue
+            article = str(row[0]).strip().casefold()
+            if article in articles:
+                raise InvalidSnapshot("duplicate_supplier_article")
+            articles.add(article)
+        if len(articles) < 500:
+            raise InvalidSnapshot("supplier_row_count_below_minimum")
+        return articles
+    except (xlrd.XLRDError, OSError, ValueError, TypeError) as exc:
+        if isinstance(exc, InvalidSnapshot):
+            raise
+        raise InvalidSnapshot("unreadable_supplier_workbook") from exc
+    finally:
+        if name.endswith(".xlsx") and "book" in locals():
+            book.close()
+
+
 def import_release(manifest_path: Path, database: Path, categories: Path, *, current=None,
                    max_age_days=4, minimum_rows=500, max_count_change=0.25):
     """Один SHA импортируется один раз. Вся книга проверяется до изменения каталога."""
@@ -90,17 +138,22 @@ def import_release(manifest_path: Path, database: Path, categories: Path, *, cur
     # Ключ БД — фактические байты, не недоверенное поле manifest.
     digest = hashlib.sha256(file.read_bytes()).hexdigest()
     generated = str(manifest.get("generated_at") or "")
-    status, reason, items = "accepted", "", []
+    status, reason, items, supplier = "accepted", "", [], None
     try:
         _, generated_dt = validate_release(manifest, file, current, max_age_days)
         generated = generated_dt.isoformat()
         items = parse(file, load_categories(categories))
+        supplier = supplier_articles(manifest, manifest_path.parent)
+        items = [replace(item, availability=("supplier_price_present" if item.article.casefold() in supplier
+                       else "unverified_origin") if supplier is not None else "unverified_origin") for item in items]
         if len(items) < minimum_rows:
             raise InvalidSnapshot("row_count_below_minimum")
     except (InvalidSnapshot, KeyError, TypeError, ValueError) as exc:
         status = "quarantined"
         reason = str(exc) if isinstance(exc, InvalidSnapshot) else "invalid_release_metadata"
     stats = summary(items)
+    if status == "accepted" and supplier is not None:
+        stats["supplier_rows"] = len(supplier)
     delivery_file = manifest_path.parent / "telegram.json"
     delivery = json.loads(delivery_file.read_text(encoding="utf-8")) if delivery_file.exists() else {}
     db = connect(database)
@@ -122,11 +175,15 @@ def import_release(manifest_path: Path, database: Path, categories: Path, *, cur
                 previous_count = old_stats["rows"]
                 if abs(len(items) / previous_count - 1) > max_count_change:
                     status, reason = "quarantined", "abrupt_row_count_change"
-                # Повреждение только целевого раздела не скрывается общим большим прайсом.
+                if old_stats.get("supplier_rows") and stats.get("supplier_rows"):
+                    if abs(stats["supplier_rows"] / old_stats["supplier_rows"] - 1) > max_count_change:
+                        status, reason = "quarantined", "abrupt_supplier_count_change"
+                # Резкое обнуление целевого раздела задерживаем; обычный рост
+                # ассортимента проверяется общим размером и исходным файлом.
                 for bucket in ("small", "large", "tv", "climate"):
                     old_n = old_stats["buckets"].get(bucket, 0)
                     new_n = stats["buckets"].get(bucket, 0)
-                    if old_n and abs(new_n / old_n - 1) > max_count_change:
+                    if old_n >= 50 and new_n < old_n / 2:
                         status, reason = "quarantined", f"abrupt_bucket_count_change:{bucket}"
         db.execute("INSERT INTO releases VALUES (?,?,?,?,?,?,?,?,?)",
                    (digest, SOURCE, generated, current.isoformat(), status, reason,

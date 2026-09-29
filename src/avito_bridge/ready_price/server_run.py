@@ -10,7 +10,7 @@ from avito_bridge import profile_publish as pp
 from avito_bridge.avito.client import AvitoClient
 from .publish import _unresolved_batch_ids, publish_ready_content
 from .visual_hold import apply_visual_holds
-from .remote import run
+from .remote import run, stock_report
 
 
 _AUTOLOAD_GET = re.compile(
@@ -144,6 +144,11 @@ def main():
         "visual_holds": visual_holds,
         "content": content,
     }
+    report = stock_report(a.bridge / "state/ready-price/catalog.sqlite",
+                          a.public / "avito-feed.xml", a.bridge / "state/manual-stop-main.json", a.bridge)
+    report_path = a.bridge / "state/ready-price/stock-report.json"
+    pp._write_atomic_bytes(report_path, json.dumps(report, ensure_ascii=False, indent=2).encode("utf-8"))
+    status["stock_report"] = str(report_path)
     pp._write_atomic_bytes(
         status_file,
         json.dumps(status, ensure_ascii=False, indent=2).encode("utf-8"),
