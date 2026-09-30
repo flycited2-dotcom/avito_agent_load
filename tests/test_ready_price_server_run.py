@@ -1,6 +1,16 @@
 from pathlib import Path
+from datetime import datetime, timezone
 
-from avito_bridge.ready_price.server_run import _autoload_fetch_confirmed
+from avito_bridge.ready_price.server_run import _autoload_fetch_confirmed, autoload_health
+
+
+def test_old_successful_upload_does_not_confirm_current_feed():
+    now = datetime(2026, 9, 30, 12, tzinfo=timezone.utc)
+    upload = {"upload_id": 42, "status": "success_warning", "started_at": "2026-09-28T19:50:03Z"}
+    assert autoload_health(upload, current=now)["status"] == "stale"
+    assert autoload_health({**upload, "started_at": now.isoformat()}, current=now)["status"] == "recent"
+    assert autoload_health({}, current=now)["status"] == "unknown"
+    assert autoload_health({"started_at": "2026-09-30T12:00:00"}, current=now)["status"] == "unknown"
 
 
 def test_processing_upload_is_safe_after_matching_avito_get(tmp_path: Path):

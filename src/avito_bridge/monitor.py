@@ -20,6 +20,7 @@ from decouple import Config, RepositoryEnv
 
 from avito_bridge.avito.client import AvitoClient
 from avito_bridge.avito.manual_stop import _feed_items, _read_json, _write_json_atomic
+from avito_bridge.ready_price.server_run import autoload_health
 
 MSK = timezone(timedelta(hours=3))
 
@@ -192,6 +193,11 @@ class Monitor:
 
     def autoload(self):
         current = self.get('GET', '/autoload/v4/uploads/current')
+        health = autoload_health(current, current=self.now)
+        self.condition('автозагрузка не запускается', health['status'] == 'stale',
+                       'Авито: автозагрузка не запускалась более 2 часов. '
+                       'Изменения XML и снятие отсутствующих товаров пока не подтверждены на площадке. '
+                       'Проверьте расписание и ошибки в кабинете Авито.')
         current_errors = [e for e in current.get('events', []) if e.get('type') in ('error', 'warning')]
         if current_errors or current.get('status') in ('error', 'failed'):
             self.event('current-upload', [current.get('upload_id'), current.get('status'), current_errors],

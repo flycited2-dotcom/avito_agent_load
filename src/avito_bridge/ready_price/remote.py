@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import base64
-import hashlib
 import json
 from pathlib import Path
 import re
@@ -17,7 +16,7 @@ import xml.etree.ElementTree as XML
 
 from avito_bridge import profile_publish as pp
 from .identity import identity_db, seed_published_manifest
-from .store import SOURCE, import_release
+from .store import SOURCE, import_release, source_freshness_problem
 
 
 def safe_extract(bundle: Path, target: Path) -> None:
@@ -52,6 +51,10 @@ def apply_updates(database: Path, feed: Path, manual_stops: Path, bridge: Path, 
     try:
         latest = _latest_release(db)
         verified_supplier = json.loads(latest["manifest"]).get("schema_version") == 2
+        if verified_supplier and source_freshness_problem(latest):
+            return {"latest_sha256": latest["sha256"], "status": "blocked_supplier_snapshot",
+                    "reason": source_freshness_problem(latest), "updated": [], "removed": [],
+                    "restored": [], "skipped": []}
         latest_items = {r["article"]: json.loads(r["data"]) for r in db.execute(
             "SELECT article,data FROM snapshot_items WHERE sha256=?", (latest["sha256"],))}
         bindings = db.execute("""SELECT b.*, c.data, c.present, c.missing_since
@@ -224,7 +227,13 @@ def stock_report(database: Path, feed: Path, manual_stops: Path, bridge: Path) -
         aid, article = binding["ad_id"], binding["article"]
         supplier_present = current.get(article, {}).get("availability") == "supplier_price_present"
         if aid in stops:
-            state, action = "manual_stop", "keep_stopped"
+            reason = stops[aid].get("reason")
+            if reason == "expired_avito_listing":
+                state, action = "expired_review", "review_renew_or_regenerate" if supplier_present else "review_cancel"
+            elif reason == "archive_hold":
+                state, action = "archived_review", "review_expiry_or_owner_removal"
+            else:
+                state, action = "manual_stop", "keep_stopped"
         elif aid in templates:
             state, action = "removed_from_feed", "restore_automatically_if_article_returns"
         elif aid in feed_ids:
@@ -235,3 +244,33 @@ def stock_report(database: Path, feed: Path, manual_stops: Path, bridge: Path) -
                      "supplier_present": supplier_present, "state": state, "action": action})
     return {"generated_at": datetime.now(timezone.utc).isoformat(), "source_sha256": latest["sha256"],
             "rows": rows}
+
+
+def expiration_report(database: Path, manual_stops: Path) -> dict:
+    """Expiry needs its own review and must not be described as an owner removal."""
+    db = identity_db(database)
+    try:
+        release = db.execute("SELECT * FROM releases WHERE source=? AND status='accepted' "
+                             "ORDER BY generated_at DESC LIMIT 1", (SOURCE,)).fetchone()
+        fresh = source_freshness_problem(release) is None
+        bindings = {r['ad_id']: dict(r) for r in db.execute(
+            "SELECT b.ad_id,b.article,c.present,c.data FROM source_bindings b JOIN catalog c "
+            "ON c.source=b.source AND c.article=b.article WHERE b.source=?", (SOURCE,))}
+    finally:
+        db.close()
+    stops = json.loads(manual_stops.read_text(encoding='utf-8'))['entries']
+    rows = []
+    for aid, stop in sorted(stops.items()):
+        reason = stop.get('reason')
+        if reason not in {'expired_avito_listing', 'archive_hold'}:
+            continue
+        binding = bindings.get(aid)
+        supplier_present = None if not binding or not fresh else bool(binding['present'] and
+            json.loads(binding['data']).get('availability') == 'supplier_price_present')
+        action = ('review_renew_or_regenerate' if supplier_present else 'review_cancel'
+                  if supplier_present is False else 'confirm_source_before_renew')
+        rows.append({'ad_id': aid, 'avito_id': stop.get('avito_id'), 'title': stop.get('title'),
+                     'article': binding['article'] if binding else None,
+                     'state': 'expired' if reason == 'expired_avito_listing' else 'archive_reason_unconfirmed',
+                     'supplier_present': supplier_present, 'action': action})
+    return {'generated_at': datetime.now(timezone.utc).isoformat(), 'rows': rows}

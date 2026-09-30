@@ -123,6 +123,13 @@ class AvitoClient:
         УСПЕШНОЙ загрузки: {ad_id, avito_id, avito_status, url, messages[]} на объявление.
 
         Official pagination uses camel-case perPage, NOT per_page."""
+        return self._upload_items("last_successful", ad_ids)
+
+    def current_items(self, ad_ids) -> list[dict]:
+        """Read scoped item receipts while the current upload is processing."""
+        return self._upload_items("current", ad_ids)
+
+    def _upload_items(self, upload: str, ad_ids=None) -> list[dict]:
         if ad_ids is not None:
             ids = sorted(set(str(value) for value in ad_ids))
             result = []
@@ -130,7 +137,7 @@ class AvitoClient:
             # Query explicit feed IDs in single-page batches instead.
             for start in range(0, len(ids), 50):
                 chunk = ids[start:start + 50]
-                r = self._request('GET', f'{EP_UPLOADS_V4}/last_successful/items',
+                r = self._request('GET', f'{EP_UPLOADS_V4}/{upload}/items',
                                   headers=self._auth(), params={'query': ','.join(chunk), 'page': 1, 'perPage': 100})
                 r.raise_for_status()
                 data = r.json()
@@ -149,7 +156,7 @@ class AvitoClient:
         while True:
             r = self._request(
                 "GET",
-                f"{EP_UPLOADS_V4}/last_successful/items",
+                f"{EP_UPLOADS_V4}/{upload}/items",
                 headers=self._auth(),
                 params={"page": page, "perPage": 100},
             )

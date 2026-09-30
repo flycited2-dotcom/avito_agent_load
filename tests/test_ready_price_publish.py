@@ -166,6 +166,30 @@ def test_rejected_batch_blocks_all_later_content_publication(tmp_path):
     assert result["added"] == []
 
 
+def test_current_active_receipt_closes_batch_without_mutating_processing_feed(tmp_path):
+    database = tmp_path / "catalog.sqlite"
+    with identity_db(database) as db:
+        _publication_tables(db)
+        db.execute("INSERT INTO publication_batches VALUES (?,?,?,?,?)",
+                   ("batch-1", "2026-09-22T00:00:00+00:00", '["a"]', "pending", "{}"))
+    result = publish_ready_content(database, tmp_path / "missing.xml",
+                                   tmp_path / "stops.json", tmp_path, tmp_path,
+                                   tmp_path / "content", tmp_path / "schema.json", [],
+                                   [{"ad_id": "a", "avito_status": "active", "messages": []}],
+                                   latest_upload_status="processing")
+    assert result["receipt"]["status"] == "accepted"
+    assert result["status"] == "waiting_active_upload"
+    assert result["added"] == []
+
+
+def test_no_supplier_snapshot_blocks_before_any_live_files_are_read(tmp_path):
+    result = publish_ready_content(tmp_path / "catalog.sqlite", tmp_path / "missing.xml",
+                                   tmp_path / "stops.json", tmp_path, tmp_path,
+                                   tmp_path / "content", tmp_path / "schema.json", [], [])
+    assert result["status"] == "blocked_supplier_snapshot"
+    assert result["reason"] == "supplier_snapshot_unverified"
+
+
 def test_rejected_batch_recovers_only_after_exact_clean_active_report(tmp_path):
     database = tmp_path / "catalog.sqlite"
     db = identity_db(database)

@@ -1,4 +1,13 @@
 import json
+from avito_bridge.avito.manual_stop import expired_listing
+
+
+def test_expired_listing_is_distinct_from_manual_removal():
+    now = "2026-09-30T12:00:00+00:00"
+    assert expired_listing({"section": {"slug": "stopped_by_expiration"}}, now)
+    assert expired_listing({"avito_date_end": "2026-09-29T18:07:00+03:00"}, now)
+    assert not expired_listing({"avito_date_end": "2026-10-30T18:07:00+03:00"}, now)
+    assert not expired_listing({}, now)
 from pathlib import Path
 
 from lxml import etree

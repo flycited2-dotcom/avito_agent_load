@@ -127,16 +127,20 @@ def test_list_items_includes_removed_and_walks_pages():
     ]
 
 
-def test_filtered_autoload_queries_explicit_ids_in_single_pages():
+@pytest.mark.parametrize('report', ['last_successful', 'current'])
+def test_filtered_autoload_queries_explicit_ids_in_single_pages(report):
     calls = []
     def handler(req):
         if req.url.path == '/token':
             return httpx.Response(200, json={'access_token': 'T', 'expires_in': 999})
+        assert req.url.path == f'/autoload/v4/uploads/{report}/items'
         ids = req.url.params['query'].split(',')
         assert req.url.params['perPage'] == '100'
         calls.append(ids)
         return httpx.Response(200, json={'items': [{'ad_id': i} for i in ids], 'meta': {'total': len(ids), 'pages': 1}})
-    result = _client(handler).last_successful_items(ad_ids=[str(i) for i in range(115)])
+    client = _client(handler)
+    method = client.current_items if report == 'current' else client.last_successful_items
+    result = method(ad_ids=[str(i) for i in range(115)])
     assert len(result) == 115
     assert [len(c) for c in calls] == [50, 50, 15]
 

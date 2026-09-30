@@ -11,7 +11,7 @@ import pytest
 import yaml
 
 from avito_bridge.ready_price.catalog import HEADERS, SHEET, InvalidSnapshot, parse, price
-from avito_bridge.ready_price.store import connect, export_catalog, import_release
+from avito_bridge.ready_price.store import connect, export_catalog, import_release, source_freshness_problem
 
 NOW = datetime(2026, 9, 21, 12, tzinfo=timezone.utc)
 
@@ -126,6 +126,13 @@ def test_new_export_of_old_supplier_is_stale(tmp_path, policy):
     data["provenance"]["supplier"]["modified_at"] = (NOW - timedelta(days=20)).isoformat()
     path.write_text(json.dumps(data))
     assert ingest(path, tmp_path / "db", policy)["reason"] == "stale_release"
+
+
+def test_supplier_freshness_checks_original_time_at_publication():
+    release_row = {"generated_at": NOW.isoformat(), "manifest": json.dumps({
+        "schema_version": 2, "snapshot_kind": "full", "provenance": {
+            "supplier_fallback": False, "supplier": {"modified_at": (NOW - timedelta(days=5)).isoformat()}}})}
+    assert source_freshness_problem(release_row, current=NOW) == "supplier_snapshot_stale"
 
 
 def test_missing_item_recorded_without_automatic_delisting(tmp_path, policy):

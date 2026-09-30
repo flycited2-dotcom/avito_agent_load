@@ -90,6 +90,21 @@ def test_conditions_send_once_and_allow_later_regression(tmp_path):
     assert len(m.state['outbox']) == 3
 
 
+def test_stale_autoload_alert_is_not_repeated_and_recovers(tmp_path):
+    m = monitor(tmp_path)
+    upload = {'upload_id': 42, 'status': 'success_warning',
+              'started_at': (m.now - timedelta(days=2)).isoformat()}
+    m.state['cache']['autoload'] = {'upload_id': 42}
+    m.get = lambda *a, **k: upload
+    m.autoload()
+    m.autoload()
+    assert len(m.state['outbox']) == 1
+    assert 'более 2 часов' in next(iter(m.state['outbox'].values()))['text']
+    upload['started_at'] = m.now.isoformat()
+    m.autoload()
+    assert len(m.state['outbox']) == 2
+
+
 def test_exception_url_never_leaks_token():
     response = httpx.Response(403, request=httpx.Request('POST', 'https://example.org/botSECRET/sendMessage'))
     with pytest.raises(httpx.HTTPStatusError) as caught:

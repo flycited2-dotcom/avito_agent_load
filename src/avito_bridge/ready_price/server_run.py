@@ -1,5 +1,5 @@
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import re
@@ -10,13 +10,28 @@ from avito_bridge import profile_publish as pp
 from avito_bridge.avito.client import AvitoClient
 from .publish import _unresolved_batch_ids, publish_ready_content
 from .visual_hold import apply_visual_holds
-from .remote import run, stock_report
+from .remote import run, stock_report, expiration_report
 
 
 _AUTOLOAD_GET = re.compile(
     r'\[([^]]+)\] "GET /static/avito-feed\.xml HTTP/[^\"]+" 200 (\d+) '
     r'"[^\"]*" "([^\"]+)"'
 )
+
+
+def autoload_health(upload: dict, *, current=None) -> dict:
+    """A successful old upload cannot confirm today's XML was fetched."""
+    result = {"status": "unknown", "upload_id": upload.get("upload_id"),
+              "started_at": upload.get("started_at"), "upload_status": upload.get("status")}
+    try:
+        started = datetime.fromisoformat(upload["started_at"].replace("Z", "+00:00"))
+        if started.tzinfo is None:
+            return result
+        age = (current or datetime.now(timezone.utc)) - started
+        result["status"] = "stale" if age > timedelta(hours=2) else "recent" if age >= -timedelta(minutes=10) else "unknown"
+    except (KeyError, ValueError, TypeError):
+        pass
+    return result
 
 
 def _autoload_fetch_confirmed(upload: dict, access_log: Path,
@@ -98,6 +113,7 @@ def main():
             a.bridge / "state/ready-price/visual-holds.json",
         )
     content = {"status": "credentials_unavailable", "added": [], "held": {}}
+    autoload = {"status": "unknown"}
     credentials = _credentials(a.bridge)
     if (a.bridge / "state/ready-price/content-publication.paused").exists():
         content = {"status": "paused_visual_audit", "added": [], "held": {}}
@@ -106,17 +122,23 @@ def main():
             with AvitoClient(*credentials, pagination_delay=1.1) as client:
                 uploads = client.list_uploads()
                 latest = uploads[0] if uploads else {}
+                autoload = autoload_health(latest)
                 latest_upload = latest.get("status", "")
                 fetched = _autoload_fetch_confirmed(
                     latest, a.autoload_access_log,
                     (a.public / "avito-feed.xml").stat().st_size)
+                unresolved_ids = _unresolved_batch_ids(
+                    a.bridge / "state/ready-price/catalog.sqlite")
+                if unresolved_ids:
+                    report_items = (client.current_items(unresolved_ids) if latest_upload == "processing"
+                                    else client.last_successful_items(unresolved_ids))
+                else:
+                    report_items = []
                 if latest_upload == "processing" and not fetched:
                     # No proof that Avito has finished downloading the XML.
-                    report_items, account_items = [], []
+                    # Current item receipts can still confirm already active ads.
+                    account_items = []
                 else:
-                    unresolved_ids = _unresolved_batch_ids(
-                        a.bridge / "state/ready-price/catalog.sqlite")
-                    report_items = client.last_successful_items(unresolved_ids) if unresolved_ids else []
                     account_items = client.list_items()
             with pp._exclusive_lock(a.bridge / "state/profile-publish.lock"):
                 content = publish_ready_content(
@@ -143,12 +165,20 @@ def main():
         **result,
         "visual_holds": visual_holds,
         "content": content,
+        "autoload": autoload,
     }
     report = stock_report(a.bridge / "state/ready-price/catalog.sqlite",
                           a.public / "avito-feed.xml", a.bridge / "state/manual-stop-main.json", a.bridge)
     report_path = a.bridge / "state/ready-price/stock-report.json"
     pp._write_atomic_bytes(report_path, json.dumps(report, ensure_ascii=False, indent=2).encode("utf-8"))
     status["stock_report"] = str(report_path)
+    expired = expiration_report(a.bridge / "state/ready-price/catalog.sqlite",
+                                a.bridge / "state/manual-stop-main.json")
+    expiry_path = a.bridge / "state/ready-price/expiration-report.json"
+    pp._write_atomic_bytes(expiry_path, json.dumps(expired, ensure_ascii=False, indent=2).encode("utf-8"))
+    status["expiration_review"] = {"report": str(expiry_path),
+                                   "expired": sum(row["state"] == "expired" for row in expired["rows"]),
+                                   "archive_reason_unconfirmed": sum(row["state"] == "archive_reason_unconfirmed" for row in expired["rows"])}
     pp._write_atomic_bytes(
         status_file,
         json.dumps(status, ensure_ascii=False, indent=2).encode("utf-8"),

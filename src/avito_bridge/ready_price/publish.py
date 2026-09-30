@@ -23,7 +23,7 @@ from PIL import Image, UnidentifiedImageError
 from avito_bridge import profile_publish as pp
 from .catalog import clean
 from .identity import compact, identity_db, proposed_id
-from .store import SOURCE
+from .store import SOURCE, source_freshness_problem
 
 
 DIRECT_GROUPS = {
@@ -500,6 +500,16 @@ def publish_ready_content(database: Path, feed: Path, manual_stops: Path, bridge
         return {"status": "waiting_previous_batch", "receipt": receipt, "added": [], "held": {}}
     if latest_upload_status == "processing":
         return {"status": "waiting_active_upload", "receipt": receipt, "added": [], "held": {}}
+    db = identity_db(database)
+    try:
+        release = db.execute("SELECT generated_at,manifest FROM releases WHERE source=? AND status='accepted' "
+                             "ORDER BY generated_at DESC LIMIT 1", (SOURCE,)).fetchone()
+        problem = source_freshness_problem(release)
+    finally:
+        db.close()
+    if problem:
+        return {"status": "blocked_supplier_snapshot", "reason": problem,
+                "receipt": receipt, "added": [], "held": {}}
     schemas = json.loads(schemas_path.read_text(encoding="utf-8"))["leaves"]
     stops = json.loads(manual_stops.read_text(encoding="utf-8"))["entries"]
     approvals_path = bridge / "state/ready-price/visual-approvals.json"

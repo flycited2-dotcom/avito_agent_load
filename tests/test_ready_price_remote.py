@@ -7,7 +7,7 @@ from defusedxml import ElementTree as ET
 import xml.etree.ElementTree as XML
 
 from avito_bridge.ready_price.identity import seed_published_manifest
-from avito_bridge.ready_price.remote import apply_updates, stock_report
+from avito_bridge.ready_price.remote import apply_updates, stock_report, expiration_report
 from tests.test_ready_price import ingest, policy, release
 from tests.test_ready_price_identity import manifest_for
 
@@ -69,6 +69,7 @@ def test_supplier_absence_removes_and_return_restores_bound_ad(tmp_path, policy)
         sha, article, data = db.execute("SELECT sha256,article,data FROM snapshot_items ORDER BY article LIMIT 1").fetchone()
         manifest = json.loads(db.execute("SELECT manifest FROM releases WHERE sha256=?", (sha,)).fetchone()[0])
         manifest["schema_version"] = 2
+        manifest["provenance"]["supplier"]["modified_at"] = datetime.now(timezone.utc).isoformat()
         db.execute("UPDATE releases SET manifest=? WHERE sha256=?", (json.dumps(manifest), sha))
         item = json.loads(data)
         item["availability"] = "unverified_origin"
@@ -93,3 +94,17 @@ def test_stock_report_identifies_missing_old_card(tmp_path, policy):
     row = next(x for x in result["rows"] if x["ad_id"] == "keep-historical-id")
     assert row["state"] == "missing_from_feed"
     assert row["action"] == "review_cancel"  # старый выпуск не доказывает наличие
+
+
+def test_expiration_review_keeps_owner_stops_separate(tmp_path, policy):
+    database, live, stops = prepared(tmp_path, policy)
+    stops.write_text(json.dumps({'entries': {
+        'legacy-expired': {'reason': 'expired_avito_listing', 'title': 'Expired product'},
+        'archive': {'reason': 'archive_hold'},
+        'owner-stopped': {'reason': 'manual_avito_removal'},
+    }}))
+    rows = {r['ad_id']: r for r in expiration_report(database, stops)['rows']}
+    assert set(rows) == {'legacy-expired', 'archive'}
+    assert rows['legacy-expired']['state'] == 'expired'
+    assert rows['legacy-expired']['supplier_present'] is None
+    assert rows['legacy-expired']['action'] == 'confirm_source_before_renew'

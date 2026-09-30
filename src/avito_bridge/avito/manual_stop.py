@@ -51,6 +51,16 @@ def _feed_items(path: Path) -> dict[str, str]:
     return result
 
 
+def expired_listing(mapped: dict, now: str) -> bool:
+    if (mapped.get("section") or {}).get("slug") == "stopped_by_expiration":
+        return True
+    try:
+        end = datetime.fromisoformat(str(mapped["avito_date_end"]).replace("Z", "+00:00"))
+        return end.tzinfo is not None and end <= datetime.fromisoformat(now)
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 def sync_manual_stops(
     client: AvitoClient,
     feed_path: Path,
@@ -116,6 +126,7 @@ def sync_manual_stops(
             "status": status,
             "title": managed[ad_id],
             "observed_at": now,
+            "avito_date_end": mapped.get("avito_date_end"),
         }
         removal_transition = old_status == "active" and (
             status == "removed" or (hold_archive and status == "old")
@@ -128,7 +139,8 @@ def sync_manual_stops(
                 "ad_id": ad_id,
                 "avito_id": int(avito_id) if avito_id.isdigit() else avito_id,
                 "status": status,
-                "reason": "archive_hold" if status == "old" else "manual_avito_removal",
+                "reason": ("expired_avito_listing" if expired_listing(mapped, now) else "archive_hold")
+                          if status == "old" else "manual_avito_removal",
                 "title": managed[ad_id],
                 "created_at": now,
             }

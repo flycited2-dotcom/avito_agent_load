@@ -26,6 +26,24 @@ def timestamp(value):
     return result.astimezone(timezone.utc)
 
 
+def source_freshness_problem(release, *, current=None, max_age_days=4):
+    if not release:
+        return "supplier_snapshot_unverified"
+    try:
+        manifest = json.loads(release["manifest"])
+        provenance = manifest.get("provenance") or {}
+        if (manifest.get("schema_version") != 2 or manifest.get("snapshot_kind") != "full"
+                or provenance.get("supplier_fallback") is not False):
+            return "supplier_snapshot_unverified"
+        now = current or now_utc()
+        stamps = [timestamp(release["generated_at"]), timestamp(provenance["supplier"]["modified_at"])]
+        if min(stamps) < now - timedelta(days=max_age_days) or max(stamps) > now + timedelta(minutes=10):
+            return "supplier_snapshot_stale"
+    except (ValueError, KeyError, TypeError):
+        return "supplier_snapshot_unverified"
+    return None
+
+
 def connect(path: Path):
     path.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(path, timeout=30)
