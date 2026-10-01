@@ -150,3 +150,16 @@ def test_archive_hold_is_explicit_and_cannot_auto_reactivate(tmp_path):
     assert json.loads(stop.read_text())['entries']['a1']['reason'] == 'archive_hold'
     sync_manual_stops(FakeClient({'a1': 'active', 'a2': 'active'}), feed, stop, obs, hold_archive=True)
     assert load_suppressed_ids(stop) == {'a1'}
+
+
+def test_archive_guard_never_stops_confirmed_expiration(tmp_path):
+    feed, stop, obs = (tmp_path / n for n in ('feed.xml', 'stop.json', 'obs.json'))
+    _write_feed(feed)
+    sync_manual_stops(FakeClient({'a1': 'active', 'a2': 'active'}), feed, stop, obs)
+    client = FakeClient({'a1': 'old', 'a2': 'old'})
+    client.last_successful_items = lambda **kwargs: [
+        {'ad_id': 'a1', 'avito_id': 101, 'section': {'slug': 'stopped_by_expiration'}},
+        {'ad_id': 'a2', 'avito_id': 102, 'avito_date_end': '2026-01-01T00:00:00Z'},
+    ]
+    assert sync_manual_stops(client, feed, stop, obs, hold_archive=True)['added'] == 0
+    assert not load_suppressed_ids(stop)

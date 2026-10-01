@@ -129,7 +129,7 @@ def sync_manual_stops(
             "avito_date_end": mapped.get("avito_date_end"),
         }
         removal_transition = old_status == "active" and (
-            status == "removed" or (hold_archive and status == "old")
+            status == "removed" or (hold_archive and status == "old" and not expired_listing(mapped, now))
         )
         # Explicit one-time bootstrap also imports removals seen by an earlier
         # observation-only seed run. Existing stop entries remain idempotent.

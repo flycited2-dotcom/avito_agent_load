@@ -22,7 +22,7 @@ if [ -n "$MAIN_AVITO_CLIENT_ID" ] && [ -n "$MAIN_AVITO_CLIENT_SECRET" ]; then
   PYTHONPATH=src python -m avito_bridge.avito.manual_stop \
     --feed /opt/oasis/staticfiles/avito-feed.xml \
     --stop state/manual-stop-main.json \
-    --observations state/avito-status-main.json --hold-archive
+    --observations state/avito-status-main.json
 fi
 PYTHONPATH=src python -m avito_bridge
 TMP="$(mktemp --tmpdir=/opt/oasis/staticfiles .avito-feed.xml.XXXXXXXX.tmp)"
