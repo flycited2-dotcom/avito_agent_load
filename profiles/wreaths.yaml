@@ -2,13 +2,14 @@
 # Схема: docs/specs/2026-07-04-universal-business-profiles.md
 # Запуск: python -m avito_bridge --config profiles/wreaths.yaml
 #
-# Аккаунт Avito №2 (профиль 402 499 218): ключи Автозагрузки — в .env
+# Отдельный аккаунт Avito: ключи Автозагрузки — только в .env
 # (AVITO_CLIENT_ID_WREATHS / AVITO_CLIENT_SECRET_WREATHS), в git не кладём.
 profile:
   name: wreaths
   source: ritualb2b_site        # products.js сайта (ingest/ritualb2b_site.py)
   grouping: per_item            # 1 товар = 1 объявление, серии не нужны
   feed_path: feed_out/wreaths.xml
+  public_feed_path: "/opt/oasis/staticfiles/avito-feed-wreaths.xml"
 
 cities:
   - {id: "simferopol", name: "Симферополь", avito_location: "Республика Крым, Симферополь"}
@@ -21,6 +22,8 @@ pricing:
 
 feed:
   max_active_ads: 100
+  min_active_ads: 40
+  max_drop_fraction: 0.35
   # Категория по ЛК владельца (2026-07-15): «Для дома и дачи / Растения /
   # Панно и искусственные растения». ВАЖНО: «Для дома и дачи» — группа сайта,
   # НЕ категория Автозагрузки — первая загрузка вернула код 1008 на все 55
@@ -47,7 +50,7 @@ content:
   title_max: 50
   description_max: 7000
   stop_words: []
-  descriptions_manifest: ""
+  descriptions_manifest: "avito-descriptions/manifest.json"
   description_attr: desc_long   # готовые тексты сайта (descLong), генератор не зовётся
   website_link: ""
   website_link_keys: []

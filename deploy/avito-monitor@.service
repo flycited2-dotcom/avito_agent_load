@@ -1,0 +1,16 @@
+[Unit]
+Description=Owner-only Avito monitor (%i); no paid operations
+After=network-online.target avito-manual-stop-sync.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/avito-bridge
+EnvironmentFile=/opt/avito-bridge/.env
+Environment=PYTHONPATH=/opt/avito-bridge/src
+ExecStart=/usr/bin/flock -w 600 -E 75 /opt/avito-bridge/state/monitor-main.lock /opt/avito-bridge/.venv/bin/python -m avito_bridge.monitor --mode %i --notify
+SuccessExitStatus=75
+TimeoutStartSec=20min
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true

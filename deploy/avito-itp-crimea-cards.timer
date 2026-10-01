@@ -1,0 +1,10 @@
+[Unit]
+Description=Run I-T-P Crimea content-card queue every 4 hours
+
+[Timer]
+OnCalendar=*-*-* 00/4:12:00
+Persistent=true
+Unit=avito-itp-crimea-cards.service
+
+[Install]
+WantedBy=timers.target

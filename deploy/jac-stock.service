@@ -1,0 +1,8 @@
+[Unit]
+Description=Refresh JAC B2B stock snapshot for Avito Bridge
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/avito-bridge/deploy/jac-stock.sh

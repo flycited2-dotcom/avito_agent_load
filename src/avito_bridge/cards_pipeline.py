@@ -9,13 +9,24 @@
 """
 from __future__ import annotations
 import io
-import shutil
+import ipaddress
+import os
 import sqlite3
+import socket
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 import httpx
 
-from avito_bridge.content.cards import card_key, card_input_photo
+from avito_bridge.content.cards import (
+    MAX_CARD_BYTES,
+    card_image_extension,
+    card_input_photo,
+    card_key,
+    existing_card_path,
+    legacy_card_key,
+)
 from avito_bridge.content.render import card_brief
 
 
@@ -29,6 +40,7 @@ class FotogenConfig:
     cards_dir: str
     mode: str = "conditioner"  # режим по умолчанию
     modes: dict = None         # {series_key: режим} — переопределяет mode для конкретной серии
+    input_dir: str = ""        # локальные референсы товаров; не являются публичными фото фида
     per_run: int = 8           # максимум новых задач за один запуск
     max_pending: int = 15      # потолок «в работе» (чтобы не гнать сотни подряд — риск ToS)
     max_total: int = 100000    # ВСЕГО карточек к генерации (для теста ставим ~20; потом снимем)
@@ -39,17 +51,24 @@ def submit_card_job(cfg: FotogenConfig, photo_bytes: bytes, brand: str, model: s
                     specs: str, http: httpx.Client | None = None,
                     mode: str | None = None) -> str | None:
     """POST /api/submit-job → имя поставленного входного файла (для маппинга)."""
+    if len(photo_bytes) > 15 * 1024 * 1024:
+        raise ValueError("Input photo exceeds the 15 MiB safety limit")
+    owned_client = http is None
     client = http or httpx.Client(timeout=30)
-    r = client.post(
-        f"{cfg.api_url.rstrip('/')}/api/submit-job",
-        headers={"x-agent-token": cfg.token},
-        data={"mode": mode or cfg.mode, "specs": specs, "brand": brand or "",
-              "model": model or "", "chat_id": str(cfg.chat_id)},
-        files={"photo": (f"{(model or 'card')}.jpg".replace(" ", "_"),
-                         io.BytesIO(photo_bytes), "image/jpeg")},
-    )
-    r.raise_for_status()
-    return (r.json() or {}).get("queued")
+    try:
+        r = client.post(
+            f"{cfg.api_url.rstrip('/')}/api/submit-job",
+            headers={"x-agent-token": cfg.token},
+            data={"mode": mode or cfg.mode, "specs": specs, "brand": brand or "",
+                  "model": model or "", "chat_id": str(cfg.chat_id)},
+            files={"photo": (f"{(model or 'card')}.jpg".replace(" ", "_"),
+                             io.BytesIO(photo_bytes), "image/jpeg")},
+        )
+        r.raise_for_status()
+        return (r.json() or {}).get("queued")
+    finally:
+        if owned_client:
+            client.close()
 
 
 def _query_jobs(queue_db: str, input_filenames: list[str], status: str) -> dict[str, str]:
@@ -57,23 +76,38 @@ def _query_jobs(queue_db: str, input_filenames: list[str], status: str) -> dict[
         return {}
     con = sqlite3.connect(f"file:{Path(queue_db).as_posix()}?mode=ro", uri=True)
     try:
-        qs = ",".join("?" * len(input_filenames))
-        rows = con.execute(
-            f"SELECT input_filename, output_filename FROM jobs "
-            f"WHERE status=? AND input_filename IN ({qs})",
-            [status, *input_filenames]).fetchall()
+        # Run a parameterized lookup per filename.  The queue is deliberately
+        # bounded, and avoiding a dynamically sized IN expression keeps the
+        # query both portable and immune to accidental SQL construction bugs.
+        rows = []
+        for input_filename in input_filenames:
+            rows.extend(
+                con.execute(
+                    "SELECT input_filename, output_filename FROM jobs "
+                    "WHERE status=? AND input_filename=?",
+                    [status, input_filename],
+                ).fetchall()
+            )
         return {r[0]: r[1] for r in rows}
     finally:
         con.close()
 
 
 def wake_agent(queue_db: str) -> None:
-    """Сигнал WatchDog на локальном ПК: запустить агента (он обработает очередь).
-    Тот же механизм, что кнопка «🚀 Запустить агента»: flags.agent_command='start'."""
+    """Автопробуждение всех машин фотоагента при постановке задач.
+
+    ``wake`` поднимает только дорожки с желаемым состоянием ``running`` и не
+    отменяет ручной ``stop``. ``INSERT OR IGNORE`` также не затирает команду
+    владельца, которую watchdog ещё не успел прочитать.
+    """
     con = sqlite3.connect(queue_db, timeout=10)
     try:
         con.execute("CREATE TABLE IF NOT EXISTS flags (key TEXT PRIMARY KEY, value TEXT)")
-        con.execute("INSERT OR REPLACE INTO flags (key, value) VALUES ('agent_command', 'start')")
+        for key in ("agent_command", "agent_command_laptop", "agent_command_desktop"):
+            con.execute(
+                "INSERT OR IGNORE INTO flags (key, value) VALUES (?, 'wake')",
+                (key,),
+            )
         con.commit()
     finally:
         con.close()
@@ -144,8 +178,140 @@ def specs_text(attrs: dict, max_lines: int = 8) -> str:
     return "\n".join(out)
 
 
+def _validate_public_http_url(url: str) -> None:
+    parsed = urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("Card source must be an HTTP(S) URL")
+    hostname = parsed.hostname.rstrip(".").lower()
+    if hostname == "localhost" or hostname.endswith(".localhost"):
+        raise ValueError("Local card source URLs are forbidden")
+    try:
+        addresses = {
+            item[4][0]
+            for item in socket.getaddrinfo(
+                hostname,
+                parsed.port or (443 if parsed.scheme == "https" else 80),
+                type=socket.SOCK_STREAM,
+            )
+        }
+    except socket.gaierror as exc:
+        raise ValueError(f"Cannot resolve card source host {hostname!r}") from exc
+    for address in addresses:
+        ip = ipaddress.ip_address(address)
+        if not ip.is_global:
+            raise ValueError(f"Non-public card source address is forbidden: {address}")
+
+
+def _validate_connected_peer(response: httpx.Response) -> None:
+    """Reject DNS rebinding by checking the address of the connected socket."""
+    network_stream = response.extensions.get("network_stream")
+    if network_stream is None or not hasattr(network_stream, "get_extra_info"):
+        raise ValueError("Cannot verify the connected card source address")
+    peer = network_stream.get_extra_info("server_addr")
+    if not peer:
+        raise ValueError("Cannot verify the connected card source address")
+    address = peer[0] if isinstance(peer, (tuple, list)) else peer
+    try:
+        ip = ipaddress.ip_address(str(address).split("%", 1)[0])
+    except ValueError as exc:
+        raise ValueError(f"Invalid connected card source address: {address!r}") from exc
+    if not ip.is_global:
+        raise ValueError(f"Non-public connected card source address is forbidden: {address}")
+
+
 def _http_get(url: str) -> bytes:
-    return httpx.get(url, headers={"User-Agent": "AvitoBridge/1.0"}, timeout=30).content
+    _validate_public_http_url(url)
+    with httpx.Client(
+        headers={"User-Agent": "AvitoBridge/1.0"},
+        timeout=30,
+        follow_redirects=False,
+        trust_env=False,
+    ) as client:
+        with client.stream("GET", url) as response:
+            # Validate the socket before status/body processing.  The request
+            # keeps its original hostname, so HTTPS certificate checks and SNI
+            # are not weakened by IP-address URL rewriting.
+            _validate_connected_peer(response)
+            response.raise_for_status()
+            content_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
+            if not content_type.startswith("image/"):
+                raise ValueError(f"Card source returned non-image content type {content_type!r}")
+            declared = response.headers.get("content-length")
+            if declared and int(declared) > 15 * 1024 * 1024:
+                raise ValueError("Card source exceeds the 15 MiB safety limit")
+            content = bytearray()
+            for chunk in response.iter_bytes():
+                if len(content) + len(chunk) > 15 * 1024 * 1024:
+                    raise ValueError("Card source exceeds the 15 MiB safety limit")
+                content.extend(chunk)
+    return bytes(content)
+
+
+def _safe_output_path(output_dir: Path, filename: str) -> Path:
+    if not isinstance(filename, str) or not filename.strip():
+        raise ValueError("Photo agent returned an empty output filename")
+    relative = Path(filename)
+    if relative.is_absolute() or len(relative.parts) != 1 or relative.name != filename:
+        raise ValueError(f"Unsafe photo agent output filename: {filename!r}")
+    candidate = (output_dir / relative).resolve()
+    try:
+        candidate.relative_to(output_dir.resolve())
+    except ValueError as exc:
+        raise ValueError(f"Photo agent output escapes output_dir: {filename!r}") from exc
+    return candidate
+
+
+def _local_card_input(offer, input_dir: str) -> bytes | None:
+    """Read a configured local supplier reference without trusting product data."""
+    name = str((getattr(offer, "attrs", {}) or {}).get("card_input_name", ""))
+    if not input_dir or not name:
+        return None
+    relative = Path(name)
+    if relative.is_absolute() or len(relative.parts) != 1 or relative.name != name:
+        raise ValueError(f"Unsafe local card input filename: {name!r}")
+    root = Path(input_dir).resolve()
+    candidate = (root / relative).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"Local card input escapes input_dir: {name!r}") from exc
+    if candidate.is_symlink() or not candidate.is_file():
+        return None
+    if candidate.stat().st_size > 15 * 1024 * 1024:
+        raise ValueError("Local card input exceeds the 15 MiB safety limit")
+    card_image_extension(candidate)
+    return candidate.read_bytes()
+
+
+def _copy_atomic(source: Path, destination_dir: Path, key: str) -> Path:
+    """Validate, stage, revalidate and atomically publish photo-agent output."""
+    expected_extension = card_image_extension(source, require_matching_suffix=False)
+    destination_dir.mkdir(parents=True, exist_ok=True)
+    fd, temporary_name = tempfile.mkstemp(
+        prefix=f".{key}.", suffix=".tmp", dir=destination_dir
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "wb") as target, source.open("rb") as source_stream:
+            copied = 0
+            while chunk := source_stream.read(1024 * 1024):
+                copied += len(chunk)
+                if copied > MAX_CARD_BYTES:
+                    raise ValueError(f"Generated card is unexpectedly large: {source}")
+                target.write(chunk)
+            target.flush()
+            os.fsync(target.fileno())
+        actual_extension = card_image_extension(
+            temporary, require_matching_suffix=False
+        )
+        if actual_extension != expected_extension:
+            raise ValueError("Generated card format changed while copying")
+        destination = destination_dir / f"{key}{actual_extension}"
+        os.replace(temporary, destination)
+        destination.chmod(0o644)
+        return destination
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
@@ -163,11 +329,9 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
     if pend:
         in2key = {f: k for k, f in pend}
         for in_fn, out_fn in done_results(cfg.queue_db, list(in2key)).items():
-            src = out_dir / out_fn
+            src = _safe_output_path(out_dir, out_fn)
             if src.exists():
-                dst = cards / f"{in2key[in_fn]}.jpg"
-                shutil.copyfile(src, dst)
-                dst.chmod(0o644)
+                _copy_atomic(src, cards, in2key[in_fn])
                 store.record(in2key[in_fn], in_fn, "done")
                 published += 1
         for in_fn in failed_inputs(cfg.queue_db, list(in2key)):
@@ -183,26 +347,35 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
         if submitted >= budget:
             break
         key = card_key(g.supplier_sku)
-        if (cards / f"{key}.jpg").exists():
+        if existing_card_path(g.supplier_sku, cards, [".jpg", ".jpeg", ".png"]):
             continue
-        st = store.get(key)
+        legacy_key = legacy_card_key(g.supplier_sku)
+        st = store.get(key) or (store.get(legacy_key) if legacy_key != key else None)
         next_tries = 1
         if st:
             status, tries = st[1], st[2]
-            if status in ("pending", "done"):
+            if status == "pending":
                 continue
+            # The state database can outlive a manual cleanup or a replaced
+            # cards volume. A ``done`` row without its validated image must
+            # be recoverable; otherwise the series would be skipped forever.
+            if status == "done":
+                next_tries = tries
             if status == "failed" and tries >= MAX_TRIES:
                 continue                       # исчерпали попытки — сдаёмся (не долбим агента)
-            next_tries = tries + 1             # failed с запасом попыток → переотправляем
+            if status == "failed":
+                next_tries = tries + 1         # failed с запасом попыток → переотправляем
         rep = g.representative
+        local_photo = _local_card_input(rep, cfg.input_dir)
         photo_url = card_input_photo(rep)          # кадр внутреннего блока (герой карточки)
-        if not photo_url:
+        if local_photo is None and not photo_url:
             continue
         mode = (cfg.modes or {}).get(getattr(g, "key", None)) or cfg.mode
         rep_nc = rep.supplier_sku.split(":", 1)[-1]
         brief = (manual_brief or {}).get(rep_nc) or card_brief(g)   # ручное УТП переопределяет авто
         try:
-            in_fn = submit_card_job(cfg, fetch_photo(photo_url), g.brand,
+            photo_bytes = local_photo if local_photo is not None else fetch_photo(photo_url)
+            in_fn = submit_card_job(cfg, photo_bytes, g.brand,
                                     f"{g.brand} {g.series}".strip(), brief,
                                     http=http, mode=mode)
         except Exception as e:
@@ -218,6 +391,6 @@ def run_once(groups, cfg: FotogenConfig, store: CardJobStore,
     if store.pending():
         try:
             wake_agent(cfg.queue_db)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"card agent wake failed: {exc}")
     return submitted, published

@@ -2,10 +2,22 @@ feed_out/
 # только рантайм-каталог в корне; НЕ src/avito_bridge/state/ (однажды из-за этого потеряли модуль)
 /state/
 /runtime/
+/data/
+# Supplier workbooks are operational inputs, never source or test fixtures.
+*.xls
+*.xlsx
 .venv/
 .worktrees/
 __pycache__/
 *.pyc
+.coverage
+.coverage.*
+.pytest_cache/
+.ruff_cache/
+coverage.xml
+coverage.json
+coverage-current.json
+htmlcov/
 .env
 avito_err*.json
 avito_*.json
