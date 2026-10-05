@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 from lxml import etree
 from avito_bridge.models import Offer, City, AdRecord
 from avito_bridge.feed.ad_id import make_ad_id
+from avito_bridge.feed.taxonomy import correct_legacy_taxonomy
 
 
 @dataclass
@@ -173,6 +174,7 @@ def _taxonomy_tags(ad: AdRecord, cfg: FeedConfig) -> list[tuple[str, str]]:
         if tag not in cfg.base_tags and tag not in _DEDICATED_OVERRIDE_TAG_SET:
             tags.append((tag, str(overrides[tag])))
 
+    tags = list(correct_legacy_taxonomy(dict(tags)).items())
     if cfg.tag_order is None:
         return tags
     by_name = dict(tags)

@@ -10,6 +10,7 @@ from avito_bridge import profile_publish as pp
 from avito_bridge.avito.client import AvitoClient
 from .publish import _unresolved_batch_ids, publish_ready_content
 from .visual_hold import apply_visual_holds
+from .taxonomy_repair import repair_legacy_taxonomy
 from .remote import run, stock_report, expiration_report
 
 
@@ -75,6 +76,28 @@ def _credentials(bridge: Path):
     return None
 
 
+def publication_pause(bridge: Path) -> str | None:
+    control = bridge / "state/ready-price/publication-control.json"
+    try:
+        payload = json.loads(control.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict) or type(payload.get("enabled")) is not bool:
+            return "paused_invalid_owner_control"
+        if not payload["enabled"]:
+            return "paused_by_owner"
+    except FileNotFoundError:
+        pass
+    except (OSError, ValueError):
+        return "paused_invalid_owner_control"
+    hold = bridge / "state/ready-price/content-publication.paused"
+    if hold.exists():
+        try:
+            reason = json.loads(hold.read_text(encoding="utf-8")).get("reason")
+        except (OSError, ValueError, AttributeError):
+            reason = None
+        return "paused_stock_audit" if reason == "owner_requested_stock_audit" else "paused_visual_audit"
+    return None
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--root", type=Path, default=Path("/opt/avito-ready-price"))
@@ -101,13 +124,17 @@ def main():
             "status": "deferred",
             "reason": "publication_lock_busy",
         }
+        # A lock collision is only a skipped attempt. Preserve the last
+        # complete publication report (including per-article hold reasons).
+        attempt_file = status_file.with_name("last-attempt.json")
         pp._write_atomic_bytes(
-            status_file,
+            attempt_file,
             json.dumps(status, ensure_ascii=False, indent=2).encode("utf-8"),
         )
-        print(json.dumps({**status, "status_file": str(status_file)}, ensure_ascii=True))
+        print(json.dumps({**status, "status_file": str(attempt_file)}, ensure_ascii=True))
         return
     with pp._exclusive_lock(a.bridge / "state/profile-publish.lock"):
+        taxonomy = repair_legacy_taxonomy(a.public / "avito-feed.xml", a.bridge, a.public)
         visual_holds = apply_visual_holds(
             a.public / "avito-feed.xml",
             a.bridge / "state/ready-price/visual-holds.json",
@@ -115,8 +142,9 @@ def main():
     content = {"status": "credentials_unavailable", "added": [], "held": {}}
     autoload = {"status": "unknown"}
     credentials = _credentials(a.bridge)
-    if (a.bridge / "state/ready-price/content-publication.paused").exists():
-        content = {"status": "paused_visual_audit", "added": [], "held": {}}
+    pause = publication_pause(a.bridge)
+    if pause:
+        content = {"status": pause, "added": [], "held": {}}
     elif credentials:
         try:
             with AvitoClient(*credentials, pagination_delay=1.1) as client:
@@ -164,6 +192,7 @@ def main():
         "finished_at": datetime.now(timezone.utc).isoformat(),
         **result,
         "visual_holds": visual_holds,
+        "taxonomy": taxonomy,
         "content": content,
         "autoload": autoload,
     }

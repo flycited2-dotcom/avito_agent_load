@@ -36,3 +36,6 @@ xlsx_*.json
 # !**/tests/** выше случайно возвращал в трекинг кэш байткода — исключаем обратно
 tests/__pycache__/
 *.egg-info/
+/outputs/
+/.tmp-review/
+/avito-descriptions/.studio-profile-state.json

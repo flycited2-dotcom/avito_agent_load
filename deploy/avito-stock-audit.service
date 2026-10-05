@@ -1,0 +1,11 @@
+[Unit]
+Description=Verify stock of every Avito feed item against its supplier
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/avito-bridge
+Environment=PYTHONPATH=/opt/avito-bridge/src
+ExecStart=/opt/avito-bridge/.venv/bin/python -m avito_bridge.stock_audit
+TimeoutStartSec=120

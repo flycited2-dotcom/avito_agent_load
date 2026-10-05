@@ -81,6 +81,26 @@ def test_simple_category_uses_all_fixed_official_taxonomy_values():
     assert tags["ListingFee"] == "Package"
 
 
+def test_tv_xml_taxonomy_comes_from_fields_not_tree_positions():
+    entry = _leaf("televizory_1147261")
+    # Keep the official taxonomy fields; other TV fields concern hardware and
+    # condition rather than this regression in the XML hierarchy.
+    entry["schema"]["fields"] = [f for f in entry["schema"]["fields"]
+                                  if f["tag"] in {"Category", "GoodsType", "ProductType"}]
+    tags, reason = schema_tags(entry, _content("Телевизор Asano 28LH5011T"))
+    assert reason is None
+    assert tags["Category"] == "Аудио и видео"
+    assert tags["GoodsType"] == "Телевизоры и проекторы"
+    assert tags["ProductType"] == "Телевизоры"
+
+
+def test_missing_official_category_cannot_fall_back_to_tree_guess():
+    entry = _leaf("myasorubki_2303688")
+    entry["schema"]["fields"] = [f for f in entry["schema"]["fields"] if f["tag"] != "Category"]
+    assert schema_tags(entry, _content("Мясорубка X100")) == (
+        None, "required_avito_field_unverified:Category")
+
+
 def test_content_without_passed_text_audit_is_held(tmp_path):
     content = {
         "schema_version": 1, "article": "A-1", "brand": "BQ", "model": "KT100",

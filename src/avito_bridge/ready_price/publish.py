@@ -193,15 +193,19 @@ _BASIC = {"Id", "Address", "Title", "Description", "Price", "Images", "Category"
 
 def schema_tags(entry: dict, content: dict) -> tuple[dict[str, str] | None, str | None]:
     """Вернуть только доказуемые обязательные теги либо причину задержки."""
-    path = entry["path"]
     tags = {
-        "Category": path[1],
-        "GoodsType": path[2],
         "AdType": "Товар приобретен на продажу",
         "Condition": "Новое",
         "ListingFee": "Package",
     }
     fields = {field["tag"]: field for field in entry["schema"].get("fields", [])}
+    # Tree depth is not XML depth: TV GoodsType is "Телевизоры и проекторы".
+    # Only the official field values define this mapping.
+    for tag in ("Category", "GoodsType"):
+        value = _single_value(fields.get(tag, {}))
+        if value is None:
+            return None, f"required_avito_field_unverified:{tag}"
+        tags[tag] = value
     required = _required_xml_fields(entry)
     for tag, field in required.items():
         if tag in _BASIC:
@@ -485,10 +489,23 @@ def update_batch_receipt(database: Path, report_items: list[dict]) -> dict:
     return {"status": status, "batch_id": batch["batch_id"], "rejected": rejected}
 
 
+def owner_publication_paused(bridge: Path) -> bool:
+    path = bridge / "state/ready-price/publication-control.json"
+    try:
+        control = json.loads(path.read_text(encoding="utf-8"))
+        return not isinstance(control, dict) or control.get("enabled") is not True
+    except FileNotFoundError:
+        return False
+    except (OSError, ValueError):
+        return True
+
+
 def publish_ready_content(database: Path, feed: Path, manual_stops: Path, bridge: Path,
                           public: Path, content_dir: Path, schemas_path: Path,
                           account_items: list[dict], report_items: list[dict],
                           *, latest_upload_status: str = "", max_new: int = 4) -> dict:
+    if owner_publication_paused(bridge):
+        return {"status": "paused_by_owner", "added": [], "held": {}}
     receipt = update_batch_receipt(database, report_items)
     recovered = _refresh_rejected_batches(database, report_items)
     rejected = _rejected_batches(database)
@@ -610,6 +627,9 @@ def publish_ready_content(database: Path, feed: Path, manual_stops: Path, bridge
     batch_id = "ready-price-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ-") + uuid.uuid4().hex[:8]
     backup = bridge / "state/studio-backups" / (batch_id + "-" + str(int(time.time())))
     common = Path(__import__("os").path.commonpath([str(bridge), str(public)]))
+    # The owner may have stopped publication while image checks were running.
+    if owner_publication_paused(bridge):
+        return {"status": "paused_by_owner", "added": [], "held": held}
     journal = pp._prepare_transaction(operations, backup, common,
                                       {"profile": SOURCE, "batch_id": batch_id,
                                        "articles": [x["article"] for x in additions]})
