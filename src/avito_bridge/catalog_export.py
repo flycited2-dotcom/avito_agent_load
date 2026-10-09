@@ -19,7 +19,7 @@ from avito_bridge.content.cards import has_card
 def _member_json(m: Offer, cfg: AppConfig) -> dict:
     pr = compute_price(m, cfg.pricing)
     nc = m.supplier_sku.split(":", 1)[-1]
-    return {"nc_code": nc, "supplier_sku": m.supplier_sku,
+    row = {"nc_code": nc, "supplier_sku": m.supplier_sku,
             "product_kind": ("manual" if m.source == "manual"
                              else "force_include" if m.forced else "supplier"),
             "ad_id_revision": cfg.feed.ad_id_revision.get(m.supplier_sku, 0),
@@ -27,6 +27,14 @@ def _member_json(m: Offer, cfg: AppConfig) -> dict:
             "cost": (int(m.cost.to_integral_value(rounding=ROUND_CEILING))
                      if m.cost is not None else None),
             "price": pr.price, "price_ok": pr.ok, "forced": m.forced}
+    if m.source == 'aru':
+        row.update(account_price=m.attrs.get('meta:account_price'),
+                   content_price_preview=int(m.attrs['meta:content_price']),
+                   content_markup_pct=m.attrs.get('meta:content_markup_pct'),
+                   supplier_updated_at=m.attrs.get('meta:snapshot_updated_at'),
+                   source_url=m.attrs.get('meta:source_url'),
+                   supplier_article=m.attrs.get('meta:supplier_article'))
+    return row
 
 
 def _group_json(g: SeriesGroup, cfg: AppConfig) -> dict:

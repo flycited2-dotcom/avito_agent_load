@@ -158,6 +158,11 @@ def fetch_itp_snapshot(cfg: AppConfig) -> list[Offer]:
     return _fetch(cfg)
 
 
+def fetch_aru_snapshot(cfg: AppConfig) -> list[Offer]:
+    from avito_bridge.ingest.aru_snapshot import fetch_aru_snapshot as _fetch
+    return _fetch(cfg)
+
+
 SOURCES: dict[str, Callable[[AppConfig], list[Offer]]] = {
     "oasis_db": fetch_oasis,
     "ritualb2b_site": fetch_ritualb2b,
@@ -165,6 +170,7 @@ SOURCES: dict[str, Callable[[AppConfig], list[Offer]]] = {
     "carver_xlsx": fetch_carver_xlsx,
     "manual_only": fetch_manual_only,
     "itp_snapshot": fetch_itp_snapshot,
+    "aru_snapshot": fetch_aru_snapshot,
 }
 
 
