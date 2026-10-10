@@ -2,9 +2,39 @@
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_CEILING
 import json
+import re
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from avito_bridge.models import Offer
+
+
+_PHOTO_PATH = re.compile(
+    r'(?P<prefix>/wa-data/public/shop/products/)(?:\d+/webp/)?'
+    r'(?P<image>\d+/\d+/\d+/images/(?P<id>\d+)/)(?P=id)\.\d+\.(?:webp|jpe?g)$'
+)
+
+
+def supplier_photos(urls):
+    """Use ARU's full JPEG for the same image ID; preserve gallery order.
+
+    Only the known ARU Shop-Script thumbnail path is rewritten. Other image
+    paths remain unchanged; loading a catalogue never downloads or generates
+    images. Availability of selected originals is checked before publication.
+    """
+    photos = []
+    for url in urls or []:
+        if not isinstance(url, str) or not url:
+            continue
+        parts = urlsplit(url)
+        match = _PHOTO_PATH.fullmatch(parts.path)
+        if (parts.scheme == 'https' and parts.netloc in {'aru.ooo', 'www.aru.ooo'}
+                and match):
+            path = match['prefix'] + match['image'] + match['id'] + '.970.jpg'
+            url = urlunsplit((parts.scheme, parts.netloc, path, '', ''))
+        if url not in photos:
+            photos.append(url)
+    return photos
 
 
 def fetch_aru_snapshot(cfg):
@@ -86,5 +116,5 @@ def fetch_aru_snapshot(cfg):
                             brand=str(row.get('brand', '')), model=row['name'],
                             series=row['name'], stock=int(row.get('available') is True),
                             retail_ref=price, price_override=sale_price if approved else None,
-                            attrs=attrs, photos=row.get('image_urls') or []))
+                            attrs=attrs, photos=supplier_photos(row.get('image_urls'))))
     return offers
