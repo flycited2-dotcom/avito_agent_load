@@ -1,7 +1,9 @@
 from decimal import Decimal
+from types import SimpleNamespace
+
+import pytest
 
 import avito_bridge.ingest.carver_xlsx as carver
-
 
 ROWS = [
     {"row": 4, "article": "ATS-10000-3PIN", "model": "ATS-10000 3pin",
@@ -135,11 +137,88 @@ class Book:
         assert name == carver.SHEET_NAME
         return self.active
 
+    def close(self):
+        return None
 
-def test_parser_and_embedded_photo_use_same_excel_row(monkeypatch):
+
+def test_parser_and_embedded_photo_use_same_excel_row(monkeypatch, tmp_path):
+    workbook = tmp_path / "carver.xlsx"
+    workbook.touch()
     monkeypatch.setattr(carver, "load_workbook", lambda *a, **k: Book())
-    parsed = carver.parse_carver_xlsx("ignored.xlsx")
-    photos = carver.extract_embedded_photos("ignored.xlsx")
+    parsed = carver.parse_carver_xlsx(workbook)
+    photos = carver.extract_embedded_photos(workbook)
     assert parsed[0]["article"] == "PPG-1900IS"
     assert parsed[0]["row"] == 4
     assert photos == {"PPG-1900IS": b"image-bytes"}
+
+
+def test_parser_rejects_oversized_workbook_before_openpyxl(
+    monkeypatch, tmp_path
+):
+    workbook = tmp_path / "carver.xlsx"
+    workbook.write_bytes(b"x")
+    monkeypatch.setattr(carver, "MAX_WORKBOOK_BYTES", 0)
+    monkeypatch.setattr(
+        carver,
+        "load_workbook",
+        lambda *args, **kwargs: pytest.fail("oversized file must not be decoded"),
+    )
+
+    with pytest.raises(ValueError, match="50 МБ"):
+        carver.parse_carver_xlsx(workbook)
+
+
+def test_fetch_carver_xlsx_resolves_profile_path_and_applies_manual_values(
+    monkeypatch, tmp_path
+):
+    source = tmp_path / "data" / "carver" / "arrival.xlsx"
+    source.parent.mkdir(parents=True)
+    source.touch()
+    captured = {}
+
+    def fake_parse(path):
+        captured["parsed_path"] = path
+        return ROWS
+
+    monkeypatch.setattr(carver, "parse_carver_xlsx", fake_parse)
+
+    def fake_build(rows, options, *, manual_photos, manual_price_override):
+        captured.update(
+            rows=rows,
+            options=options,
+            manual_photos=manual_photos,
+            manual_price_override=manual_price_override,
+        )
+        return ["built-offer"]
+
+    monkeypatch.setattr(carver, "build_offers", fake_build)
+    options = {"path": "data/carver/arrival.xlsx", "description_template": "{name}"}
+    cfg = SimpleNamespace(
+        source_options=options,
+        bridge_root=tmp_path,
+        catalog=SimpleNamespace(
+            manual_photos={"PPG-1900IS": "https://example.test/photo.jpg"},
+            manual_price_override={"PPG-1900IS": 29990},
+        ),
+    )
+
+    assert carver.fetch_carver_xlsx(cfg) == ["built-offer"]
+    assert captured["parsed_path"] == source.resolve()
+    assert captured["rows"] == ROWS
+    assert captured["options"] is options
+    assert captured["manual_photos"] == {
+        "PPG-1900IS": "https://example.test/photo.jpg"
+    }
+    assert captured["manual_price_override"] == {"PPG-1900IS": 29990}
+
+
+@pytest.mark.parametrize("configured_path", ["", "missing.xlsx"])
+def test_fetch_carver_xlsx_reports_missing_source(configured_path, tmp_path):
+    cfg = SimpleNamespace(
+        source_options={"path": configured_path},
+        bridge_root=tmp_path,
+        catalog=SimpleNamespace(manual_photos={}, manual_price_override={}),
+    )
+
+    with pytest.raises(ValueError, match="файл прайса не найден"):
+        carver.fetch_carver_xlsx(cfg)

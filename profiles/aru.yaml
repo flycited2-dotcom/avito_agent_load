@@ -1,0 +1,31 @@
+profile:
+  name: aru
+  source: aru_snapshot
+  grouping: per_item
+  feed_path: feed_out/aru-preview.xml
+  source_options:
+    path: runtime/aru/catalog.json
+    refresh_schedule: monday
+    prices_approved: false
+    content_markup_pct: 10
+    product_tags: {}
+cities:
+  - {id: simferopol, name: Симферополь, avito_location: 'Республика Крым, Симферополь'}
+pricing:
+  rounding: none
+  default_markup_pct: 0
+  min_margin_abs: 0
+  rules: []
+feed:
+  max_active_ads: 30000
+  min_active_ads: 1
+  max_drop_fraction: 0.0
+  base_tags: {AdType: 'Товар приобретен на продажу', Condition: Новое}
+content:
+  description_attr: desc_long
+  descriptions_manifest: ''
+catalog:
+  report_category_ids: []
+  selected_series: []
+cards:
+  enabled: false

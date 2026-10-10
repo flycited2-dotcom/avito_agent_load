@@ -24,7 +24,9 @@ def test_builds_manual_raw_product_for_normal_pipeline():
     assert row.source == "manual"
     assert row.nc_code == "manual-rc-gr28hn-a1b2c3d4"
     assert row.price_override == Decimal("26550.0")
-    assert row.forced is True
+    # Полностью ручной товар уже имеет собственные остаток/цену/фото и не
+    # должен маскироваться под force_include поставщика.
+    assert row.forced is False
     assert row.image_urls == ["https://splithome.ru/static/manual-photos/x.jpg"]
 
 

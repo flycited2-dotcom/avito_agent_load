@@ -1,6 +1,9 @@
 import json
 import sys
 from decimal import Decimal
+
+from PIL import Image
+
 from avito_bridge.models import Offer, City
 from avito_bridge.pricing.pricing import PricingConfig
 from avito_bridge.feed.builder import FeedConfig
@@ -99,7 +102,7 @@ def test_main_reads_profile_config_and_dispatches_source(tmp_path, monkeypatch, 
 
 
 def test_build_catalog_json_marks_forced_and_has_card(tmp_path):
-    (tmp_path / "НС-3.jpg").write_bytes(b"x")
+    Image.new("RGB", (8, 8), "white").save(tmp_path / "НС-3.jpg", format="JPEG")
     cards = CardConfig(enabled=True, dir=str(tmp_path), exts=[".jpg"])
     o = _offer("rusklimat:НС-3", series="ACE-07", forced=True, cost=None)
     o.price_override = Decimal("18990")
@@ -114,4 +117,13 @@ def test_build_catalog_json_marks_manual_photo_as_card():
     cfg = _cfg()
     cfg.catalog.manual_photos = {"НС-1": "https://splithome.ru/static/manual-photos/НС-1.jpg"}
     data = build_catalog_json([_offer("breeze:НС-1")], cfg)
+    assert data["series"][0]["has_card"] is True
+
+
+def test_build_catalog_json_marks_manual_product_photos_as_card():
+    offer = _offer("manual:PPG-2100IS-DUOMATIC")
+    offer.source = "manual"
+
+    data = build_catalog_json([offer], _cfg())
+
     assert data["series"][0]["has_card"] is True

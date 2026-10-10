@@ -42,6 +42,7 @@ def group_cool_kw(rows) -> dict[str, float]:
 CRIMEA_QUERY = """
 SELECT p.source, p.nc_code, b.title AS brand, p.title, p.series, p.category_id,
        p.btu_calc, p.price_wholesale, s.price_base, s.quantity AS crimea_qty,
+       p.kind, p.heating_min_temp, p.is_heat_pump,
        (SELECT array_agg(i.url ORDER BY i."order") FROM catalog_productimage i
         WHERE i.product_id = p.id) AS image_urls
 FROM catalog_product p
@@ -51,7 +52,8 @@ WHERE p.is_active = TRUE
   AND s.warehouse = %(crimea)s
   AND s.quantity > 0
   AND p.category_id = ANY(%(cats)s)
-  AND p.btu_calc > 0
+  AND (p.category_id NOT IN (2, 6, 7)
+       OR (p.btu_calc > 0 AND p.kind = 'split_system'))
   AND NOT (p.title ILIKE ANY(%(deny)s))
 ORDER BY p.source, b.title NULLS LAST, p.title;
 """
@@ -71,7 +73,7 @@ ORDER BY p.id, ts."order";
 # Принудительный набор по nc_code (минуя наличие/склад) — для force_include (товары под заказ).
 FORCE_QUERY = """
 SELECT p.source, p.nc_code, b.title AS brand, p.title, p.series, p.category_id,
-       p.btu_calc, p.price_wholesale,
+       p.btu_calc, p.price_wholesale, p.kind, p.heating_min_temp, p.is_heat_pump,
        (SELECT array_agg(i.url ORDER BY i."order") FROM catalog_productimage i
         WHERE i.product_id = p.id) AS image_urls
 FROM catalog_product p
@@ -84,6 +86,15 @@ def build_query_params(crimea: str, cats: list[int], deny: list[str]) -> dict:
     return {"crimea": crimea, "cats": cats, "deny": deny}
 
 
+_REQUIRED_CATALOG_SPECS = {
+    "Серия",
+    "Инверторная технология",
+    "Тип радиатора",
+    "Материал",
+    "Количество секций",
+}
+
+
 def group_tech_rows(rows, max_specs: int = 12) -> dict[str, dict]:
     """Сгруппировать строки ТТХ по nc_code → {nc: {title: value}} (пустые/дубли пропускаем)."""
     out: dict[str, dict] = {}
@@ -94,7 +105,12 @@ def group_tech_rows(rows, max_specs: int = 12) -> dict[str, dict]:
         if not nc or not title or not value:
             continue
         d = out.setdefault(nc, {})
-        if len(d) < max_specs and title not in d:
+        # Общий объём ТТХ ограничен, чтобы не раздувать описание объявления.
+        # Поля классификации сохраняем всегда: без них товар с фактическим
+        # остатком может быть ошибочно исключён из фида Avito.
+        if title not in d and (
+            len(d) < max_specs or title in _REQUIRED_CATALOG_SPECS
+        ):
             d[title] = value
     return out
 
@@ -107,8 +123,24 @@ def row_to_raw(row: dict) -> RawProduct:
         category_id=row.get("category_id"), btu_calc=row.get("btu_calc"),
         price_wholesale=row.get("price_wholesale"), price_base=row.get("price_base"),
         stock_qty=int(row.get("crimea_qty") or 0),
-        image_urls=imgs, tech={},
+        image_urls=imgs, tech={}, kind=row.get("kind") or "",
+        heating_min_temp=row.get("heating_min_temp"),
+        is_heat_pump=bool(row.get("is_heat_pump")),
     )
+
+
+def _is_inverter_product(raw: RawProduct) -> bool:
+    """Определить инвертор по структурному ТТХ и только затем по названию."""
+    for title, value in (raw.tech or {}).items():
+        if title.strip().casefold() != "инверторная технология":
+            continue
+        normalized = str(value).strip().casefold()
+        if normalized in {"да", "yes", "true", "1", "есть", "инвертор"}:
+            return True
+        if normalized in {"нет", "no", "false", "0"}:
+            return False
+    text = f"{raw.title} {raw.series or ''}".casefold()
+    return "инвертор" in text or "inverter" in text
 
 
 def apply_manual_price_override(raws: list[RawProduct], overrides: dict) -> None:
@@ -124,7 +156,9 @@ def apply_manual_price_override(raws: list[RawProduct], overrides: dict) -> None
 def fetch_raw_products(dsn: dict, crimea: str, cats: list[int], deny: list[str],
                        force_include: dict | None = None,
                        manual_photos: dict | None = None,
-                       manual_price_override: dict | None = None) -> list[RawProduct]:
+                       manual_price_override: dict | None = None,
+                       connect_timeout: int = 10,
+                       statement_timeout_ms: int = 30_000) -> list[RawProduct]:
     """Боевой путь (Фаза 0). Покрыт интеграционно при дымовом прогоне, не в юнит-тестах.
     force_include={nc_code: цена} — добрать эти товары минуя наличие БД (под заказ), с ручной ценой.
     manual_photos={nc_code: url} — фото для товаров, у которых нет фото в БД.
@@ -132,7 +166,12 @@ def fetch_raw_products(dsn: dict, crimea: str, cats: list[int], deny: list[str],
     import psycopg2
     from psycopg2.extras import RealDictCursor
     conn = psycopg2.connect(host=dsn["host"], port=dsn["port"], dbname=dsn["dbname"],
-                            user=dsn["user"], password=dsn["password"])
+                            user=dsn["user"], password=dsn["password"],
+                            connect_timeout=max(1, int(connect_timeout)),
+                            options=(
+                                f"-c statement_timeout={max(1000, int(statement_timeout_ms))} "
+                                "-c default_transaction_read_only=on"
+                            ))
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(CRIMEA_QUERY, build_query_params(crimea, cats, deny))
@@ -161,8 +200,9 @@ def fetch_raw_products(dsn: dict, crimea: str, cats: list[int], deny: list[str],
                     if r.nc_code in tech:
                         r.tech = tech[r.nc_code]
                     r.cool_kw = cool.get(r.nc_code)
-            for r in raws:                          # ручное фото — где в БД фото нет
-                if not r.image_urls and (manual_photos or {}).get(r.nc_code):
+                    r.is_inverter = _is_inverter_product(r)
+            for r in raws:                          # явное ручное фото имеет приоритет над БД
+                if (manual_photos or {}).get(r.nc_code):
                     r.image_urls = [manual_photos[r.nc_code]]
             apply_manual_price_override(raws, manual_price_override)
             return raws

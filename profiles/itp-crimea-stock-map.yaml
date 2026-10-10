@@ -1,0 +1,12 @@
+# Existing live ads whose availability is owned by the I-T-P Crimea snapshot.
+# IDs are historical and must not be regenerated.
+sku_to_ad_id:
+  "11248716": "35132aec9d48a52f65227dcb"  # Beko WHE6512ZBW
+  "10877814": "7198970ffdb5829c778a4b79"  # Beko WSPE6H612A
+  "9820672": "aa7799ae7cf476e451bad422"   # Indesit EWSB 5085
+  "2868405": "41e1c3ff9586d8553e06e138"   # DON R-291 B
+  "9849407": "d7ce1e186e9c520bc1b39da9"   # DON R-297 B
+  "9973138": "6cc307445f8c7c86303a1032"   # LG GA-B419SEUL
+  "9811707": "0810d64b160b555d5ff125d4"   # LG GA-B419SQGL
+  "9991445": "9c894a0aad14c049379758a5"   # LG GA-B509CQCL
+  "9732837": "26448c18e3f8f78e37d8d7ff"   # Stinol STS 185

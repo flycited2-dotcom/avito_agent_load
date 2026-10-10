@@ -1,0 +1,9 @@
+[Unit]
+Description=Check Avito feed, chats, calls and balance every five minutes
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+AccuracySec=20s
+Unit=avito-monitor@poll.service
+[Install]
+WantedBy=timers.target

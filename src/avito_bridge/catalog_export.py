@@ -19,21 +19,49 @@ from avito_bridge.content.cards import has_card
 def _member_json(m: Offer, cfg: AppConfig) -> dict:
     pr = compute_price(m, cfg.pricing)
     nc = m.supplier_sku.split(":", 1)[-1]
-    return {"nc_code": nc, "btu_calc": m.btu_calc, "stock": m.stock,
+    row = {"nc_code": nc, "supplier_sku": m.supplier_sku,
+            "product_kind": ("manual" if m.source == "manual"
+                             else "force_include" if m.forced else "supplier"),
+            "ad_id_revision": cfg.feed.ad_id_revision.get(m.supplier_sku, 0),
+            "btu_calc": m.btu_calc, "stock": m.stock,
             "cost": (int(m.cost.to_integral_value(rounding=ROUND_CEILING))
                      if m.cost is not None else None),
             "price": pr.price, "price_ok": pr.ok, "forced": m.forced}
+    if m.source == 'aru':
+        row.update(account_price=m.attrs.get('meta:account_price'),
+                   content_price_preview=int(m.attrs['meta:content_price']),
+                   content_markup_pct=m.attrs.get('meta:content_markup_pct'),
+                   supplier_updated_at=m.attrs.get('meta:snapshot_updated_at'),
+                   source_url=m.attrs.get('meta:source_url'),
+                   supplier_article=m.attrs.get('meta:supplier_article'))
+    if m.source == 'aru':
+        row.update(category_path=json.loads(m.attrs.get('meta:category_path', '[]')),
+                   category_ids=json.loads(m.attrs.get('meta:category_ids', '[]')),
+                   category_slugs=json.loads(m.attrs.get('meta:category_slugs', '[]')))
+    return row
 
 
 def _group_json(g: SeriesGroup, cfg: AppConfig) -> dict:
     representative_nc = g.representative.supplier_sku.split(":", 1)[-1]
-    return {"key": g.key, "source": g.source, "brand": g.brand, "series": g.series,
+    ad_supplier_sku = cfg.feed.ad_id_anchor.get(g.key, g.representative.supplier_sku)
+    row = {"key": g.key, "source": g.source, "brand": g.brand, "series": g.series,
             "category_id": g.category_id,
+            "ad_supplier_sku": ad_supplier_sku,
+            "ad_id_revision": cfg.feed.ad_id_revision.get(ad_supplier_sku, 0),
             "stock_total": sum(m.stock for m in g.members),
+            "stock_is_boolean": all(m.attrs.get('meta:stock_is_boolean') == '1' for m in g.members),
             "has_card": (has_card(g.representative, cfg.cards)
+                         or (
+                             g.representative.source == "manual"
+                             and bool(g.representative.photos)
+                         )
                          or bool((cfg.catalog.manual_photos or {}).get(representative_nc))),
             "forced": any(m.forced for m in g.members),
             "members": [_member_json(m, cfg) for m in g.members]}
+    if g.source == 'aru':
+        row.update(category_path=json.loads(g.representative.attrs.get('meta:category_path', '[]')),
+                   category_ids=json.loads(g.representative.attrs.get('meta:category_ids', '[]')))
+    return row
 
 
 def build_catalog_json(offers: list[Offer], cfg: AppConfig) -> dict:

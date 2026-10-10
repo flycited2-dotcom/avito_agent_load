@@ -1,0 +1,19 @@
+account_id: 78179175
+state_dir: /opt/avito-bridge/state/monitor-main
+feed: /opt/oasis/staticfiles/avito-feed.xml
+observations: /opt/avito-bridge/state/avito-status-main.json
+stop: /opt/avito-bridge/state/manual-stop-main.json
+telegram_env: /var/www/climat-simf.ru/.env
+telegram_token_key: B2B_ASSISTANT_TELEGRAM_BOT_TOKEN
+telegram_owner_env: /opt/splithub_api_telegram/.env
+telegram_bot_id: 8650114784
+# Notification thresholds only. Never buy services, top up, or suspend ads here.
+low_balance_rub: 500
+daily_spending_alert_rub: 1000
+watch_units:
+  - avito-manual-stop-sync.service
+  - avito-itp-stock-gate.service
+  - climat-simf-itp-crimea-snapshot.service
+  - avito-ready-price.service
+stock_snapshots:
+  - /opt/avito-bridge/runtime/itp-crimea/latest.json
