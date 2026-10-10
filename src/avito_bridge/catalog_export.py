@@ -34,17 +34,22 @@ def _member_json(m: Offer, cfg: AppConfig) -> dict:
                    supplier_updated_at=m.attrs.get('meta:snapshot_updated_at'),
                    source_url=m.attrs.get('meta:source_url'),
                    supplier_article=m.attrs.get('meta:supplier_article'))
+    if m.source == 'aru':
+        row.update(category_path=json.loads(m.attrs.get('meta:category_path', '[]')),
+                   category_ids=json.loads(m.attrs.get('meta:category_ids', '[]')),
+                   category_slugs=json.loads(m.attrs.get('meta:category_slugs', '[]')))
     return row
 
 
 def _group_json(g: SeriesGroup, cfg: AppConfig) -> dict:
     representative_nc = g.representative.supplier_sku.split(":", 1)[-1]
     ad_supplier_sku = cfg.feed.ad_id_anchor.get(g.key, g.representative.supplier_sku)
-    return {"key": g.key, "source": g.source, "brand": g.brand, "series": g.series,
+    row = {"key": g.key, "source": g.source, "brand": g.brand, "series": g.series,
             "category_id": g.category_id,
             "ad_supplier_sku": ad_supplier_sku,
             "ad_id_revision": cfg.feed.ad_id_revision.get(ad_supplier_sku, 0),
             "stock_total": sum(m.stock for m in g.members),
+            "stock_is_boolean": all(m.attrs.get('meta:stock_is_boolean') == '1' for m in g.members),
             "has_card": (has_card(g.representative, cfg.cards)
                          or (
                              g.representative.source == "manual"
@@ -53,6 +58,10 @@ def _group_json(g: SeriesGroup, cfg: AppConfig) -> dict:
                          or bool((cfg.catalog.manual_photos or {}).get(representative_nc))),
             "forced": any(m.forced for m in g.members),
             "members": [_member_json(m, cfg) for m in g.members]}
+    if g.source == 'aru':
+        row.update(category_path=json.loads(g.representative.attrs.get('meta:category_path', '[]')),
+                   category_ids=json.loads(g.representative.attrs.get('meta:category_ids', '[]')))
+    return row
 
 
 def build_catalog_json(offers: list[Offer], cfg: AppConfig) -> dict:

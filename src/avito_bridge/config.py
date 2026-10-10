@@ -31,6 +31,8 @@ class AppConfig:
     source_options: dict = None    # настройки адаптера источника (price_xls: path/selected_groups/…)
     config_path: Path | None = None
     bridge_root: Path | None = None
+    # Distinguish an explicit Studio "all" selection from pre-Studio profiles.
+    selected_series_explicit: bool = False
 
 
 def load_config(path: Path) -> AppConfig:
@@ -159,4 +161,5 @@ def load_config(path: Path) -> AppConfig:
                      manual_stop_path=prof.get("manual_stop_path", ""),
                      source_options=prof.get("source_options", {}) or {},
                      config_path=path,
-                     bridge_root=bridge_root)
+                     bridge_root=bridge_root,
+                     selected_series_explicit='selected_series' in cat)

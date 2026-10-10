@@ -18,6 +18,9 @@ def fetch_aru_snapshot(cfg):
     if (payload.get('schema_version') != 1 or payload.get('source') != 'aru'
             or payload.get('complete') is not True):
         raise ValueError('aru_snapshot: complete ARU snapshot required')
+    if payload.get('completeness_basis') == 'category_tree':
+        from avito_bridge.ingest.aru_categories import validate_category_coverage
+        validate_category_coverage(payload)
     stamp = datetime.fromisoformat(payload['generated_at'].replace('Z', '+00:00'))
     if stamp.tzinfo is None:
         raise ValueError('aru_snapshot: timestamp must include timezone')
@@ -27,7 +30,15 @@ def fetch_aru_snapshot(cfg):
     rows = payload.get('items')
     if not isinstance(rows, list) or not rows or len(rows) > 30000:
         raise ValueError('aru_snapshot: invalid items')
-    selected = {str(value) for value in options.get('selected_product_ids', [])}
+    # Studio's publication selection is authoritative. A legacy ID list is only
+    # a migration path for profiles that never declared selected_series at all;
+    # explicit [] means all, and ['__none__'] must never fall back to legacy IDs.
+    selected = cfg.selected_series
+    if (not selected and not getattr(cfg, 'selected_series_explicit', True)
+            and 'selected_product_ids' in options):
+        selected = (frozenset(f'aru|item|aru:{value}'
+                              for value in options['selected_product_ids'])
+                    or frozenset({'__none__'}))
     product_tags = options.get('product_tags') or {}
     seen, offers = set(), []
     for row in rows:
@@ -40,20 +51,26 @@ def fetch_aru_snapshot(cfg):
             raise ValueError('aru_snapshot: invalid price')
         # Only authenticated, priced stock belongs in the working catalogue.
         if (row.get('available') is not True or price is None
-                or row.get('price_basis') != 'account_price'):
+                or row.get('price_basis') != 'account_price'
+                or 'pod-zakaz' in (row.get('category_slugs') or row.get('category_path') or [])
+                or '/pod-zakaz/' in str(row.get('url', ''))):
             continue
         markup = Decimal(str(options.get('content_markup_pct', 10)))
         if not markup.is_finite() or markup < 0:
             raise ValueError('aru_snapshot: invalid content markup')
         sale_price = (price * (1 + markup / 100)).quantize(Decimal('1'), rounding=ROUND_CEILING)
         tags = product_tags.get(identity) or {}
-        approved = (options.get('prices_approved') is True and identity in selected
+        selected_for_publish = not selected or f'aru|item|aru:{identity}' in selected
+        approved = (options.get('prices_approved') is True and selected_for_publish
                     and bool(tags) and row.get('available') is True)
         attrs = {str(k): str(v) for k, v in (row.get('specifications') or {}).items()}
         attrs.update({
             'meta:supplier_article': str(row.get('article', '')),
             'meta:source_url': str(row.get('url', '')),
             'meta:category_name': ' / '.join(row.get('category_path') or []),
+            'meta:category_path': json.dumps(row.get('category_path') or [], ensure_ascii=False),
+            'meta:category_ids': json.dumps(row.get('category_ids') or [], ensure_ascii=False),
+            'meta:category_slugs': json.dumps(row.get('category_slugs') or [], ensure_ascii=False),
             'meta:availability': ('in_stock' if row.get('available') is True else
                                   'out_of_stock' if row.get('available') is False else 'unknown'),
             'meta:stock_is_boolean': '1',

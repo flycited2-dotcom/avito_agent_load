@@ -8,7 +8,6 @@ profile:
     refresh_schedule: monday
     prices_approved: false
     content_markup_pct: 10
-    selected_product_ids: []
     product_tags: {}
 cities:
   - {id: simferopol, name: Симферополь, avito_location: 'Республика Крым, Симферополь'}

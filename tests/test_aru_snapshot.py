@@ -1,6 +1,9 @@
 from datetime import datetime, timezone
+from copy import deepcopy
 import json
+from pathlib import Path
 import pytest
+import yaml
 from avito_bridge.config import load_config
 from avito_bridge.ingest.aru_snapshot import fetch_aru_snapshot
 
@@ -84,3 +87,105 @@ def test_catalogue_exposes_price_preview_without_publication_approval(tmp_path):
     assert member['price_ok'] is False
     assert member['supplier_article'] == 'DR1'
     assert member['supplier_updated_at']
+
+
+def test_category_tree_reaches_export_groups_and_members(tmp_path):
+    from avito_bridge.catalog_export import build_catalog_json
+    data = payload()
+    data['items'][0].update(category_path=['Электроинструмент', 'Дрели'],
+                            category_ids=['/elektroinstrument/', '/elektroinstrument/dreli/'])
+    cfg = config(tmp_path, data)
+    group = build_catalog_json(fetch_aru_snapshot(cfg), cfg)['series'][0]
+    assert group['category_path'] == ['Электроинструмент', 'Дрели']
+    assert group['category_ids'] == data['items'][0]['category_ids']
+    assert group['members'][0]['category_path'] == group['category_path']
+
+
+def test_on_order_url_never_enters_catalogue(tmp_path):
+    data = payload()
+    data['items'][0]['url'] = 'https://aru.ooo/elektroinstrument/pod-zakaz/drill/'
+    assert fetch_aru_snapshot(config(tmp_path, data)) == []
+
+
+def selection_config(tmp_path):
+    data = payload()
+    second = deepcopy(data['items'][0])
+    second.update(id='43', name='Лобзик Procraft', article='ST43')
+    data['items'].append(second)
+    cfg = config(tmp_path, data)
+    cfg.source_options.update(prices_approved=True, selected_product_ids=['43'],
+                              product_tags={str(identity): {'Category': 'Ремонт и строительство'}
+                                            for identity in (42, 43)})
+    return cfg
+
+
+@pytest.mark.parametrize('selection,expected', [
+    ([], {'42', '43'}), (['aru|item|aru:42'], {'42'}),
+    (['aru|item|aru:43'], {'43'}), (['__none__'], set()),
+])
+def test_studio_selection_is_authoritative_over_legacy_id_list(tmp_path, selection, expected):
+    cfg = selection_config(tmp_path)
+    cfg.selected_series = frozenset(selection)
+    approved = {offer.supplier_sku.split(':')[1] for offer in fetch_aru_snapshot(cfg)
+                if offer.price_override is not None}
+    assert approved == expected
+
+
+@pytest.mark.parametrize('legacy,expected', [(['43'], {'43'}), ([], set())])
+def test_legacy_selection_only_applies_to_profile_without_selected_series(tmp_path, legacy, expected):
+    cfg = selection_config(tmp_path)
+    document = yaml.safe_load(Path('profiles/aru.yaml').read_text(encoding='utf-8'))
+    document['profile']['source_options'] = cfg.source_options
+    document['profile']['source_options']['selected_product_ids'] = legacy
+    document['catalog'].pop('selected_series')
+    path = tmp_path / 'aru.yaml'
+    path.write_text(yaml.safe_dump(document, allow_unicode=True), encoding='utf-8')
+    cfg = load_config(path)
+    assert not cfg.selected_series_explicit
+    approved = {offer.supplier_sku.split(':')[1] for offer in fetch_aru_snapshot(cfg)
+                if offer.price_override is not None}
+    assert approved == expected
+    # Studio's next explicit save overrides the migration fallback, including all.
+    document['catalog']['selected_series'] = []
+    path.write_text(yaml.safe_dump(document, allow_unicode=True), encoding='utf-8')
+    cfg = load_config(path)
+    assert cfg.selected_series_explicit
+    assert all(offer.price_override is not None for offer in fetch_aru_snapshot(cfg))
+
+
+def test_studio_selection_reaches_built_feed_without_second_whitelist(tmp_path):
+    from avito_bridge.feed.ad_id import make_ad_id
+    from avito_bridge.orchestrator.pipeline import run_cycle
+    cfg = selection_config(tmp_path)
+    cfg.selected_series = frozenset({'aru|item|aru:42'})
+    feed = tmp_path / 'aru-preview.xml'
+    result = run_cycle(lambda: fetch_aru_snapshot(cfg), cfg, feed, tmp_path / 'state.db')
+    xml = feed.read_text(encoding='utf-8')
+    assert result.ads_built == 1
+    assert make_ad_id('aru:42', 'simferopol') in xml
+    assert make_ad_id('aru:43', 'simferopol') not in xml
+
+
+def test_selection_does_not_bypass_price_or_taxonomy_approval(tmp_path):
+    cfg = selection_config(tmp_path)
+    cfg.selected_series = frozenset({'aru|item|aru:42'})
+    cfg.source_options['prices_approved'] = False
+    assert all(offer.price_override is None for offer in fetch_aru_snapshot(cfg))
+    cfg.source_options['prices_approved'] = True
+    cfg.source_options['product_tags'] = {}
+    assert all(offer.price_override is None for offer in fetch_aru_snapshot(cfg))
+
+
+def test_no_selection_preserves_feed_minimum_and_publication_gate(tmp_path):
+    from avito_bridge.orchestrator.pipeline import run_cycle
+    from avito_bridge.profile_publish import validate_publish_target
+    cfg = selection_config(tmp_path)
+    cfg.selected_series = frozenset({'__none__'})
+    feed = tmp_path / 'aru-preview.xml'
+    previous = b'<Ads />'
+    feed.write_bytes(previous)
+    with pytest.raises(ValueError, match='минимум профиля'):
+        run_cycle(lambda: fetch_aru_snapshot(cfg), cfg, feed, tmp_path / 'state.db')
+    assert feed.read_bytes() == previous
+    with pytest.raises(ValueError, match='not allowed for publication'):
+        validate_publish_target('profiles/aru.yaml', cfg, tmp_path)

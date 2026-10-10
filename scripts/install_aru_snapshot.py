@@ -8,6 +8,8 @@ import shutil
 import subprocess
 import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+
 
 def atomic_write(path, raw):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -24,7 +26,11 @@ def main():
     data = json.loads(raw)
     assert data['source'] == 'aru' and data['schema_version'] == 1
     assert data['complete'] is True and data['authenticated'] is True
-    assert data['captured_pages'] == data['pages'] and 1 <= data['pages'] <= 1000
+    if data.get('completeness_basis') == 'category_tree':
+        from avito_bridge.ingest.aru_categories import validate_category_coverage
+        validate_category_coverage(data)
+    else:
+        assert data['captured_pages'] == data['pages'] and 1 <= data['pages'] <= 1000
     assert data['price_basis'] == 'account_price' and 1 <= len(data['items']) <= 30000
     stamp = datetime.fromisoformat(data['generated_at'])
     assert stamp.tzinfo and -300 <= (datetime.now(timezone.utc) - stamp).total_seconds() <= 86400
@@ -34,6 +40,7 @@ def main():
         price = Decimal(str(row['price']))
         assert identity.isdigit() and identity not in current
         assert row['available'] is True and row['price_basis'] == 'account_price'
+        assert '/pod-zakaz/' not in str(row.get('url', ''))
         assert price.is_finite() and price > 0
         current[identity] = price
     paths = [Path('/opt/content-factory/state/prices/aru-catalog.json'),
