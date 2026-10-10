@@ -103,6 +103,9 @@ def build_category_snapshot(pages, categories):
                 or url.path != identity or actual_page != number
                 or not isinstance(page.get('items'), list)):
             raise ValueError('aru_categories: unauthenticated or invalid page')
+        if total > 1 and not page['items']:
+            raise ValueError('aru_categories: empty paginated category page: '
+                             + identity + f' page {number}/{total}')
         stamp = _stamp(page['captured_at'])
         stamps.append(stamp)
         numbers = visited.setdefault(identity, set())

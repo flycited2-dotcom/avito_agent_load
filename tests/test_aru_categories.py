@@ -121,6 +121,19 @@ def test_pagination_coverage_and_actual_url_are_checked_per_category():
         build_category_snapshot(pages, menu())
 
 
+@pytest.mark.parametrize('empty_number', [1, 2, 3])
+def test_empty_page_in_paginated_category_cannot_certify_complete_scan(empty_number):
+    pages = [page(ROOT)]
+    for number in range(1, 4):
+        pages.append(page(CHILD, [] if number == empty_number else [product(str(number))],
+                          page=number, pages=3,
+                          url='https://aru.ooo' + CHILD + f'?page={number}'))
+    # URL, authentication and page-number coverage all look valid; no cards
+    # indicates an unreadable/unsupported catalogue view, not a complete scan.
+    with pytest.raises(ValueError, match='empty paginated category page'):
+        build_category_snapshot(pages, menu())
+
+
 @pytest.mark.parametrize('changes', [
     {'authenticated': False}, {'captured_at': (NOW - timedelta(days=2)).isoformat()},
     {'captured_at': '2026-10-10T12:00:00'}, {'url': 'https://evil.example/elektroinstrument/'},
