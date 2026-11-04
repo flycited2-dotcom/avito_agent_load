@@ -87,16 +87,16 @@ def test_bootstrap_imports_existing_removed_but_not_old(tmp_path):
     assert load_suppressed_ids(stop) == {"a1"}
 
 
-def test_bootstrap_after_observation_only_seed_imports_removed(tmp_path):
+def test_first_removed_observation_is_held_and_bootstrap_is_idempotent(tmp_path):
     feed = tmp_path / "feed.xml"
     stop = tmp_path / "stop.json"
     observations = tmp_path / "observations.json"
     _write_feed(feed)
     client = FakeClient({"a1": "removed", "a2": "active"})
-    assert sync_manual_stops(client, feed, stop, observations)["added"] == 0
+    assert sync_manual_stops(client, feed, stop, observations)["added"] == 1
     assert sync_manual_stops(
         client, feed, stop, observations, bootstrap_removed=True
-    )["added"] == 1
+    )["added"] == 0
     assert load_suppressed_ids(stop) == {"a1"}
 
 
@@ -122,6 +122,47 @@ def test_missing_live_status_never_uses_historical_upload_status(tmp_path):
     result = sync_manual_stops(client, feed, stop, obs)
     assert result['observed'] == 0
     assert not load_suppressed_ids(stop)
+
+
+def test_removed_after_moderation_is_not_lost(tmp_path):
+    feed, stop, obs = (tmp_path / n for n in ('feed.xml', 'stop.json', 'obs.json'))
+    _write_feed(feed)
+    sync_manual_stops(FakeClient({'a1': 'rejected', 'a2': 'blocked'}), feed, stop, obs)
+    assert sync_manual_stops(FakeClient({'a1': 'removed', 'a2': 'blocked'}), feed, stop, obs)['added'] == 1
+    assert load_suppressed_ids(stop) == {'a1'}
+
+
+def test_previously_missed_removal_is_recovered_without_bootstrap(tmp_path):
+    feed, stop, obs = (tmp_path / n for n in ('feed.xml', 'stop.json', 'obs.json'))
+    _write_feed(feed)
+    obs.write_text(json.dumps({'observations': {'a1': {'avito_id': 101, 'status': 'removed'}}}))
+    client = FakeClient({'a1': 'removed', 'a2': 'active'})
+    assert sync_manual_stops(client, feed, stop, obs)['added'] == 1
+    assert sync_manual_stops(client, feed, stop, obs)['added'] == 0
+    suppress_feed(feed, feed, stop)
+    assert etree.parse(str(feed)).findtext('Ad/Id') == 'a2'
+
+
+def test_removed_with_expiry_report_is_held_for_review(tmp_path):
+    feed, stop, obs = (tmp_path / n for n in ('feed.xml', 'stop.json', 'obs.json'))
+    _write_feed(feed)
+    client = FakeClient({'a1': 'removed', 'a2': 'active'})
+    client.last_successful_items = lambda **kwargs: [
+        {'ad_id': 'a1', 'avito_id': 101, 'section': {'slug': 'stopped_by_expiration'}},
+    ]
+    sync_manual_stops(client, feed, stop, obs)
+    entry = json.loads(stop.read_text())['entries']['a1']
+    assert entry['reason'] == 'archive_hold'
+    assert entry['expiration_evidence'] is True
+
+
+def test_already_observed_nonexpired_archive_is_held(tmp_path):
+    feed, stop, obs = (tmp_path / n for n in ('feed.xml', 'stop.json', 'obs.json'))
+    _write_feed(feed)
+    client = FakeClient({'a1': 'old', 'a2': 'active'})
+    sync_manual_stops(client, feed, stop, obs)
+    assert sync_manual_stops(client, feed, stop, obs, hold_archive=True)['added'] == 1
+    assert json.loads(stop.read_text())['entries']['a1']['reason'] == 'archive_hold'
 
 
 def test_cached_mapping_survives_missing_upload_item(tmp_path):

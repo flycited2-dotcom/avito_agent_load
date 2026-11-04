@@ -71,11 +71,11 @@ def sync_manual_stops(
     hold_archive: bool = False,
 ) -> dict[str, int]:
     """
-    Observe live Avito statuses and remember only explicit ``active -> removed``
-    transitions. Moderation states and ordinary expiry never suppress a product.
+    Persist current removals, including removals missed between observations.
+    Moderation states and ordinary ``old`` expiry never suppress a product.
 
-    ``bootstrap_removed`` is an explicit one-time import for listings the owner
-    already removed before the observer was installed.
+    ``bootstrap_removed`` remains accepted for older callers; current removals
+    are always held. An ambiguous archive hold requires owner review.
     """
     managed = _feed_items(feed_path)
     upload_items = client.last_successful_items(ad_ids=managed)
@@ -119,7 +119,6 @@ def sync_manual_stops(
         if not status:
             continue
         observed += 1
-        old_status = str((previous.get(ad_id) or {}).get("status") or "").lower()
         current[ad_id] = {
             "ad_id": ad_id,
             "avito_id": int(avito_id) if avito_id.isdigit() else avito_id,
@@ -128,19 +127,22 @@ def sync_manual_stops(
             "observed_at": now,
             "avito_date_end": mapped.get("avito_date_end"),
         }
-        removal_transition = old_status == "active" and (
-            status == "removed" or (hold_archive and status == "old" and not expired_listing(mapped, now))
-        )
-        # Explicit one-time bootstrap also imports removals seen by an earlier
-        # observation-only seed run. Existing stop entries remain idempotent.
-        bootstrap_removal = bootstrap_removed and status == "removed"
-        if (removal_transition or bootstrap_removal) and ad_id not in entries:
+        # Polls can miss the entire active period (restart, network outage or
+        # moderation -> removed). Requiring a previous active observation loses
+        # the owner's decision permanently once the cursor advances to removed.
+        removed = status == "removed"
+        archived = hold_archive and status == "old" and not expired_listing(mapped, now)
+        if (removed or archived) and ad_id not in entries:
+            # The core API can say removed while an older upload report says
+            # expired. Preserve that ambiguity as a review hold; never turn it
+            # into an automatically renewable expiry or claim proven owner intent.
+            expiry_evidence = expired_listing(mapped, now)
             entries[ad_id] = {
                 "ad_id": ad_id,
                 "avito_id": int(avito_id) if avito_id.isdigit() else avito_id,
                 "status": status,
-                "reason": ("expired_avito_listing" if expired_listing(mapped, now) else "archive_hold")
-                          if status == "old" else "manual_avito_removal",
+                "reason": "archive_hold" if archived or expiry_evidence else "manual_avito_removal",
+                "expiration_evidence": expiry_evidence,
                 "title": managed[ad_id],
                 "created_at": now,
             }
@@ -196,7 +198,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--bootstrap-removed", action="store_true")
     parser.add_argument("--apply-feed", action="store_true")
-    parser.add_argument("--hold-archive", action="store_true", help="Hold active-to-old transitions pending owner review, including expiry")
+    parser.add_argument("--hold-archive", action="store_true", help="Hold non-expired archived listings pending owner review")
     args = parser.parse_args(argv)
     client_id = os.getenv("AVITO_CLIENT_ID") or os.getenv("AVITO_MAIN_CLIENT_ID")
     client_secret = os.getenv("AVITO_CLIENT_SECRET") or os.getenv("AVITO_MAIN_CLIENT_SECRET")

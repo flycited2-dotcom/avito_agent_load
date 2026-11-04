@@ -16,9 +16,10 @@ def test_renewal_keeps_ids_releases_only_verified_archive_and_clears_date_end(tm
                                            'owner': {'reason': 'manual_avito_removal'},
                                            'unavailable': {'reason': 'archive_hold'}}}))
     before = feed.read_bytes()
-    verified = {'expired': ad('expired'), 'owner': ad('owner')}
+    verified = {'expired': ad('expired'), 'owner': ad('owner'), 'unavailable': ad('unavailable')}
     preview = restore_verified_ads(feed, stops, verified, bridge, public)
     assert preview['renewed'] == ['expired']
+    assert preview['preserved_owner_stops'] == ['owner', 'unavailable']
     assert feed.read_bytes() == before
     result = restore_verified_ads(feed, stops, verified, bridge, public, apply=True)
     assert result['status'] == 'committed'

@@ -10,15 +10,16 @@ from lxml import etree
 
 from avito_bridge import profile_publish as pp
 
-RENEWABLE_REASONS = {"expired_avito_listing", "archive_hold"}
+RENEWABLE_REASONS = {"expired_avito_listing"}
 
 
 def restore_verified_ads(feed: Path, stops: Path, verified_ads: dict,
                          bridge: Path, public: Path, *, apply=False) -> dict:
     """Caller supplies exact ads checked against fresh supplier snapshots.
 
-    Explicit owner exclusions are never released. XML and released exclusions
-    commit together under the caller's shared profile publication lock.
+    Explicit owner exclusions and ambiguous archive holds are never released.
+    XML and released exclusions commit together under the caller's shared
+    profile publication lock.
     """
     root = etree.parse(str(feed), etree.XMLParser(resolve_entities=False, no_network=True)).getroot()
     stop_doc = json.loads(stops.read_text(encoding="utf-8"))
