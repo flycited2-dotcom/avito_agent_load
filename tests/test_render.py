@@ -1,9 +1,26 @@
 from decimal import Decimal
-from avito_bridge.models import Offer
-from avito_bridge.content.render import render_content, render_series, ContentConfig
+from avito_bridge.models import Content, Offer
+from avito_bridge.content.render import (
+    ContentConfig,
+    apply_condition_notice,
+    render_content,
+    render_series,
+)
 from avito_bridge.catalog.series import group_by_series
 
 CFG = ContentConfig(title_max=50, description_max=7000, stop_words=["звоните"])
+
+
+def test_condition_notice_is_first_and_idempotent():
+    cfg = ContentConfig(
+        description_max=80,
+        condition_notice="Состояние: новое.",
+    )
+    original = Content(title="Title", description="Основной текст")
+    once = apply_condition_notice(original, cfg)
+    twice = apply_condition_notice(once, cfg)
+    assert once.description == "Состояние: новое.\n\nОсновной текст"
+    assert twice.description == once.description
 
 
 def _o(brand="Ballu", model="Olympio Edge BSO-07HN8", btu=7, cat=2, attrs=None):
@@ -50,6 +67,28 @@ def test_render_series_price_table_dedup_by_size():
     assert "(Olimpio)" not in c.title               # скобочная латиница убрана из заголовка
 
 
+def test_render_heating_series_uses_neutral_copy_and_real_prices():
+    offer = _o(
+        brand="Ballu",
+        model="Тепловая пушка BKN-3",
+        btu=None,
+        cat=26,
+        attrs={
+            "meta:product_label": "Тепловая пушка",
+            "Мощность обогрева": "3 кВт",
+            "avito_tag:ProductType": "Обогреватели",
+        },
+    )
+    offer.series = "BKN"
+    group = group_by_series([offer])[0]
+    content = render_series(group, {"s": 5490}, CFG)
+    assert content.title.startswith("Тепловая пушка Ballu")
+    assert "5 490 ₽" in content.description
+    assert "3 кВт" in content.description
+    assert "жару" not in content.description.lower()
+    assert "avito_tag" not in content.description
+
+
 def test_smart_title_fixes_caps():
     from avito_bridge.content.render import _smart_title
     assert _smart_title("FUNAI SENSEI 2.0 Inverter") == "Funai Sensei 2.0 Inverter"
@@ -94,6 +133,81 @@ def test_card_brief_is_clean_series_text():
     assert "7 / 12 / 18 тыс. BTU" in t                  # размерный ряд серии на карточке
     assert "Классическая (вкл/выкл)" in t               # не инвертор
     assert "9.52" not in t and "Трубопровод" not in t   # сырой ТТХ НЕ утекает на карточку
+
+
+def test_card_brief_warm_floor_thermostat_has_no_conditioner_specs():
+    from avito_bridge.content.render import card_brief
+
+    offer = Offer(
+        supplier_sku="r:1", source="rusklimat", brand="Electrolux",
+        model="Терморегулятор Electrolux ETT-16", category_id=119,
+        btu_calc=18, attrs={"Вид управления": "Электронное",
+                            "Диапазон регулирования температуры": "5-40",
+                            "Макс. мощность основного прибора": "3.6"},
+        cost=Decimal("1"), retail_ref=None, stock=1, photos=[],
+        series="Thermotronic Touch", content_hash="h",
+    )
+    text = card_brief(group_by_series([offer])[0])
+    assert "Терморегулятор для тёплого пола" in text
+    assert "Управление: Электронное" in text
+    assert "Диапазон температуры: 5-40 °C" in text
+    assert "Кондиционер" not in text
+    assert "BTU" not in text
+    assert "Классическая" not in text
+
+
+def test_card_brief_warm_floor_mat_uses_heating_specs():
+    from avito_bridge.content.render import card_brief
+
+    offer = Offer(
+        supplier_sku="r:2", source="rusklimat", brand="AC ELECTRIC",
+        model="Мат AC ELECTRIC ACMM 2-150-1.5", category_id=119,
+        btu_calc=None, attrs={"Макс. площадь обогрева": "1.5",
+                              "Удельная мощность на метр квадратный": "150",
+                              "Терморегулятор": "Доп.опция"},
+        cost=Decimal("1"), retail_ref=None, stock=1, photos=[],
+        series="ACMM", content_hash="h",
+    )
+    text = card_brief(group_by_series([offer])[0])
+    assert "Нагревательный мат для тёплого пола" in text
+    assert "Площадь обогрева: 1.5 м²" in text
+    assert "Удельная мощность: 150 Вт/м²" in text
+    assert "Кондиционер" not in text and "BTU" not in text
+
+
+def test_card_brief_oil_radiator_uses_heating_specs():
+    from avito_bridge.content.render import card_brief
+
+    offer = _o(
+        brand="Ballu", model="Масляный радиатор Ballu Cube", cat=22, btu=18,
+        attrs={"meta:product_label": "Масляный обогреватель",
+               "Макс. потребляемая мощность": "2 кВт",
+               "Количество секций": "9"},
+    )
+    offer.series = "Cube"
+    text = card_brief(group_by_series([offer])[0])
+    assert "Масляный обогреватель" in text
+    assert "Мощность: 2 кВт" in text
+    assert "Количество секций: 9" in text
+    assert "Кондиционер" not in text and "BTU" not in text
+
+
+def test_card_brief_storage_water_heater_uses_tank_specs():
+    from avito_bridge.content.render import card_brief
+
+    offer = _o(
+        brand="Ballu", model="Водонагреватель Ballu Shell", cat=30, btu=24,
+        attrs={"meta:product_label": "Накопительный водонагреватель",
+               "Объем внутреннего бака": "80 л",
+               "Макс. потребляемая мощность": "2 кВт",
+               "Вид установки (крепления)": "Настенная"},
+    )
+    offer.series = "Shell"
+    text = card_brief(group_by_series([offer])[0])
+    assert "Накопительный водонагреватель" in text
+    assert "Объём бака: 80 л" in text
+    assert "Монтаж: Настенная" in text
+    assert "Кондиционер" not in text and "BTU" not in text
 
 
 def test_render_series_website_link_only_for_selected():
@@ -148,3 +262,16 @@ def test_render_uses_description_attr_when_configured():
     c = render_series(g, {"ritualb2b:venok-avrora": 2300}, cfg)
     assert c.title == "Венок «Аврора»"
     assert c.description == "Венок ручной работы, фиолетово-зелёная гамма."
+
+
+def test_fit_title_honors_even_very_small_limits():
+    from avito_bridge.content.render import _fit_title
+
+    for limit in (0, 1, 5, 10, 20, 50):
+        title = _fit_title(
+            "Полупромышленный кондиционер",
+            "Очень длинное название модели",
+            "20–100 м²",
+            limit,
+        )
+        assert len(title) <= limit

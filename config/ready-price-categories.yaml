@@ -1,0 +1,395 @@
+version: 1
+groups:
+  Классические сплит-системы:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Инверторные сплит-системы:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Полупромышленные сплит-системы:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Расходные материалы для монтажа (медь):
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Генераторы:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Мотоблоки и садовая техника:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Стиральные машины с фронтальной загрузкой:
+    bucket: large
+    reason: target_assortment
+  Стиральные машины с сушкой:
+    bucket: large
+    reason: target_assortment
+  Стиральные машины полуавтоматические центрифуги:
+    bucket: large
+    reason: target_assortment
+  Сушильные автоматы:
+    bucket: large
+    reason: target_assortment
+  Холодильники с нижней морозильной камерой:
+    bucket: large
+    reason: target_assortment
+  Холодильники с верхней морозильной камерой:
+    bucket: large
+    reason: target_assortment
+  Холодильники встраиваемые:
+    bucket: large
+    reason: target_assortment
+  Морозильные лари:
+    bucket: large
+    reason: target_assortment
+  Телевизоры 46" и более:
+    bucket: tv
+    reason: target_assortment
+  Телевизоры 39"- 43":
+    bucket: tv
+    reason: target_assortment
+  Телевизоры 27"- 32":
+    bucket: tv
+    reason: target_assortment
+  Телевизоры 15"- 26":
+    bucket: tv
+    reason: target_assortment
+  ТВ-антенны:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Подставки, крепления для ТВ:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Аксессуары для ТВ:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Универсальные пульты ДУ:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Плиты с газовой духовкой:
+    bucket: large
+    reason: target_assortment
+  Плиты с электро-духовкой:
+    bucket: large
+    reason: target_assortment
+  Электрические плиты:
+    bucket: large
+    reason: target_assortment
+  Духовые шкафы:
+    bucket: large
+    reason: target_assortment
+  Поверхности газовые:
+    bucket: large
+    reason: target_assortment
+  Поверхности электрические:
+    bucket: large
+    reason: target_assortment
+  Поверхности домино:
+    bucket: large
+    reason: target_assortment
+  Вытяжки:
+    bucket: large
+    reason: target_assortment
+  Вытяжки встраиваемые:
+    bucket: large
+    reason: target_assortment
+  Посудомойки узкие (45 см):
+    bucket: large
+    reason: target_assortment
+  Посудомоечные машины встраиваемые:
+    bucket: large
+    reason: target_assortment
+  Микроволновые печи:
+    bucket: small
+    reason: target_assortment
+  Духовки настольные:
+    bucket: small
+    reason: target_assortment
+  Мультиварки:
+    bucket: small
+    reason: target_assortment
+  Микроволновые печи встраиваемые:
+    bucket: small
+    reason: target_assortment
+  Аэрогрили:
+    bucket: small
+    reason: target_assortment
+  Грили и электрошашлычницы:
+    bucket: small
+    reason: target_assortment
+  Для напитков и бара:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Для чая и кофе:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Электрочайники:
+    bucket: small
+    reason: target_assortment
+  Чайники и заварочные чайники:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Кофеварки, кофемашины:
+    bucket: small
+    reason: target_assortment
+  Кофемолки:
+    bucket: small
+    reason: target_assortment
+  Пылесосы вертикальные:
+    bucket: small
+    reason: target_assortment
+  Пылесосы колбовые:
+    bucket: small
+    reason: target_assortment
+  Пылесосы роботы:
+    bucket: small
+    reason: target_assortment
+  Пылесосы с мешком:
+    bucket: small
+    reason: target_assortment
+  Утюги и гладильные системы:
+    bucket: small
+    reason: target_assortment
+  Отпариватели и пароочистители:
+    bucket: small
+    reason: target_assortment
+  Фены:
+    bucket: small
+    reason: target_assortment
+  Машинки для стрижки и триммеры:
+    bucket: small
+    reason: target_assortment
+  Приборы для укладки волос:
+    bucket: small
+    reason: target_assortment
+  Приборы для маникюра и педикюра:
+    bucket: small
+    reason: target_assortment
+  Весы напольные:
+    bucket: small
+    reason: target_assortment
+  Прочие товары для красоты и здоровья:
+    bucket: review
+    reason: mixed_group_requires_product_review
+  Блендеры:
+    bucket: small
+    reason: target_assortment
+  Миксеры:
+    bucket: small
+    reason: target_assortment
+  Измельчители:
+    bucket: small
+    reason: target_assortment
+  Мясорубки:
+    bucket: small
+    reason: target_assortment
+  Соковыжималки:
+    bucket: small
+    reason: target_assortment
+  Тостеры:
+    bucket: small
+    reason: target_assortment
+  Бутербродницы и вафельницы:
+    bucket: small
+    reason: target_assortment
+  Блинницы:
+    bucket: small
+    reason: target_assortment
+  Сушилки для овощей и фруктов:
+    bucket: small
+    reason: target_assortment
+  Весы кухонные:
+    bucket: small
+    reason: target_assortment
+  Плитки настольные:
+    bucket: small
+    reason: target_assortment
+  Водонагреватели накопительные:
+    bucket: climate
+    reason: compare_with_existing_sources_before_publication
+  Конвекторы, Электрокамин:
+    bucket: climate
+    reason: compare_with_existing_sources_before_publication
+  Инфракрасные обогреватели:
+    bucket: climate
+    reason: compare_with_existing_sources_before_publication
+  Масляные радиаторы:
+    bucket: climate
+    reason: compare_with_existing_sources_before_publication
+  Тепловентиляторы:
+    bucket: climate
+    reason: compare_with_existing_sources_before_publication
+  Теплый пол:
+    bucket: climate
+    reason: compare_with_existing_sources_before_publication
+  Гладильные доски:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Кухонные мойки:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Кухонные смесители:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Измельчители пищевых отходов:
+    bucket: small
+    reason: target_assortment
+  Кухонная посуда и наборы:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Посуда для приготовления:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Посуда для сервировки:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Столовые приборы:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Ножи и кухонные аксессуары:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Вилки, ложки раздаточные:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Кухонные принадлежности:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Емкости для хранения продуктов:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Хранение и упаковка:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Термопосуда:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Термосы:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Барбекю и мангалы:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Сковороды VINZER:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Медиаплееры:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Ресиверы DVB-T2:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Аксессуары для аудиотехники:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Наушники и bluetooth-гарнитуры:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Маршрутизаторы:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Кабель и переходники:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Карты памяти:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Защитные стёкла и плёнки:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Защитные чехлы, книжки:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Сумки, чехлы и прочее:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Мыши:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Видеорегистраторы:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Intel Socket 1151:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Прочая мелкая техника:
+    bucket: review
+    reason: mixed_group_requires_product_review
+  Средства для мытья посуды:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Средства для стирки:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Средства по уходу за техникой:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Аксессуары к ВБТ:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Аксессуары к КБТ:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Аксессуары к климатической технике:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Аксессуары к кухонной технике:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Аксессуары к мойкам:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Аксессуары к товарам красота и здоровье:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Аксессуары к товарам по уходу за домом и одеждой:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Садовая мебель и декор:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Портативные аккумуляторы:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Вентиляторы:
+    bucket: climate
+    reason: compare_with_existing_sources_before_publication
+  Зарядные устройства:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Аксессуары для садовой техники:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Комбинированные плиты:
+    bucket: large
+    reason: target_assortment
+  Хлебопечки:
+    bucket: small
+    reason: target_assortment
+  Элементы питания и зарядные устройства:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Эпиляторы:
+    bucket: small
+    reason: target_assortment
+  Инверторные стиральные машины:
+    bucket: large
+    reason: target_assortment
+  Варочные поверхности:
+    bucket: large
+    reason: target_assortment
+  Вытяжки кухонные:
+    bucket: large
+    reason: target_assortment
+  Инверторные генераторы:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Инструменты:
+    bucket: excluded
+    reason: outside_appliances_tv_scope
+  Плоские эмаль, плоские эмаль Сухой тэн:
+    bucket: climate
+    reason: compare_with_existing_sources_before_publication
+  Электроника, МФУ, ноутбуки, переферия:
+    bucket: excluded
+    reason: outside_appliances_tv_scope

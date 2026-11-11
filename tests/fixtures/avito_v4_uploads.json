@@ -1,7 +1,7 @@
 {
   "uploads": [
     {
-      "upload_id": 559743947,
+      "upload_id": 1001,
       "status": "processing",
       "source": "Url",
       "started_at": "2026-07-01T17:48:04Z",
@@ -22,12 +22,12 @@
       "feed_urls": [
         {
           "name": "",
-          "url": "https://api.avito.ru/autoload/v2/feed/content/6a4552d3d3ede60f2622d6a9/173db34b-d484-40f1-b64c-565877385e78"
+          "url": "https://api.avito.test/autoload/v2/feed/content/synthetic/feed-token-1"
         }
       ]
     },
     {
-      "upload_id": 559723126,
+      "upload_id": 1002,
       "status": "success",
       "source": "Url",
       "started_at": "2026-07-01T16:48:02Z",
@@ -48,7 +48,7 @@
       "feed_urls": [
         {
           "name": "",
-          "url": "https://api.avito.ru/autoload/v2/feed/content/6a4544c23177fc415d980dad/173db34b-d484-40f1-b64c-565877385e78"
+          "url": "https://api.avito.test/autoload/v2/feed/content/synthetic/feed-token-2"
         }
       ]
     }

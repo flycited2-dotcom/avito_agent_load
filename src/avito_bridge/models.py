@@ -19,6 +19,10 @@ class RawProduct(BaseModel):
     tech: dict[str, str] = Field(default_factory=dict)
     price_override: Decimal | None = None  # ручная цена (force_include, товары вне наличия БД)
     forced: bool = False                   # добавлен принудительно (минуя фильтр наличия)
+    kind: str = ""
+    is_inverter: bool = False
+    heating_min_temp: int | None = None
+    is_heat_pump: bool = False
 
 
 class Offer(BaseModel):

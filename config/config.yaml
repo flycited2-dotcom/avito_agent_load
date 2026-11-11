@@ -1,20 +1,59 @@
 # ВАЖНО: Avito блокирует один и тот же товар в нескольких городах как «повторное размещение».
 # Поэтому — ОДИН город (одно объявление на товар). Охват по региону — через Avito Доставку.
+profile:
+  name: conditioners
+  source: oasis_db
+  grouping: series
+  feed_path: feed_out/feed.xml
+  public_feed_path: "/opt/oasis/staticfiles/avito-feed.xml"
+  manual_stop_path: state/manual-stop-main.json
+  source_options:
+    excluded_product_patterns: ['(?i)\bгенератор\b']
+    excluded_device_types: [Генераторы]
+
 cities:
   - {id: "simferopol", name: "Симферополь", avito_location: "Республика Крым, Симферополь"}
 pricing:
-  rounding: up_to_90
-  default_markup_pct: 5
-  min_margin_abs: 0       # 0 = строго +5%, без принудительного пола маржи (по решению заказчика)
-  rules: []
+  rounding: none
+  default_markup_pct: 10
+  min_margin_abs: 0       # ровно +10% к доступной оптовой цене
+  rules:
+    # 04.09.2026: ещё +15% к рассчитанной цене РусКлимата, кроме кондиционеров.
+    - match: {source: rusklimat}
+      exclude_category_ids: [2, 6, 7]
+      markup_pct: 10
+      post_markup_pct: 15
 feed:
-  max_active_ads: 100       # курируемый каталог: 44 отмеченные серии (selected_series ниже)
+  max_active_ads: 250       # не обрезать перечисленные владельцем складские группы
+  # Защита last-good: сетевой/DB-сбой не имеет права заменить рабочий фид пустым.
+  # Намеренное массовое снятие ниже этого порога требует отдельного изменения конфига.
+  min_active_ads: 40
+  max_drop_fraction: 0.35
   base_tags:
     Category: "Бытовая техника"
     GoodsType: "Климатическое оборудование"
-    GoodsSubType: "Кондиционеры"
     AdType: "Товар приобретен на продажу"
     Condition: "Новое"
+    ListingFee: "Package"
+  overridable_tags: [Category, GoodsType]
+  tag_order:
+    - Category
+    - GoodsType
+    - AdType
+    - Condition
+    - ProductType
+    - GoodsSubType
+    - HeatingType
+    - HeatingSubType
+    - PriceFor
+    - Brand
+    - RadiatorType
+    - Material
+    - SectionQuantity
+    - Vendor
+    - AirConditionerType
+    - AirConditionerSubType
+    - ListingFee
   # ProductType = «Тип климатического оборудования» — ТОЛЬКО из списка Avito.
   # Для всех наших кондиционеров (сплит/мобильные/полупром) валидно одно значение:
   product_type_default: "Кондиционеры и запчасти"
@@ -40,6 +79,7 @@ feed:
 content:
   title_max: 50
   description_max: 7000
+  condition_notice: "Состояние: новое. Товар не использовался, в заводской упаковке."
   stop_words: ["скидка только сегодня", "звоните"]
   # Готовые тексты описаний на серию (manifest: series_key → файл). Переопределяют автогенерацию,
   # живая таблица цен дописывается автоматически. Пусто/нет файла = автогенерация.
@@ -49,88 +89,69 @@ content:
   website_link: ""
   website_link_keys: []
 catalog:
-  report_category_ids: [2, 6, 7]
-  exclude_title_patterns: ["%мульти%", "%виброопор%", "%охладитель воздуха%", "%зимний комплект%", "%зимн%", "%комплект зимний%"]
+  # Только фактический склад Симферополя. Категория 2 дополнительно ограничена
+  # инверторной технологией; тепловые насосы совпадают с витриной SplitHome.
+  report_category_ids: [2, 15, 19, 21, 22, 24, 26, 27, 30, 37, 40, 46, 117, 118, 119]
+  # Товары поставщика «Русский климат» не публикуются ни в одной категории.
+  excluded_sources: ["rusklimat"]
+  inverter_only_category_ids: [2]
+  heat_pump_threshold: -20
+  include_jac_snapshot: true   # свежий снимок обновлённого JAC-скрапера; дедупликация убирает повторы с БД
+  exclude_title_patterns: ["%мульти%", "%виброопор%", "%охладитель воздуха%", "%зимний комплект%", "%зимн%", "%комплект зимний%", "%колонка газовая%", "%водонагреватель проточный%", "%датчик co2%", "%нагревательный элемент%"]
   crimea_warehouse: "Симферополь"
   # Принудительно в фид (минуя наличие БД) — товары под заказ. {nc: {price, series}}; series разводит
   # товары по РАЗНЫМ объявлениям (без series — схлопываются в одну серию).
-  force_include:
-    "НС-1690797": {price: 18990, series: "ACE-07 FH/N6"}     # AC ELECTRIC мобильный 7k
-    "НС-1690798": {price: 19990, series: "ACE-09 FH/N6"}     # AC ELECTRIC мобильный 9k
+  force_include: {}
+  category_labels:
+    2: "Инверторная сплит-система"
+    15: "Увлажнитель воздуха"
+    19: "Тепловентилятор"
+    21: "Электрический конвектор"
+    22: "Масляный обогреватель"
+    24: "Инфракрасный обогреватель"
+    26: "Тепловая пушка"
+    27: "Тепловая завеса"
+    30: "Накопительный водонагреватель"
+    37: "Бризер"
+    40: "Вентиляционная установка"
+    46: "Рекуператор"
+    117: "Отопительный котёл"
+    118: "Радиатор отопления"
+    119: "Тёплый пол"
+  category_tags:
+    2: {ProductType: "Кондиционеры и запчасти", GoodsSubType: "Кондиционеры"}
+    15: {ProductType: "Увлажнители воздуха"}
+    19: {ProductType: "Обогреватели", GoodsSubType: "Тепловентиляторы"}
+    21: {ProductType: "Обогреватели", GoodsSubType: "Электрические обогреватели"}
+    22: {ProductType: "Обогреватели", GoodsSubType: "Электрические обогреватели"}
+    24: {ProductType: "Обогреватели", GoodsSubType: "Электрические обогреватели"}
+    26: {ProductType: "Обогреватели", GoodsSubType: "Тепловые пушки"}
+    27: {ProductType: "Обогреватели", GoodsSubType: "Тепловые завесы"}
+    30: {GoodsType: "Для дома", GoodsSubType: "Водонагреватели"}
+    37: {ProductType: "Вентиляционное оборудование", GoodsSubType: "Приточно-вытяжное оборудование"}
+    40: {ProductType: "Вентиляционное оборудование", GoodsSubType: "Приточно-вытяжное оборудование"}
+    46: {ProductType: "Вентиляционное оборудование", GoodsSubType: "Приточно-вытяжное оборудование"}
+    117: {ProductType: "Обогреватели", GoodsSubType: "Котлы"}
+    118:
+      Category: "Ремонт и строительство"
+      GoodsType: "Камины и обогреватели"
+      GoodsSubType: "Отопительные системы"
+      HeatingType: "Радиаторы отопления и конвекторы"
+      HeatingSubType: "Радиаторы"
+    119: {ProductType: "Обогреватели", GoodsSubType: "Тёплые полы"}
+  heat_pump_tags:
+    ProductType: "Обогреватели"
+    GoodsSubType: "Тепловые насосы"
+  # Масляные радиаторы (22) и накопительные водонагреватели (30) проходят
+  # Контент-завод: без готовой уникальной карточки в кандидат не попадают.
+  supplier_photo_category_ids: [2, 19, 21, 24, 26, 27, 37, 40, 46, 117, 118, 119]
   # Ручное фото для товаров без фото в БД: {nc_code: URL}. Кладём jpg в /static/manual-photos/.
   manual_photos:
     "НС-1763718": "https://splithome.ru/static/manual-photos/tessey.jpg"   # Ballu Tessey DC 7k (rep)
     "НС-1763719": "https://splithome.ru/static/manual-photos/tessey.jpg"   # Ballu Tessey DC 9k
     "НС-1763720": "https://splithome.ru/static/manual-photos/tessey.jpg"   # Ballu Tessey DC 12k
   # Курирование каталога: список серий (key из avito-series-select.xlsx) для публикации. Пусто = все.
-  selected_series:
-    - "rusklimat|ballu|tessey dc"
-    - "daichi|axioma|h"
-    - "daichi|axioma|h инвертор"
-    - "rusklimat|ballu|olympio legend"
-    - "rusklimat|ballu|odyssey dc"
-    - "daichi|daichi|айс"
-    - "daichi|daichi|эйр 2 инвертор"
-    - "breeze|funai|sensei 2.0"
-    - "breeze|funai|kagami"
-    - "breeze|hisense|city 2.0 classic a"
-    - "breeze|hisense|zoom dc inverter wi fi"
-    - "daichi|kentatsu|ичи"
-    - "daichi|midea|изи"
-    - "daichi|midea|изи инвертор"
-    - "breeze|royal clima|gloria"
-    - "breeze|royal clima|perfetto dc eu inverter"
-    - "breeze|royal clima|royal supremo nero full dc eu inverter"
-    - "rusklimat|royal thermo|siena dc"
-    - "breeze|ultima comfort|exceed inverter"
-    - "breeze|ultima comfort|exceed"
-    - "breeze|xigma|sky"
-    - "breeze|xigma|turbocool"
-    - "breeze|xigma|sky inverter"
-    - "breeze|xigma|turbocool inverter"
-    - "rusklimat|ac electric|pro"
-    - "rusklimat|ballu|olympio edge"
-    - "rusklimat|ballu|aura"
-    - "rusklimat|ballu|orbis"
-    - "rusklimat|ballu|odyssey pro dc"
-    - "rusklimat|electrolux|smartline"
-    - "rusklimat|electrolux|smartline dc"
-    - "rusklimat|electrolux|enterprise super dc"
-    - "breeze|funai|shogun"
-    - "breeze|funai|sensei 2.0 inverter"
-    - "breeze|funai|daijin inverter"
-    - "breeze|high life|priority class 2.0"
-    - "breeze|hisense|easy classic a"
-    - "breeze|hisense|v"
-    - "breeze|hisense|zoom 2.0 dc inverter"
-    - "breeze|hisense|neo premium classic a wi fi"
-    - "breeze|hisense|city dc inverter"
-    - "breeze|hisense|city 2.0 dc inverter"
-    - "breeze|hisense|black crystal classic a"
-    - "breeze|hisense|neo classic a"
-    - "breeze|hitachi|shiratama"
-    - "daichi|kentatsu|канами"
-    - "breeze|lg|megacool dual inverter"
-    - "breeze|lg|procool dual inverter"
-    - "breeze|lg|artcool mirror dual inverter"
-    - "daichi|midea|анлимитед"
-    - "daichi|midea|парамаунт"
-    - "daichi|midea|парамаунт инвертор"
-    - "daichi|midea|анлимитед инвертор"
-    - "daichi|midea|персона"
-    - "daichi|midea|персона инвертор wi fi"
-    - "breeze|royal clima|felicita"
-    - "breeze|royal clima|attica nero"
-    - "breeze|royal clima|strada"
-    - "breeze|royal clima|grida dc eu inverter"
-    - "rusklimat|shuft|berg"
-    - "rusklimat|shuft|tor"
-    - "rusklimat|shuft|asgard dc black"
-    - "breeze|ultima comfort|elysium nero"
-    - "breeze|ultima comfort|eclipse"
-    - "breeze|ultima comfort|elysium inverter"
-    - "breeze|ultima comfort|elysium"
-    - "breeze|xigma|jetpro"
+  selected_series: []
 # Уникальные карточки от фотоагента: файл avito-cards/{nc_code}.jpg → берётся вместо фото поставщика.
 # Снимает блок Avito «повторное размещение» по фото (модели серии у поставщика делят одно фото).
 cards:

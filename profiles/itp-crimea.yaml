@@ -1,0 +1,114 @@
+# Candidate profile for the exact I-T-P Crimea warehouse snapshot.
+# Publication is intentionally disabled by catalog.selected_series=__none__.
+# cards_run --all may still send every supplier image to the content factory.
+profile:
+  name: itp_crimea
+  source: itp_snapshot
+  grouping: per_item
+  feed_path: feed_out/itp-crimea-candidate.xml
+  source_options:
+    path: runtime/itp-crimea/latest.json
+    max_age_seconds: 1800
+    max_future_skew_seconds: 300
+    add_vendor_tag: true
+    add_model_tag: true
+    category_tags:
+      "9841":
+        GoodsType: "Для кухни"
+        ProductType: "Холодильники и морозильные камеры"
+        GoodsSubType: "Холодильники"
+      "9948":
+        GoodsType: "Для кухни"
+        ProductType: "Холодильники и морозильные камеры"
+        GoodsSubType: "Холодильники"
+      "9845":
+        GoodsType: "Для кухни"
+        ProductType: "Холодильники и морозильные камеры"
+        GoodsSubType: "Морозильные камеры и лари"
+        ProductSubType: "Ларь"
+      "18028":
+        GoodsType: "Для дома"
+        ProductType: "Стиральные и сушильные машины"
+        GoodsSubType: "Стиральные машины"
+        DeviceWork: "Включается"
+        UsefulLife: "До 3 лет"
+        Warranty: "Действует"
+        CaseFlaws: "Без дефектов"
+      # Electronics taxonomy is kept out of publication until it is checked
+      # against the current Avito Autoload tree. Images are still queued.
+      "10004": {}
+      "10019": {}
+      "10048": {}
+    description_template: |-
+      {name}
+
+      Новый товар в заводской упаковке. Артикул: {part}.
+      Самовывоз в Симферополе или доставка по Крыму.
+      Наличие и комплектацию уточняйте перед заказом.
+
+cities:
+  - id: simferopol
+    name: Симферополь
+    avito_location: Республика Крым, Симферополь
+
+pricing:
+  rounding: none
+  default_markup_pct: 0
+  min_margin_abs: 0
+  rules: []
+
+feed:
+  max_active_ads: 30
+  min_active_ads: 0
+  max_drop_fraction: 1.0
+  # Reuse the nine historical live IDs when these items graduate from the
+  # stock gate to the generated I-T-P profile. This prevents duplicates and
+  # preserves Avito history/favourites.
+  ad_id_anchor:
+    "itp|item|itp:11248716": "manual:catalog-29-WHE6512ZBW"
+    "itp|item|itp:10877814": "manual:catalog-25-WSPE6H612A"
+    "itp|item|itp:9820672": "manual:catalog-10-EWSB_5085"
+    "itp|item|itp:2868405": "manual:catalog-06-DON_R-291_B"
+    "itp|item|itp:9849407": "manual:catalog-11-DON_R-297_B"
+    "itp|item|itp:9973138": "manual:catalog-13-GA-B419SEUL"
+    "itp|item|itp:9811707": "manual:catalog-08-GA-B419SQGL"
+    "itp|item|itp:9991445": "manual:catalog-15-GA-B509CQCL"
+    "itp|item|itp:9732837": "manual:catalog-07-STS_185"
+  overridable_tags: [Category]
+  tag_order:
+    - Category
+    - GoodsType
+    - AdType
+    - Condition
+    - ProductType
+    - GoodsSubCategory
+    - GoodsSubType
+    - ProductSubType
+    - Vendor
+    - Model
+    - DeviceWork
+    - UsefulLife
+    - Warranty
+    - CaseFlaws
+    - ListingFee
+  base_tags:
+    Category: Бытовая техника
+    AdType: Товар приобретен на продажу
+    Condition: Новое
+    ListingFee: Package
+
+content:
+  title_max: 50
+  description_max: 7000
+  description_attr: desc_long
+
+catalog:
+  selected_series: ["__none__"]
+
+cards:
+  enabled: true
+  dir: /opt/oasis/staticfiles/avito-cards
+  base_url: https://splithome.ru/static/avito-cards
+  require_for_publish: true
+  max_images: 10
+  mode: kbt

@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh JAC stock every morning
+
+[Timer]
+OnCalendar=*-*-* 06:30:00
+Persistent=true
+RandomizedDelaySec=3min
+Unit=jac-stock.service
+
+[Install]
+WantedBy=timers.target

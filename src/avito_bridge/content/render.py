@@ -16,6 +16,21 @@ class ContentConfig:
     descriptions: dict = None           # {series_key: готовый текст описания} — переопределяет генерацию
     description_attr: str = ""          # профили с готовыми текстами (ritualb2b: descLong с сайта):
                                         # имя attrs-поля товара с описанием; title = model, генератор не зовётся
+    condition_notice: str = ""          # короткая строка о состоянии в самом начале описания
+
+
+def apply_condition_notice(content: Content, cfg: ContentConfig) -> Content:
+    """Делает состояние видимым в описании, а не только в XML-атрибуте Condition."""
+    notice = (cfg.condition_notice or "").strip()
+    description = (content.description or "").strip()
+    if not notice or description.startswith(notice):
+        return content
+    joined = f"{notice}\n\n{description}" if description else notice
+    return Content(
+        title=content.title,
+        description=joined[: cfg.description_max].strip(),
+        from_cache=content.from_cache,
+    )
 
 
 # Тип по категории каталога.
@@ -39,7 +54,13 @@ def _strip_stopwords(text: str, stop_words: list[str]) -> str:
 
 def _seed(offer: Offer) -> int:
     """Стабильное число из артикула — для детерминированной вариативности текста."""
-    return int(hashlib.sha1(offer.supplier_sku.encode("utf-8")).hexdigest(), 16)
+    return int(
+        hashlib.sha1(
+            offer.supplier_sku.encode("utf-8"),
+            usedforsecurity=False,
+        ).hexdigest(),
+        16,
+    )
 
 
 def _pick(options: list[str], seed: int) -> str:
@@ -72,10 +93,111 @@ def _is_inverter(offer: Offer) -> bool:
     return "инвертор" in nl or "inverter" in nl
 
 
+def _warm_floor_card_brief(group) -> str:
+    """Короткие правдивые ТТХ для категории 119 без кондиционерных BTU."""
+    rep = group.representative
+    attrs = rep.attrs or {}
+    model = (rep.model or "").casefold()
+    if model.startswith("терморегулятор"):
+        type_label = "Терморегулятор для тёплого пола"
+        fields = (
+            ("Вид управления", "Управление", ""),
+            ("Диапазон регулирования температуры", "Диапазон температуры", " °C"),
+            ("Макс. мощность основного прибора", "Максимальная нагрузка", " кВт"),
+            ("Цифровой дисплей", "Цифровой дисплей", ""),
+            ("Wi-Fi модуль", "Wi-Fi", ""),
+            ("Работа с умным домом", "Умный дом", ""),
+        )
+    elif "кабель" in model:
+        type_label = "Нагревательный кабель"
+        fields = (
+            ("Напряжение электропитания, В", "Питание", " В"),
+            ("Вид установки (крепления)", "Монтаж", ""),
+            ("Класс пылевлагозащищенности", "Защита", ""),
+            ("Область применения", "Применение", ""),
+        )
+    else:
+        type_label = "Нагревательный мат для тёплого пола"
+        fields = (
+            ("Макс. площадь обогрева", "Площадь обогрева", " м²"),
+            ("Удельная мощность на метр квадратный", "Удельная мощность", " Вт/м²"),
+            ("Монтаж", "Монтаж", ""),
+            ("Вид напольного покрытия", "Напольное покрытие", ""),
+            ("Терморегулятор", "Терморегулятор", ""),
+            ("Класс пылевлагозащищенности", "Защита", ""),
+            ("Гарантийный срок", "Гарантия", ""),
+        )
+    lines = [f"{group.brand} {group.series}".strip(), type_label]
+    for source, label, suffix in fields:
+        value = str(attrs.get(source) or "").strip()
+        if value:
+            lines.append(f"{label}: {value}{suffix}")
+        if len(lines) >= 6:
+            break
+    return "\n".join(lines)
+
+
+def _equipment_card_brief(group) -> str:
+    """Карточка отопительного/бытового оборудования без кондиционерных полей."""
+    rep = group.representative
+    attrs = rep.attrs or {}
+    label = str(attrs.get("meta:product_label") or "Оборудование").strip()
+    preferred = {
+        22: (
+            "Масляный обогреватель",
+            (
+                (("Макс. потребляемая мощность", "Макс. мощность основного прибора"), "Мощность", " кВт"),
+                (("Эффективен для помещений площадью до", "Макс. площадь обогрева"), "Площадь обогрева", " м²"),
+                (("Количество секций",), "Количество секций", ""),
+                (("Количество режимов нагрева",), "Режимы нагрева", ""),
+                (("Термостат",), "Термостат", ""),
+                (("Защита от перегрева",), "Защита от перегрева", ""),
+            ),
+        ),
+        30: (
+            "Накопительный водонагреватель",
+            (
+                (("Объем внутреннего бака", "Объем бака", "Номинальный объём", "ВНУТРЕННИЙ ОБЪЕМ"), "Объём бака", " л"),
+                (("Макс. потребляемая мощность", "Номинальная мощность", "Мощность ТЭНа", "Ступени мощности нагрева"), "Мощность", " кВт"),
+                (("Время нагрева воды от 10°С до 75°С", "Время нагрева"), "Время нагрева", " мин."),
+                (("Макс. температура воды",), "Температура воды", " °C"),
+                (("Тип нагревательного элемента", "Способ нагрева"), "Нагревательный элемент", ""),
+                (("Вид установки (крепления)", "Вариант размещения"), "Монтаж", ""),
+                (("Гарантия на внутренний бак",), "Гарантия на бак", " мес."),
+                (("Гарантийный срок",), "Гарантия", ""),
+            ),
+        ),
+    }
+    type_label, fields = preferred.get(group.category_id, (label, ()))
+    lines = [f"{group.brand} {group.series}".strip(), type_label]
+    for aliases, field_label, suffix in fields:
+        value = next((str(attrs.get(key) or "").strip() for key in aliases
+                      if str(attrs.get(key) or "").strip()), "")
+        if value:
+            if suffix and not re.search(r"[A-Za-zА-Яа-яЁё°/%]", value):
+                value += suffix
+            lines.append(f"{field_label}: {value}")
+        if len(lines) >= 6:
+            break
+    if len(lines) == 2:
+        for key, value in attrs.items():
+            value = str(value or "").strip()
+            if key in _SKIP_SPECS or key.startswith(("meta:", "avito_tag:")) or not value:
+                continue
+            lines.append(f"{key}: {value}")
+            if len(lines) >= 6:
+                break
+    return "\n".join(lines)
+
+
 def card_brief(group) -> str:
     """ЧИСТЫЙ короткий текст серии для карточки-картинки (фотоагент рисует его на плашках).
     Заменяет сырой ТТХ-дамп: бренд+серия (в model), тип, размерный ряд, площадь, инвертор.
     Только достоверные структурные данные — без кривых полей БД."""
+    if group.category_id == 119:
+        return _warm_floor_card_brief(group)
+    if group.category_id not in {2, 6, 7}:
+        return _equipment_card_brief(group)
     rep = group.representative
     type_label = _TYPE_LABEL.get(group.category_id, "Кондиционер")
     sizes = sorted({s for s in (size_from_btu(m.btu_calc, m.category_id) for m in group.members) if s})
@@ -148,7 +270,7 @@ _CTA = [
 def _spec_lines(attrs: dict) -> list[str]:
     out = []
     for k, v in attrs.items():
-        if k in _SKIP_SPECS:
+        if k in _SKIP_SPECS or k.startswith(("meta:", "avito_tag:")):
             continue
         v = (v or "").replace("( - )", "").replace("()", "").strip()
         if v:
@@ -175,6 +297,42 @@ def _money(p: int) -> str:
     return f"{p:,}".replace(",", " ") + " ₽"
 
 
+def _render_equipment_series(group, prices: dict, cfg: ContentConfig) -> Content:
+    """Нейтральный контент для отопления и вентиляции без AC-обещаний."""
+    rep = group.representative
+    label = (rep.attrs or {}).get("meta:product_label") or "Оборудование"
+    series_disp = re.sub(r"\s*\([^)]*\)", "", group.series).strip() or group.series
+    name = _smart_title(f"{group.brand} {series_disp}".strip())
+    title = _strip_stopwords(
+        _fit_title(label, name, "", cfg.title_max), cfg.stop_words
+    ).strip()
+    rows = []
+    for member in group.members:
+        price = prices.get(member.supplier_sku)
+        if price:
+            rows.append(f"• {member.model} — {_money(price)}")
+    lines = [
+        f"{name} — {label.lower()} в наличии в Симферополе.",
+        "",
+        "Новый товар в заводской упаковке, с официальной гарантией производителя.",
+    ]
+    if rows:
+        heading = "Модели и цены в наличии:" if len(rows) > 1 else "Цена в наличии:"
+        lines += ["", heading] + rows
+    specs = _spec_lines(rep.attrs)
+    if specs:
+        lines += ["", "Характеристики:"] + specs
+    lines += [
+        "",
+        "Самовывоз в Симферополе или доставка по Крыму.",
+        "Поможем подобрать оборудование под помещение и задачу.",
+    ]
+    description = _strip_stopwords(
+        "\n".join(lines), cfg.stop_words
+    )[: cfg.description_max].strip()
+    return Content(title=title, description=description, from_cache=False)
+
+
 # Тип для ШАПКИ объявления: без «Настенная», инвертор — впереди (чтобы не обрезалось на «…инвер»).
 _TYPE_SHORT = {2: "Сплит-система", 6: "Полупромышленный кондиционер", 7: "Мобильный кондиционер"}
 
@@ -196,15 +354,27 @@ def _area_str(sizes: list[int]) -> str:
 
 def _fit_title(header: str, name: str, area: str, maxlen: int) -> str:
     """Собрать шапку ≤ maxlen: с площадью если влезает; иначе без площади; иначе подрезать по слову."""
-    if area and len(f"{header} {name} ({area})") <= maxlen:
-        return f"{header} {name} ({area})"
-    base = f"{header} {name}"
-    if len(base) <= maxlen:
+    limit = max(0, int(maxlen))
+    if limit == 0:
+        return ""
+    header = (header or "").strip()
+    name = (name or "").strip()
+    area = (area or "").strip()
+    with_area = " ".join(part for part in (header, name) if part)
+    if area:
+        with_area = f"{with_area} ({area})".strip()
+    if area and len(with_area) <= limit:
+        return with_area
+    base = " ".join(part for part in (header, name) if part)
+    if len(base) <= limit:
         return base
     words = base.split()
-    while len(words) > 2 and len(" ".join(words)) > maxlen:
+    while len(words) > 1 and len(" ".join(words)) > limit:
         words.pop()
-    return " ".join(words)
+    fitted = " ".join(words)
+    if len(fitted) > limit:
+        fitted = fitted[:limit].rstrip()
+    return fitted
 
 
 def _build_title(group, series_disp: str, inv: bool, sizes: list[int], cfg: ContentConfig) -> str:
@@ -222,10 +392,30 @@ def render_series(group, prices: dict, cfg: ContentConfig) -> Content:
     (только в наличии) + продающий текст. `prices` = {supplier_sku члена: цена}.
     `group` — SeriesGroup (duck-typed: brand, series, category_id, members, representative)."""
     rep = group.representative
+    override = (cfg.descriptions or {}).get(getattr(group, "key", None))
+    if override and cfg.description_attr:
+        # Для per-item профилей готовый текст источника остаётся fallback, но
+        # ручное описание из Studio всегда имеет более высокий приоритет.
+        return Content(
+            title=(rep.model or group.series)[: cfg.title_max],
+            description=override.strip()[: cfg.description_max],
+        )
+    if rep.source == "manual" and (rep.attrs or {}).get("desc_long"):
+        # Fully manual products own their description inside manual_products.
+        # Conditioner profiles have no description_attr, but must not silently
+        # discard the owner's text and fall back to conditioner boilerplate.
+        return Content(
+            title=(rep.model or group.series)[: cfg.title_max],
+            description=rep.attrs["desc_long"].strip()[: cfg.description_max],
+        )
     if cfg.description_attr and (rep.attrs or {}).get(cfg.description_attr):
         # Готовый текст из источника (per_item-профили): кондиционерная генерация не нужна.
         return Content(title=(rep.model or group.series)[: cfg.title_max],
                        description=rep.attrs[cfg.description_attr][: cfg.description_max])
+    if group.category_id not in {2, 6, 7} or (
+        (rep.attrs or {}).get("meta:listing_kind") == "heat_pump"
+    ):
+        return _render_equipment_series(group, prices, cfg)
     seed = _seed(rep)
     type_label = _TYPE_LABEL.get(group.category_id, "Кондиционер")
     inv = _is_inverter(rep)
@@ -255,7 +445,6 @@ def render_series(group, prices: dict, cfg: ContentConfig) -> Content:
     sizes = sorted(by_size)
     title = _build_title(group, series_disp, inv, sizes, cfg)   # шапка: тип+бренд+модель+площадь
 
-    override = (cfg.descriptions or {}).get(getattr(group, "key", None))
     if override:                          # готовый текст (ручной/Codex) + живая таблица цен
         lines = [override.strip()]
         if rows:

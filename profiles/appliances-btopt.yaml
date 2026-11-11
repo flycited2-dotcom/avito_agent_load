@@ -1,0 +1,503 @@
+# Черновой профиль бытовой техники из компактного прайса БытТехОпт.
+# Источник: «Прайс-лист_ОПТ_без фото_остатки» от 28.07.2026.
+# Готовые позиции добавляются в общий фид основного Avito-аккаунта вместе с
+# кондиционерами. Без уникальной карточки в фид не попадёт ни одна позиция.
+
+profile:
+  name: appliances_btopt
+  source: price_xls
+  grouping: per_item
+  feed_path: feed_out/appliances-btopt.xml
+  manual_stop_path: state/manual-stop-main.json
+  source_options:
+    excluded_product_patterns: ['(?i)\bгенератор\b']
+    excluded_device_types: [Генераторы]
+    path: runtime/appliances/current.xlsx
+    layout: btopt_stock
+    section_start: "1. Бытовая техника"
+    section_end: "2.1 Стабилизаторы напряжения"
+    # «Закуп» — опубликованная цена для всех групп. Вторая колонка
+    # «от 100 т.руб/мес» импортируется только для контроля.
+    price_column: purchase
+    exclude_zero_stock: true
+    # Изображения из полного Excel — лишь референсы для контент-завода.
+    # Из фида они исключены require_for_publish: нужна уникальная карточка.
+    supplier_photo_dir: supplier-thumbnails
+    selected_groups:
+      - "Холодильники капельные, Defrost"
+      - "Морозильные лари"
+      - "Инверторные стиральные машины"
+      - "Чайники электрические"
+      - "Блендеры"
+      - "Блендеры настольные(стационарные)"
+      - "Мясорубки"
+      - "Микроволновые печи, СВЧ"
+      - "Кофемашины, кофеварки"
+      - "Кофемолки"
+      - "Утюги"
+      - "Пылесосы"
+      - "Колбовые пылесосы"
+      - "Фены"
+      - "Бритвы"
+      - "Машинки для стрижки"
+      - "Плитки настольные, элеткро, газ, индукция"
+      - "Сушилки для овощей"
+      - "Стабилизаторы напряжения"
+    # Сверено 30.07.2026 с официальным деревом Avito Autoload:
+    # /autoload/v1/user-docs/tree и /node/{slug}/fields.
+    # Уровни нельзя сокращать или переставлять: ProductType,
+    # GoodsSubCategory и ProductSubType в соответствующих ветках обязательны.
+    group_tags:
+      "Холодильники капельные, Defrost":
+        GoodsType: "Для кухни"
+        ProductType: "Холодильники и морозильные камеры"
+        GoodsSubType: "Холодильники"
+        # Shelf/CaseFlaws/InsideFlaws/UsefulLife/Warranty относятся только
+        # к Condition=Б/у и для новых холодильников намеренно не передаются.
+      "Морозильные лари":
+        GoodsType: "Для кухни"
+        ProductType: "Холодильники и морозильные камеры"
+        GoodsSubType: "Морозильные камеры и лари"
+        ProductSubType: "Ларь"
+      "Инверторные стиральные машины":
+        GoodsType: "Для дома"
+        ProductType: "Стиральные и сушильные машины"
+        GoodsSubType: "Стиральные машины"
+        DeviceWork: "Включается"
+        UsefulLife: "До 3 лет"
+        Warranty: "Действует"
+        CaseFlaws: "Без дефектов"
+      "Чайники электрические":
+        GoodsType: "Для кухни"
+        ProductType: "Мелкая кухонная техника"
+        GoodsSubCategory: "Для приготовления напитков"
+        GoodsSubType: "Электрочайники"
+      "Блендеры":
+        GoodsType: "Для кухни"
+        ProductType: "Мелкая кухонная техника"
+        GoodsSubCategory: "Для нарезки и смешивания"
+        GoodsSubType: "Блендеры"
+      "Блендеры настольные(стационарные)":
+        GoodsType: "Для кухни"
+        ProductType: "Мелкая кухонная техника"
+        GoodsSubCategory: "Для нарезки и смешивания"
+        GoodsSubType: "Блендеры"
+        BlenderType: "Стационарный"
+      "Мясорубки":
+        GoodsType: "Для кухни"
+        ProductType: "Мелкая кухонная техника"
+        GoodsSubCategory: "Для нарезки и смешивания"
+      "Микроволновые печи, СВЧ":
+        GoodsType: "Для кухни"
+        ProductType: "Микроволновые печи и запчасти"
+      "Кофемашины, кофеварки":
+        GoodsType: "Для кухни"
+        ProductType: "Мелкая кухонная техника"
+        GoodsSubCategory: "Для приготовления напитков"
+      "Кофемолки":
+        GoodsType: "Для кухни"
+        ProductType: "Мелкая кухонная техника"
+        GoodsSubCategory: "Для нарезки и смешивания"
+        GoodsSubType: "Кофемолки"
+      "Утюги":
+        GoodsType: "Для дома"
+        ProductType: "Гладильное оборудование"
+      "Пылесосы":
+        GoodsType: "Для дома"
+        ProductType: "Пылесосы и запчасти"
+        GoodsSubType: "Пылесосы"
+      "Колбовые пылесосы":
+        GoodsType: "Для дома"
+        ProductType: "Пылесосы и запчасти"
+        GoodsSubType: "Пылесосы"
+        ProductSubType: "Напольные"
+      "Фены":
+        GoodsType: "Для индивидуального ухода"
+        ProductType: "Фены и приборы для укладки"
+        ProductSubType: "Фены классические"
+      "Бритвы":
+        GoodsType: "Для индивидуального ухода"
+        ProductType: "Бритвы и триммеры"
+      "Машинки для стрижки":
+        GoodsType: "Для индивидуального ухода"
+        ProductType: "Машинки для стрижки"
+      "Плитки настольные, элеткро, газ, индукция":
+        GoodsType: "Для кухни"
+        ProductType: "Плиты и духовые шкафы"
+        GoodsSubType: "Настольные плиты"
+      "Сушилки для овощей":
+        GoodsType: "Для кухни"
+        ProductType: "Мелкая кухонная техника"
+        GoodsSubCategory: "Прочая кухонная техника"
+        GoodsSubType: "Сушилки для овощей и фруктов"
+      "Стабилизаторы напряжения":
+        Category: "Ремонт и строительство"
+        GoodsType: "Инструменты"
+        ToolType: "Силовая, строительная техника и комплектующие"
+        ToolSubType: "Устройства электропитания"
+        DeviceType: "Стабилизаторы напряжения"
+    # Значения, которые нельзя честно вывести только из названия группы.
+    # Новая строка без обязательной ручной классификации останавливает сборку,
+    # а не уходит на Avito с догадкой.
+    article_tags:
+      "Ту-00001952": {BlenderType: "Погружной", Vendor: "Centek", Capacity: 1500}
+      "Ту-00001996": {Vendor: "Galaxy", Capacity: 700}
+      "Ту-00002086": {Vendor: "Galaxy", Capacity: 700}
+      "Ту-00001997": {Vendor: "Rondell", Capacity: 1200}
+      "Ту-00002001": {Vendor: "Vitek", Capacity: 600}
+      "Ту-00001143": {GoodsSubType: "Измельчители"}
+      "Ту-00002196": {GoodsSubType: "Кофеварки"}
+      "Ту-00001574": {GoodsSubType: "Кофеварки"}
+    required_tags_by_group:
+      "Холодильники капельные, Defrost": [GoodsType, ProductType, GoodsSubType]
+      "Морозильные лари": [GoodsType, ProductType, GoodsSubType, ProductSubType]
+      "Инверторные стиральные машины": [GoodsType, ProductType, GoodsSubType, Vendor, Model, DeviceWork, UsefulLife, Warranty, CaseFlaws]
+      "Чайники электрические": [GoodsType, ProductType, GoodsSubCategory, GoodsSubType]
+      "Блендеры": [GoodsType, ProductType, GoodsSubCategory, GoodsSubType, BlenderType, Vendor, Capacity]
+      "Блендеры настольные(стационарные)": [GoodsType, ProductType, GoodsSubCategory, GoodsSubType, BlenderType, Vendor, Capacity]
+      "Мясорубки": [GoodsType, ProductType, GoodsSubCategory, GoodsSubType]
+      "Микроволновые печи, СВЧ": [GoodsType, ProductType]
+      "Кофемашины, кофеварки": [GoodsType, ProductType, GoodsSubCategory, GoodsSubType]
+      "Кофемолки": [GoodsType, ProductType, GoodsSubCategory, GoodsSubType]
+      "Утюги": [GoodsType, ProductType]
+      "Пылесосы": [GoodsType, ProductType, GoodsSubType, ProductSubType]
+      "Колбовые пылесосы": [GoodsType, ProductType, GoodsSubType, ProductSubType]
+      "Фены": [GoodsType, ProductType, ProductSubType]
+      "Бритвы": [GoodsType, ProductType]
+      "Машинки для стрижки": [GoodsType, ProductType]
+      "Плитки настольные, элеткро, газ, индукция": [GoodsType, ProductType, GoodsSubType]
+      "Сушилки для овощей": [GoodsType, ProductType, GoodsSubCategory, GoodsSubType]
+      "Стабилизаторы напряжения": [Category, GoodsType, ToolType, ToolSubType, DeviceType]
+    # Эти шесть строк есть в остатках, но пока не имеют готовой карточки либо
+    # (для HOMELINE WMCI 8120) точной модели в обязательном каталоге Avito.
+    # Их нельзя выпускать автоматически до отдельной подготовки.
+    excluded_articles:
+      - "Ту-00002524"
+      - "Ту-00003552"
+      - "Ту-00002936"
+      - "Ту-00003551"
+      - "Ту-00003345"
+      - "Ту-00003933"
+    description_template: |-
+      {model}
+
+      Новый товар в заводской упаковке. Характеристики и комплектацию уточняйте перед заказом.
+      Самовывоз в Симферополе или доставка по Крыму.
+
+cities:
+  - id: simferopol
+    name: Симферополь
+    avito_location: Республика Крым, Симферополь
+
+pricing:
+  rounding: none
+  default_markup_pct: 0
+  min_margin_abs: 0
+  rules:
+    - match: {series: "Стабилизаторы напряжения"}
+      markup_pct: 20
+
+feed:
+  max_active_ads: 70
+  min_active_ads: 1
+  max_drop_fraction: 0.25
+  # Keep the historical Avito IDs of the two archived MBO sets.  The manual
+  # entries combine the separately accounted indoor and outdoor blocks.
+  ad_id_anchor:
+    "manual|item|manual:mbo-07hn1": "pricexls:Ту-00003883"
+    "manual|item|manual:mbo-09hn1": "pricexls:Ту-00003885"
+  overridable_tags: [Category]
+  tag_order:
+    - Category
+    - GoodsType
+    - AdType
+    - Condition
+    - ProductType
+    - GoodsSubCategory
+    - GoodsSubType
+    - ProductSubType
+    - ToolType
+    - ToolSubType
+    - DeviceType
+    - Vendor
+    - Model
+    - BlenderType
+    - Capacity
+    - Shelf
+    - CaseFlaws
+    - InsideFlaws
+    - UsefulLife
+    - Warranty
+    - DeviceWork
+    - ListingFee
+  base_tags:
+    Category: Бытовая техника
+    AdType: Товар приобретен на продажу
+    Condition: Новое
+    # Никогда не списывать деньги с кошелька без отдельного подтверждения.
+    ListingFee: Package
+
+content:
+  title_max: 50
+  description_max: 7000
+  condition_notice: "Состояние: новое. Товар не использовался, в заводской упаковке."
+  descriptions_manifest: avito-descriptions/manifest.json
+  description_attr: desc_long
+
+catalog:
+  manual_products:
+    catalog-29-WHE6512ZBW:
+      brand: Beko
+      title: Стиральная машина Beko WHE6512ZBW
+      series: WHE6512ZBW
+      group: Стиральные машины
+      price: 21732
+      stock: 1
+      photos:
+        - https://splithome.ru/static/avito-cards/catalog-20260902/29_WHE6512ZBW-0a644a615d32.png
+      description: |-
+        Стиральная машина Beko WHE6512ZBW
+
+        Новый товар в заводской упаковке.
+
+        Удобная стиральная машина для регулярного домашнего использования.
+
+        Основные характеристики:
+        • Загрузка 6 кг
+        • Отжим 1000 об/мин
+        • 15 программ
+        • Быстрая стирка
+
+        Артикул: WHE6512ZBW.
+        Цена указана за товар. Наличие, комплектацию и срок поставки уточняйте перед заказом.
+        Самовывоз в Симферополе или доставка по Крыму.
+
+        Напишите — проверим наличие и ответим на вопросы по модели.
+      avito_tags:
+        GoodsType: Для дома
+        ProductType: Стиральные и сушильные машины
+        GoodsSubType: Стиральные машины
+        DeviceWork: Включается
+        UsefulLife: До 3 лет
+        Warranty: Действует
+        CaseFlaws: Без дефектов
+        Vendor: Beko
+        Model: WHE 6512 ZBW
+    homeline-wmbi1014:
+      brand: HOMELINE
+      title: Стиральная машина HOMELINE WMBI 1014 с паром
+      series: WMBI 1014
+      group: Стиральные машины с фронтальной загрузкой
+      price: 36750
+      stock: 1
+      photos:
+        - https://splithome.ru/static/avito-cards/manual__homeline-wmbi1014.png
+      description: |-
+        Новая инверторная стиральная машина с паром для объёмных загрузок и семейной стирки.
+
+        Ключевые характеристики:
+        ✓ Загрузка до 10 кг
+        ✓ Отжим до 1400 об/мин, класс отжима B
+        ✓ Класс энергоэффективности A+++
+        ✓ Паровая обработка Steam и освежение белья
+        ✓ Инверторный двигатель DC Inverter
+        ✓ LED-дисплей
+        ✓ Люк диаметром 300 мм
+        ✓ Размеры (В × Ш × Г): 85 × 59,5 × 60 см
+        ✓ Быстрая стирка 15 минут, деликатная, шерсть и паровая программа
+        ✓ Отсрочка запуска до 24 часов
+        ✓ Контроль баланса
+        ✓ Степень защиты IPX4
+
+        Самовывоз в Симферополе или доставка по Крыму. Наличие, комплектацию и условия гарантии уточняйте перед заказом.
+      avito_tags:
+        GoodsType: Для дома
+        ProductType: Стиральные и сушильные машины
+        GoodsSubType: Стиральные машины
+        Vendor: HOMELINE
+        Model: WMBI1014
+    homeline-wmwi7110:
+      brand: HOMELINE
+      title: Стиральная машина HOMELINE WMWI7110 с паром
+      series: WMWI7110
+      group: Стиральные машины с фронтальной загрузкой
+      price: 21990
+      stock: 1
+      photos:
+        - https://splithome.ru/static/avito-cards/manual__homeline-wmwi7110.png
+      description: |-
+        Новая стиральная машина с паровой обработкой белья.
+
+        Ключевые особенности:
+        ✓ Паровая обработка белья
+        ✓ Загрузка до 7 кг
+        ✓ Отжим до 1200 об/мин
+        ✓ Инверторный двигатель
+        ✓ Класс энергоэффективности A+++
+        ✓ LED-дисплей
+        ✓ Глубина корпуса 44 см
+
+        Самовывоз в Симферополе или доставка по Крыму. Наличие, комплектацию и условия доставки уточняйте перед заказом.
+      avito_tags:
+        GoodsType: Для дома
+        ProductType: Стиральные и сушильные машины
+        GoodsSubType: Стиральные машины
+        Vendor: HOMELINE
+        Model: WMWI7110
+    mbo-07hn1:
+      brand: MBO
+      title: "Сплит-система MBO M-1 07HN1"
+      series: "MBO M-1 07HN1"
+      group: "Бытовые кондиционеры"
+      price: 10590
+      stock: 10
+      photos:
+        - "https://splithome.ru/static/avito-cards/pricexls__%D0%A2%D1%83-00003883.png"
+      description: "Комплект: внутренний блок MBO/in-07HN1 и наружный блок MBO/out-07HN1. Наличие на складе в Симферополе подтверждено владельцем."
+      avito_tags:
+        GoodsType: "Климатическое оборудование"
+        ProductType: "Кондиционеры и запчасти"
+        GoodsSubType: "Кондиционеры"
+    mbo-09hn1:
+      brand: MBO
+      title: "Сплит-система MBO M-1 09HN1"
+      series: "MBO M-1 09HN1"
+      group: "Бытовые кондиционеры"
+      price: 11690
+      stock: 9
+      photos:
+        - "https://splithome.ru/static/avito-cards/pricexls__%D0%A2%D1%83-00003885.png"
+      description: "Комплект: внутренний блок MBO/in-09HN1 и наружный блок MBO/out-09HN1. Наличие на складе в Симферополе подтверждено владельцем."
+      avito_tags:
+        GoodsType: "Климатическое оборудование"
+        ProductType: "Кондиционеры и запчасти"
+        GoodsSubType: "Кондиционеры"
+  # Подтверждённые розничные цены из текущего задания:
+  # Hyundai CH1002 и стабилизатор РЕСАНТА СПН-13500.
+  manual_price_override:
+    "Ту-00000406": 20650
+    "Ту-00001819": 12128
+    "Ту-00003702": 10950
+    "Ту-00002018": 1121
+    "Ту-00001150": 1288
+    "Ту-00001045": 1145
+    "Ту-00001837": 1145
+    "Ту-00001952": 5334
+    "Ту-00001996": 1738
+    "Ту-00002086": 1808
+    "Ту-00001997": 3350
+    "Ту-00002001": 1857
+    "Ту-00001143": 2720
+    "Ту-00002196": 935
+    "Ту-00001574": 1145
+    "Ту-00000692": 898
+    "Ту-00000693": 889
+    "Ту-00000694": 898
+    "Ту-00001554": 830
+    "Ту-00001552": 830
+    "Ту-00001432": 1880
+    "Ту-00001433": 1667
+    "Ту-00000721": 1670
+    "Ту-00000722": 1670
+    "Ту-00000944": 1670
+    "Ту-00002198": 1611
+    "Ту-00002199": 1565
+    "Ту-00002203": 772
+    "Ту-00002202": 725
+    "Ту-00000512": 1165
+    "Ту-00001803": 893
+    "Ту-00001586": 1985
+    "Ту-00000950": 9900
+    "Ту-00002100": 3140
+    "Ту-00002093": 3140
+    "Ту-00000454": 3140
+    "Ту-00002087": 3035
+    "Ту-00002101": 4651
+    "Ту-00000735": 1310
+    "Ту-00000739": 1101
+    "Ту-00002145": 1040
+    "Ту-00000505": 1040
+    "Ту-00002119": 1040
+    "Ту-00002129": 1145
+    "Ту-00002127": 1030
+    "Ту-00002128": 1145
+    "Ту-00002126": 1039
+    "Ту-00002131": 1040
+    "Ту-00000869": 860
+    "Ту-00002175": 2090
+    "Ту-00002178": 620
+    "Ту-00002179": 620
+    "Ту-00002180": 2090
+    "Ту-00002015": 2223
+    "Ту-00002016": 2108
+  # Бытовая техника из прайса. MBO 07/09 исключены по решению владельца.
+  # Whitelist одновременно исключает стабилизаторы и не допускает случайного
+  # расширения портфеля при появлении новых строк в прайсе.
+  selected_series:
+    - "manual|item|manual:catalog-29-WHE6512ZBW"
+    - "manual|item|manual:homeline-wmbi1014"
+    - "manual|item|manual:homeline-wmwi7110"
+    - "price_xls|item|pricexls:Ту-00000406"
+    - "price_xls|item|pricexls:Ту-00001819"
+    - "price_xls|item|pricexls:Ту-00003702"
+    - "price_xls|item|pricexls:Ту-00002018"
+    - "price_xls|item|pricexls:Ту-00001150"
+    - "price_xls|item|pricexls:Ту-00001045"
+    - "price_xls|item|pricexls:Ту-00001837"
+    - "price_xls|item|pricexls:Ту-00001952"
+    - "price_xls|item|pricexls:Ту-00001996"
+    - "price_xls|item|pricexls:Ту-00002086"
+    - "price_xls|item|pricexls:Ту-00001997"
+    - "price_xls|item|pricexls:Ту-00002001"
+    - "price_xls|item|pricexls:Ту-00001143"
+    - "price_xls|item|pricexls:Ту-00002196"
+    - "price_xls|item|pricexls:Ту-00001574"
+    - "price_xls|item|pricexls:Ту-00000692"
+    - "price_xls|item|pricexls:Ту-00000693"
+    - "price_xls|item|pricexls:Ту-00000694"
+    - "price_xls|item|pricexls:Ту-00001554"
+    - "price_xls|item|pricexls:Ту-00001552"
+    - "price_xls|item|pricexls:Ту-00001432"
+    - "price_xls|item|pricexls:Ту-00001433"
+    - "price_xls|item|pricexls:Ту-00000721"
+    - "price_xls|item|pricexls:Ту-00000722"
+    - "price_xls|item|pricexls:Ту-00000944"
+    - "price_xls|item|pricexls:Ту-00002198"
+    - "price_xls|item|pricexls:Ту-00002199"
+    - "price_xls|item|pricexls:Ту-00002203"
+    - "price_xls|item|pricexls:Ту-00002202"
+    - "price_xls|item|pricexls:Ту-00000512"
+    - "price_xls|item|pricexls:Ту-00001803"
+    - "price_xls|item|pricexls:Ту-00001586"
+    - "price_xls|item|pricexls:Ту-00000950"
+    - "price_xls|item|pricexls:Ту-00002100"
+    - "price_xls|item|pricexls:Ту-00002093"
+    - "price_xls|item|pricexls:Ту-00000454"
+    - "price_xls|item|pricexls:Ту-00002087"
+    - "price_xls|item|pricexls:Ту-00002101"
+    - "price_xls|item|pricexls:Ту-00000735"
+    - "price_xls|item|pricexls:Ту-00000739"
+    - "price_xls|item|pricexls:Ту-00002145"
+    - "price_xls|item|pricexls:Ту-00000505"
+    - "price_xls|item|pricexls:Ту-00002119"
+    - "price_xls|item|pricexls:Ту-00002129"
+    - "price_xls|item|pricexls:Ту-00002127"
+    - "price_xls|item|pricexls:Ту-00002128"
+    - "price_xls|item|pricexls:Ту-00002126"
+    - "price_xls|item|pricexls:Ту-00002131"
+    - "price_xls|item|pricexls:Ту-00000869"
+    - "price_xls|item|pricexls:Ту-00002175"
+    - "price_xls|item|pricexls:Ту-00002178"
+    - "price_xls|item|pricexls:Ту-00002179"
+    - "price_xls|item|pricexls:Ту-00002180"
+    - "price_xls|item|pricexls:Ту-00002015"
+    - "price_xls|item|pricexls:Ту-00002016"
+
+cards:
+  enabled: true
+  dir: /opt/oasis/staticfiles/avito-cards
+  base_url: https://splithome.ru/static/avito-cards
+  require_for_publish: true
+  max_images: 10
+  mode: kbt
+  input_dir: runtime/appliances/supplier-thumbnails

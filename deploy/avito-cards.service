@@ -1,0 +1,10 @@
+[Unit]
+Description=Collect and queue Avito content cards
+Wants=network-online.target
+After=network-online.target oasis.service ritualb2b-api.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/avito-bridge
+Environment=PYTHONPATH=/opt/avito-bridge/src
+ExecStart=/opt/avito-bridge/.venv/bin/python -m avito_bridge.cards_run

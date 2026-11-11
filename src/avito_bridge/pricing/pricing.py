@@ -1,26 +1,37 @@
 from __future__ import annotations
-import math
 from dataclasses import dataclass, field
-from decimal import Decimal
+from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
 from avito_bridge.models import Offer, PriceResult
 
 
-def round_up_90(raw: float) -> int:
+def _decimal(raw: Decimal | float | int) -> Decimal:
+    """Convert external numeric values without inheriting binary-float noise."""
+    return raw if isinstance(raw, Decimal) else Decimal(str(raw))
+
+
+def round_up_90(raw: Decimal | float | int) -> int:
     """Округление ВВЕРХ до ближайшего числа, оканчивающегося на …90 (порт marked_price)."""
-    base = (int(raw) // 100) * 100
-    return base + 90 if raw <= base + 90 else base + 190
+    value = _decimal(raw)
+    base = (value / Decimal(100)).to_integral_value(rounding=ROUND_FLOOR) * 100
+    candidate = base + 90
+    return int(candidate if value <= candidate else candidate + 100)
 
 
-def round_up(raw: float, step: int) -> int:
+def round_up(raw: Decimal | float | int, step: int) -> int:
     """Округлить цену вверх до ближайшего положительного шага."""
     if step <= 0:
         raise ValueError("Шаг округления должен быть больше нуля")
-    return int(math.ceil(raw / step) * step)
+    value = _decimal(raw)
+    units = (value / Decimal(step)).to_integral_value(rounding=ROUND_CEILING)
+    return int(units * step)
 
 
-def _rounded_price(raw: float, mode: str) -> int:
+def _rounded_price(raw: Decimal | float | int, mode: str) -> int:
     if mode == "none":
-        return int(raw)
+        # Avito принимает целые рубли. Даже без «маркетингового» округления
+        # округляем рассчитанную цену вверх, иначе int(105.01) незаметно
+        # уменьшает заданную наценку.
+        return int(_decimal(raw).to_integral_value(rounding=ROUND_CEILING))
     if mode == "up_to_10":
         return round_up(raw, 10)
     if mode == "up_to_90":
@@ -38,26 +49,45 @@ class PricingConfig:
     rules: list[dict] = field(default_factory=list)
 
 
-def _markup_for(offer: Offer, cfg: PricingConfig) -> float:
+def _rule_for(offer: Offer, cfg: PricingConfig) -> dict:
     for rule in cfg.rules:
         m = rule.get("match", {})
-        if all(getattr(offer, k, None) == v for k, v in m.items()):
-            return float(rule["markup_pct"])
-    return float(cfg.default_markup_pct)
+        if (all(getattr(offer, k, None) == v for k, v in m.items())
+                and offer.category_id not in rule.get("exclude_category_ids", [])):
+            return rule
+    return {}
+
+
+def _markup_for(offer: Offer, cfg: PricingConfig) -> float:
+    return float(_rule_for(offer, cfg).get("markup_pct", cfg.default_markup_pct))
+
+
+def _post_markup(price: int, pct: Decimal, mode: str) -> int:
+    """Apply an explicit surcharge once, after the usual price rounding."""
+    if not pct.is_finite() or pct < 0:
+        raise ValueError("post_markup_pct must be a finite non-negative number")
+    return _rounded_price(Decimal(price) * (1 + pct / 100), mode) if pct else price
 
 
 def compute_price(offer: Offer, cfg: PricingConfig) -> PriceResult:
+    rule = _rule_for(offer, cfg)
+    post_pct = _decimal(rule.get("post_markup_pct", 0))
     if offer.price_override is not None and offer.price_override > 0:   # ручная цена (force_include)
-        return PriceResult(ok=True, price=int(offer.price_override), markup_pct=0)
+        return PriceResult(ok=True,
+                           price=_post_markup(int(offer.price_override), post_pct, cfg.rounding),
+                           markup_pct=float(post_pct))
     if offer.cost is None or offer.cost <= 0:
         return PriceResult(ok=False, reason="cost<=0 or missing")
     pct = _markup_for(offer, cfg)
-    cost = float(offer.cost)
-    raw = cost * (1 + pct / 100.0)
-    min_margin = float(cfg.min_margin_abs)
+    cost = _decimal(offer.cost)
+    raw = cost * (Decimal(1) + _decimal(pct) / Decimal(100))
+    min_margin = _decimal(cfg.min_margin_abs)
     min_applied = False
     if raw - cost < min_margin:
         raw = cost + min_margin
         min_applied = True
     price = _rounded_price(raw, cfg.rounding)
-    return PriceResult(ok=True, price=price, markup_pct=pct, min_margin_applied=min_applied)
+    price = _post_markup(price, post_pct, cfg.rounding)
+    effective_pct = (1 + _decimal(pct) / 100) * (1 + post_pct / 100) * 100 - 100
+    return PriceResult(ok=True, price=price, markup_pct=float(effective_pct),
+                       min_margin_applied=min_applied)

@@ -1,0 +1,15 @@
+[Unit]
+Description=Synchronize mapped Avito ads with I-T-P Crimea stock
+Wants=network-online.target
+After=network-online.target climat-simf-itp-crimea-snapshot.service
+StartLimitIntervalSec=900
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/avito-bridge
+Environment=PYTHONPATH=/opt/avito-bridge/src
+ExecStart=/usr/bin/flock -w 180 -E 75 /opt/avito-bridge/state/profile-publish.lock /opt/avito-bridge/.venv/bin/python -m avito_bridge.itp_stock_gate --feed /opt/oasis/staticfiles/avito-feed.xml --snapshot runtime/itp-crimea/latest.json --mapping profiles/itp-crimea-stock-map.yaml --templates state/itp-crimea-managed-ads.xml --backup-dir state/itp-stock-backups --manual-stop state/manual-stop-main.json --apply
+TimeoutStartSec=5min
+Restart=on-failure
+RestartSec=30s

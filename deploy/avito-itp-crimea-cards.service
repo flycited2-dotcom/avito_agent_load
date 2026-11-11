@@ -1,0 +1,10 @@
+[Unit]
+Description=Queue and collect I-T-P Crimea product cards
+Wants=network-online.target
+After=network-online.target climat-simf-itp-crimea-snapshot.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/avito-bridge
+Environment=PYTHONPATH=/opt/avito-bridge/src
+ExecStart=/opt/avito-bridge/.venv/bin/python -m avito_bridge.cards_run --config profiles/itp-crimea.yaml --all --state-path state/itp-crimea-card-jobs.db

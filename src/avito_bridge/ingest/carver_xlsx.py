@@ -19,6 +19,7 @@ from avito_bridge.models import Offer
 SHEET_NAME = "Прайс склада"
 FIRST_DATA_ROW = 4
 BRIDGE_ROOT = Path(__file__).resolve().parents[3]
+MAX_WORKBOOK_BYTES = 50 * 1024 * 1024
 
 DEFAULT_DESCRIPTION = (
     "{name}\n\n{characteristics}\n\n"
@@ -35,11 +36,11 @@ def sku_for_model(model: str) -> str:
     return value
 
 
-def resolve_source_path(path: str | Path) -> Path:
+def resolve_source_path(path: str | Path, bridge_root: Path | None = None) -> Path:
     """Resolve a profile path from the bridge checkout, not the launch directory."""
     source = Path(path).expanduser()
     if not source.is_absolute():
-        source = BRIDGE_ROOT / source
+        source = Path(bridge_root) / source if bridge_root else BRIDGE_ROOT / source
     return source.resolve()
 
 
@@ -47,27 +48,40 @@ def _sheet(book):
     return book[SHEET_NAME] if SHEET_NAME in book.sheetnames else book.active
 
 
+def _validated_workbook_path(path: str | Path) -> Path:
+    source = Path(path)
+    if not source.is_file():
+        raise FileNotFoundError(source)
+    if source.stat().st_size > MAX_WORKBOOK_BYTES:
+        raise ValueError("carver_xlsx: файл превышает безопасный предел 50 МБ")
+    return source
+
+
 def parse_carver_xlsx(path: str | Path) -> list[dict]:
     """Читает товарные строки, сохраняя Excel-строку для точной привязки фото."""
-    book = load_workbook(str(path), data_only=True, read_only=False)
-    sheet = _sheet(book)
-    rows: list[dict] = []
-    for row_number in range(FIRST_DATA_ROW, sheet.max_row + 1):
-        model = str(sheet.cell(row_number, 2).value or "").strip()
-        name = str(sheet.cell(row_number, 3).value or "").strip()
-        price_raw = sheet.cell(row_number, 6).value
-        if not model or not name or not isinstance(price_raw, (int, float)) or price_raw <= 0:
-            continue
-        rows.append({
-            "row": row_number,
-            "article": sku_for_model(model),
-            "model": model,
-            "name": name,
-            "characteristics": str(sheet.cell(row_number, 5).value or "").strip(),
-            "price": float(price_raw),
-            "kind": "ats" if model.upper().startswith("ATS") else "generator",
-        })
-    return rows
+    source = _validated_workbook_path(path)
+    book = load_workbook(str(source), data_only=True, read_only=False)
+    try:
+        sheet = _sheet(book)
+        rows: list[dict] = []
+        for row_number in range(FIRST_DATA_ROW, sheet.max_row + 1):
+            model = str(sheet.cell(row_number, 2).value or "").strip()
+            name = str(sheet.cell(row_number, 3).value or "").strip()
+            price_raw = sheet.cell(row_number, 6).value
+            if not model or not name or not isinstance(price_raw, (int, float)) or price_raw <= 0:
+                continue
+            rows.append({
+                "row": row_number,
+                "article": sku_for_model(model),
+                "model": model,
+                "name": name,
+                "characteristics": str(sheet.cell(row_number, 5).value or "").strip(),
+                "price": float(price_raw),
+                "kind": "ats" if model.upper().startswith("ATS") else "generator",
+            })
+        return rows
+    finally:
+        book.close()
 
 
 def extract_embedded_photos(path: str | Path) -> dict[str, bytes]:
@@ -77,22 +91,28 @@ def extract_embedded_photos(path: str | Path) -> dict[str, bytes]:
     в исходном файле часть широких JPEG визуально начинается в C, но относится к
     той же товарной строке.
     """
-    book = load_workbook(str(path), data_only=True, read_only=False)
-    sheet = _sheet(book)
-    article_by_row = {r["row"]: r["article"] for r in parse_carver_xlsx(path)}
-    photos: dict[str, bytes] = {}
-    for image in sheet._images:
-        anchor = getattr(image, "anchor", None)
-        start = getattr(anchor, "_from", None)
-        if start is None:
-            continue
-        article = article_by_row.get(start.row + 1)
-        if not article:
-            continue
-        if article in photos:
-            raise ValueError(f"carver_xlsx: больше одного фото для {article}")
-        photos[article] = image._data()
-    return photos
+    source = _validated_workbook_path(path)
+    book = load_workbook(str(source), data_only=True, read_only=False)
+    try:
+        sheet = _sheet(book)
+        article_by_row = {
+            row["row"]: row["article"] for row in parse_carver_xlsx(source)
+        }
+        photos: dict[str, bytes] = {}
+        for image in sheet._images:
+            anchor = getattr(image, "anchor", None)
+            start = getattr(anchor, "_from", None)
+            if start is None:
+                continue
+            article = article_by_row.get(start.row + 1)
+            if not article:
+                continue
+            if article in photos:
+                raise ValueError(f"carver_xlsx: больше одного фото для {article}")
+            photos[article] = image._data()
+        return photos
+    finally:
+        book.close()
 
 
 def _generator_avito_tags(row: dict) -> dict[str, str]:
@@ -237,7 +257,7 @@ def build_offers(rows: list[dict], opts: dict,
 def fetch_carver_xlsx(cfg: AppConfig) -> list[Offer]:
     opts = cfg.source_options or {}
     configured_path = opts.get("path", "")
-    path = resolve_source_path(configured_path) if configured_path else None
+    path = resolve_source_path(configured_path, cfg.bridge_root) if configured_path else None
     if path is None or not path.exists():
         raise ValueError(f"carver_xlsx: файл прайса не найден: '{configured_path}'")
     return build_offers(

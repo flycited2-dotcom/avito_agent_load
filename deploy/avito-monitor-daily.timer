@@ -1,0 +1,8 @@
+[Unit]
+Description=Daily Avito product report at 09:00 Moscow time
+[Timer]
+OnCalendar=*-*-* 09:00:00 Europe/Moscow
+Persistent=true
+Unit=avito-monitor@daily.service
+[Install]
+WantedBy=timers.target

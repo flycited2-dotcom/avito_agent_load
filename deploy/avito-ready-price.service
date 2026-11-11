@@ -1,0 +1,10 @@
+[Unit]
+Description=Import finished Nikita price and update its owned Avito ads
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/avito-bridge
+Environment=PYTHONPATH=/opt/avito-bridge/src
+ExecStart=/opt/avito-bridge/.venv/bin/python -m avito_bridge.ready_price.server_run

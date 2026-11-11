@@ -1,5 +1,5 @@
 from decimal import Decimal
-from avito_bridge.models import RawProduct, Offer, PriceResult, Content, AdRecord, City
+from avito_bridge.models import RawProduct, Offer, PriceResult, City
 
 
 def test_offer_roundtrip_and_defaults():

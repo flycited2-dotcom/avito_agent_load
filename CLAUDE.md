@@ -20,15 +20,17 @@ python -m avito_bridge                       # один цикл: собрать
 - **Генерация карточек** (мост к фотоагенту, требует FOTOGEN_* в .env):
   `PYTHONPATH=src python -m avito_bridge.cards_run`
 
-## Где это РАБОТАЕТ (важно для ментальной модели)
-- Разработка — локально; **боевой прогон — на VPS 213.109.202.45** (`/opt/avito-bridge`, venv, systemd).
-  Таймеры: `avito-bridge.timer` (сборка фида, ~ежечасно), `avito-cards.timer` (карточки, ~2ч). Фид
-  отдаётся nginx: `/opt/oasis/staticfiles/avito-feed.xml` → `https://splithome.ru/static/avito-feed.xml`.
+## Где это работает (важно для ментальной модели)
+- Разработка и проверка кандидатов выполняются локально. Адреса, ключи и
+  актуальное состояние production находятся в приватном runbook, не в Git.
+- Наличие systemd unit/timer не означает разрешение на его включение. Любой
+  live-прогон и публикация требуют отдельного подтверждения владельца.
 - **БД oasis — read-only** (контейнер на том же VPS). **Фотоагент — на ЛОКАЛЬНОМ ПК** владельца
   (Chrome+веб-ChatGPT), поднимается WatchDog'ом по флагу в очереди. Т.е. фид/цены обновляются без ноута,
   а НОВЫЕ карточки-картинки требуют включённого ноута.
-- **Деплой:** `scp на этом VPS не работает`. Схема: `tar -czf … src config && ssh … 'cat > /tmp/x.tgz' <
-  x.tgz && ssh … 'cd /opt/avito-bridge && tar -xzf /tmp/x.tgz'`. SSH-ключ `~/.ssh/climat_simf_deploy`.
+- **Публикация:** только через `avito_bridge.profile_publish` или Studio.
+  Прямая распаковка поверх checkout и копирование XML в nginx запрещены:
+  они обходят проверку кандидата, lock, backup и rollback.
 
 ## Архитектура (поток данных)
 Один проход = `orchestrator/pipeline.py::run_cycle`:
